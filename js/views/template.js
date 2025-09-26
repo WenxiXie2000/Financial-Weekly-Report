@@ -1,0 +1,61 @@
+import { loadSheet } from "../data-adapter.js";
+
+export async function renderTemplate(mount, { title, sheet }) {
+  const data = await loadSheet(sheet);
+  const h = document.createElement("h2");
+  h.textContent = title;
+  mount.appendChild(h);
+
+  if (Array.isArray(data.series) && data.series.length) {
+    const chartEl = document.createElement("div");
+    chartEl.style.cssText = "height:320px;margin-top:8px";
+    mount.appendChild(chartEl);
+    const ech = echarts.init(chartEl);
+    ech.setOption({
+      tooltip: { trigger: "axis" },
+      legend: { top: 0 },
+      xAxis: { type: "time" },
+      yAxis: { type: "value" },
+      series: data.series.map((s) => ({
+        name: s.name,
+        type: "line",
+        showSymbol: false,
+        data: Array.isArray(s.data)
+          ? s.data.map(([t, v]) => [t, Number(v)])
+          : [],
+      })),
+    });
+    window.addEventListener("resize", () => ech.resize());
+  }
+
+  if (Array.isArray(data.table) && data.table.length) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<div class="card-header">明细（过滤后全列）</div>`;
+    const tbl = document.createElement("table");
+    tbl.style.cssText =
+      "width:100%;border-collapse:collapse;font-size:14px;margin:8px 0";
+    const cols = Object.keys(data.table[0]);
+    tbl.innerHTML = `<thead><tr>${cols
+      .map(
+        (c) =>
+          `<th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">${c}</th>`
+      )
+      .join("")}</tr></thead><tbody></tbody>`;
+    const tb = tbl.querySelector("tbody");
+    data.table.forEach((row) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = cols
+        .map(
+          (k) =>
+            `<td style="padding:6px;border-bottom:1px solid var(--border)">${
+              row[k] ?? "--"
+            }</td>`
+        )
+        .join("");
+      tb.appendChild(tr);
+    });
+    card.appendChild(tbl);
+    mount.appendChild(card);
+  }
+}

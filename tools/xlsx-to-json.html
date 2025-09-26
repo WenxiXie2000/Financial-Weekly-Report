@@ -1,0 +1,1382 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Excel 转 JSON 工具 · 金融市场周报</title>
+  <link rel="stylesheet" href="https://cdn.staticfile.org/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css"
+        onerror="this.onerror=null;this.href='https://cdn.baomitu.com/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css'" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    body {
+      padding: 24px;
+    }
+    .tool-container {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .tool-card {
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+    .step-list {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+    }
+    .result-grid {
+      display: grid;
+      gap: 16px;
+    }
+    .result-item {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      background: var(--card);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .result-item__header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+    }
+    .result-item__meta {
+      font-size: 14px;
+      color: var(--muted);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    textarea.preview {
+      width: 100%;
+      min-height: 160px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 12px;
+      font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+      background: var(--surface);
+      color: var(--text);
+      resize: vertical;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      background: var(--primary);
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(37, 99, 235, 0.18);
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+    .alert {
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.1);
+      color: #b91c1c;
+    }
+  </style>
+  <script src="https://cdn.staticfile.org/xlsx/0.18.5/xlsx.full.min.js"
+          onerror="this.onerror=null;this.src='https://cdn.baomitu.com/xlsx/0.18.5/xlsx.full.min.js'"></script>
+  <script defer src="../js/data-adapter.js"></script>
+</head>
+<body>
+  <main class="tool-container">
+    <header>
+      <h1 class="page-title">Excel 转 JSON 工具</h1>
+      <p class="muted">使用 SheetJS 在浏览器本地解析《周报数据库valuesOnly.xlsx》，并按模块导出网站所需的 JSON 文件。</p>
+    </header>
+
+    <section class="tool-card">
+      <h2>使用步骤</h2>
+      <ol class="step-list">
+        <li>点击下方输入框，选择 <strong>周报数据库valuesOnly.xlsx</strong> 文件。</li>
+        <li>工具会自动读取每个工作表，并按照预设映射命名输出文件。</li>
+        <li>检查每个模块的 JSON 预览，确认结构后点击“下载 JSON”。</li>
+        <li>将下载的文件放入 <code>./data/values-only/</code> 目录，覆盖旧数据即可。</li>
+      </ol>
+      <div style="margin-top: 16px;">
+        <label for="xlsx-input" class="btn">
+          <i class="bi bi-upload"></i>
+          选择 Excel 文件
+        </label>
+        <input id="xlsx-input" type="file" accept=".xlsx,.xls" style="display:none;" />
+      </div>
+    </section>
+
+    <section id="result-area" class="result-grid" aria-live="polite"></section>
+  </main>
+
+  <script type="module">
+    import { SHEET_PROFILES } from '../js/sheet-profiles.js';
+
+    const PROFILES = SHEET_PROFILES || {};
+
+    const pad2 = (value) => String(value).padStart(2, '0');
+
+    const excelSerialToDate = (serial) => {
+      if (typeof serial !== 'number' || Number.isNaN(serial)) return null;
+      if (typeof XLSX !== 'undefined' && XLSX.SSF && XLSX.SSF.parse_date_code) {
+        const parsed = XLSX.SSF.parse_date_code(serial);
+        if (parsed) {
+          const date = new Date(parsed.y, (parsed.m || 1) - 1, parsed.d || 1, parsed.H || 0, parsed.M || 0, parsed.S || 0, parsed.u || 0);
+          date.setHours(0, 0, 0, 0);
+          return date;
+        }
+      }
+      const base = new Date(Date.UTC(1899, 11, 30));
+      const millis = serial * 86400000;
+      const date = new Date(base.getTime() + millis);
+      if (Number.isNaN(date.getTime())) return null;
+      date.setHours(0, 0, 0, 0);
+      return date;
+    };
+
+        function deriveRange(series = []) {
+          let minDate = null;
+          let maxDate = null;
+          series.forEach((item) => {
+            if (!item || !Array.isArray(item.data)) return;
+            item.data.forEach((entry) => {
+              if (!Array.isArray(entry) || entry.length === 0) return;
+              const raw = entry[0];
+              const parsed = toDate(raw) || new Date(raw);
+              if (!parsed || Number.isNaN(parsed.getTime())) return;
+              if (!minDate || parsed < minDate) {
+                minDate = new Date(parsed.getTime());
+              }
+              if (!maxDate || parsed > maxDate) {
+                maxDate = new Date(parsed.getTime());
+              }
+            });
+          });
+          if (!minDate || !maxDate) {
+            return null;
+          }
+          return [toISODateSafe(minDate), toISODateSafe(maxDate)];
+        }
+    const toDate = (value) => {
+      if (value instanceof Date) {
+        const cloned = new Date(value.getTime());
+        cloned.setHours(0, 0, 0, 0);
+        return cloned;
+      }
+      if (typeof value === 'number') {
+        return excelSerialToDate(value);
+      }
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+        const normalized = trimmed.includes('/') ? trimmed : trimmed.replace(/-/g, '/');
+        const date = new Date(normalized);
+        if (Number.isNaN(date.getTime())) return null;
+        date.setHours(0, 0, 0, 0);
+        return date;
+      }
+      return null;
+    };
+
+    const formatDate = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+
+    function toISODateSafe(value) {
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        const year = value.getFullYear();
+        const month = pad2(value.getMonth() + 1);
+        const day = pad2(value.getDate());
+        const hour = pad2(value.getHours());
+        const minute = pad2(value.getMinutes());
+        return value.getHours() || value.getMinutes()
+          ? `${year}-${month}-${day} ${hour}:${minute}`
+          : `${year}-${month}-${day}`;
+      }
+
+      const text = String(value ?? '').trim();
+      if (!text) return '';
+      const normalized = text.replace(/\//g, '-');
+      const parsed = new Date(normalized);
+      if (!Number.isNaN(parsed.getTime())) {
+        const year = parsed.getFullYear();
+        const month = pad2(parsed.getMonth() + 1);
+        const day = pad2(parsed.getDate());
+        const hour = pad2(parsed.getHours());
+        const minute = pad2(parsed.getMinutes());
+        return /:/.test(text)
+          ? `${year}-${month}-${day} ${hour}:${minute}`
+          : `${year}-${month}-${day}`;
+      }
+      return text;
+    }
+
+    const normalizeDateValue = (value) => {
+      const date = toDate(value);
+      if (date) {
+        return { date, display: formatDate(date) };
+      }
+      const display = value == null ? '' : String(value).trim();
+      return { date: null, display };
+    };
+
+    const buildByProfile = (rows, profile = {}, sheetName = '') => {
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return {
+          meta: {
+            timezone: 'Asia/Shanghai',
+            sourceSheet: sheetName,
+            generatedAt: new Date().toISOString(),
+            note: '空数据表',
+          },
+          summary: {},
+          series: [],
+        };
+      }
+
+      const headerRowIndex = Number.isInteger(profile.headerRow)
+        ? Math.max(0, profile.headerRow)
+        : 0;
+      const header = pickHeaderRow(rows, headerRowIndex);
+
+      const matchHeaderIndex = (matcher) => {
+        if (!matcher) return -1;
+        const regex = matcher instanceof RegExp ? matcher : new RegExp(String(matcher));
+        return header.findIndex((cell) => regex.test(String(cell || '').trim()));
+      };
+
+        if (Array.isArray(profile.bondGroups) && profile.bondGroups.length) {
+          const body = rows.slice(headerRowIndex + 1);
+
+          let range = null;
+          if (profile.range === 'prevWeekWorkdays') {
+            range = getPrevWeekWorkdayRange();
+          }
+
+          const inRange = (value) => {
+            if (!range) return true;
+            if (!value) return false;
+            const parsed = new Date(String(value).replace(/-/g, '/'));
+            return !Number.isNaN(parsed.getTime()) && parsed >= range.start && parsed <= range.end;
+          };
+
+          const expandMatcher = (regexTpl, rank) => {
+            if (regexTpl instanceof RegExp) {
+              return new RegExp(regexTpl.source.replace('{R}', String(rank)), regexTpl.flags);
+            }
+            const pattern = String(regexTpl || '').replace('{R}', String(rank));
+            return new RegExp(pattern);
+          };
+
+          const dateIdx = findColIndex(header, profile.dateCol);
+          if (dateIdx < 0) {
+            throw new Error('未找到日期列');
+          }
+
+          const seriesMap = new Map();
+          const sumSizeMap = new Map();
+          const latestBoard = {};
+
+          for (const row of body) {
+            const tRaw = row[dateIdx];
+            if (!tRaw) continue;
+            const isoDate = toISODateSafe(tRaw);
+            if (!isoDate || !inRange(isoDate)) continue;
+
+            if (typeof profile.rowFilter === 'function' && !profile.rowFilter({ date: isoDate })) {
+              continue;
+            }
+
+            for (const group of profile.bondGroups) {
+              if (!group || !Array.isArray(group.rankRange) || group.rankRange.length < 2) continue;
+              const [rankStart, rankEnd] = group.rankRange;
+              const ranks = [];
+
+              for (let rank = rankStart; rank <= rankEnd; rank += 1) {
+                const issuerMatcher = group?.cols?.issuer;
+                const sizeMatcher = group?.cols?.size;
+                const termMatcher = group?.cols?.term;
+                const couponMatcher = group?.cols?.coupon;
+
+                const issuerIdx = issuerMatcher
+                  ? findColIndex(header, expandMatcher(issuerMatcher, rank))
+                  : -1;
+                const sizeIdx = sizeMatcher
+                  ? findColIndex(header, expandMatcher(sizeMatcher, rank))
+                  : -1;
+                const termIdx = termMatcher
+                  ? findColIndex(header, expandMatcher(termMatcher, rank))
+                  : -1;
+                const couponIdx = couponMatcher
+                  ? findColIndex(header, expandMatcher(couponMatcher, rank))
+                  : -1;
+
+                if (issuerIdx < 0 && sizeIdx < 0 && termIdx < 0 && couponIdx < 0) {
+                  continue;
+                }
+
+                const issuer = issuerIdx >= 0 ? row[issuerIdx] : '';
+                const size = sizeIdx >= 0 ? row[sizeIdx] : '';
+                const term = termIdx >= 0 ? row[termIdx] : '';
+                const coupon = couponIdx >= 0 ? row[couponIdx] : '';
+
+                if (
+                  (issuer == null || issuer === '') &&
+                  (size == null || size === '') &&
+                  (term == null || term === '') &&
+                  (coupon == null || coupon === '')
+                ) {
+                  continue;
+                }
+
+                const sizeNum = size !== '' && size != null ? Number(size) : null;
+                const couponNum = coupon !== '' && coupon != null ? Number(coupon) : null;
+
+                ranks.push({
+                  rank,
+                  issuer: issuer ? String(issuer).trim() : '',
+                  size: Number.isFinite(sizeNum) ? sizeNum : null,
+                  term: term ? String(term).trim() : '',
+                  coupon: Number.isFinite(couponNum) ? couponNum : null,
+                });
+              }
+
+              if (!ranks.length) continue;
+
+              const sumSize = ranks.reduce(
+                (acc, item) => acc + (Number.isFinite(item.size) ? item.size : 0),
+                0
+              );
+              if (!sumSizeMap.has(group.key)) {
+                sumSizeMap.set(group.key, []);
+              }
+              sumSizeMap.get(group.key).push([isoDate, String(sumSize)]);
+
+              const coupons = ranks
+                .map((item) => item.coupon)
+                .filter((val) => Number.isFinite(val));
+              if (coupons.length) {
+                const avg = coupons.reduce((acc, val) => acc + val, 0) / coupons.length;
+                if (!seriesMap.has(group.key)) {
+                  seriesMap.set(group.key, { label: group.label, data: [] });
+                }
+                seriesMap.get(group.key).data.push([isoDate, avg.toFixed(4)]);
+              }
+
+              const latest = latestBoard[group.key];
+              const currentDate = new Date(isoDate.replace(/-/g, '/'));
+              if (!Number.isNaN(currentDate.getTime())) {
+                if (!latest || new Date(latest.__date.replace(/-/g, '/')) < currentDate) {
+                  latestBoard[group.key] = {
+                    __date: isoDate,
+                    rows: ranks.map((item) => ({
+                      rank: item.rank,
+                      issuer: item.issuer || '--',
+                      size: Number.isFinite(item.size) ? item.size : null,
+                      term: item.term || '--',
+                      coupon: Number.isFinite(item.coupon)
+                        ? `${item.coupon.toFixed(4)}%`
+                        : '--',
+                    })),
+                  };
+                }
+              }
+            }
+          }
+
+          const seriesEntries = Array.from(seriesMap.entries()).map(([key, payload]) => {
+            const sorted = payload.data.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+            return {
+              key,
+              label: payload.label,
+              data: sorted,
+            };
+          });
+
+          const series = seriesEntries.map((entry) => ({
+            name: `${entry.label} 票面利率(均值)`,
+            data: entry.data,
+          }));
+
+          const summary = {};
+          sumSizeMap.forEach((arr, key) => {
+            if (!Array.isArray(arr) || !arr.length) return;
+            arr.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+            const last = arr[arr.length - 1][1];
+            summary[`${key}_sum_size`] = last;
+          });
+
+          series.forEach((serie) => {
+            if (!Array.isArray(serie.data) || !serie.data.length) return;
+            const baseName = serie.name.replace(/\s*票面利率\(均值\)\s*$/, '').trim();
+            if (!baseName) return;
+            const summaryKeyBase = baseName.replace(/[^A-Za-z0-9\u4e00-\u9fa5]+/g, '');
+            const lastVal = serie.data[serie.data.length - 1][1];
+            if (lastVal == null || lastVal === '') return;
+            const num = Number(lastVal);
+            summary[`${summaryKeyBase}_avg_coupon`] = Number.isFinite(num)
+              ? `${num.toFixed(4)}%`
+              : String(lastVal);
+          });
+
+          const board = {};
+          Object.entries(latestBoard).forEach(([key, value]) => {
+            if (!value || !value.rows) return;
+            board[key] = {
+              date: value.__date,
+              rows: [...value.rows].sort((a, b) => a.rank - b.rank),
+            };
+          });
+
+          const exportInfo = {
+            rows: body.length,
+            last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
+          };
+          const rangePair = deriveRange(series);
+          if (rangePair) {
+            exportInfo.range = rangePair;
+          }
+
+          const meta = {
+            timezone: 'Asia/Shanghai',
+            sourceSheet: sheetName,
+            generatedAt: new Date().toISOString(),
+            unit: profile.unit || {},
+            sourceSheets: [sheetName],
+          };
+
+          return {
+            meta,
+            series,
+            summary,
+            board,
+            export_info: exportInfo,
+          };
+        }
+
+      if (Array.isArray(profile.seriesByDateKey) && profile.seriesByDateKey.length) {
+        const dateIdxMap = Object.entries(profile.dateCols || {}).reduce((acc, [key, matcher]) => {
+          const idx = findColIndex(header, matcher);
+          if (idx >= 0) acc[key] = idx;
+          return acc;
+        }, {});
+
+        const seriesDefs = (profile.seriesByDateKey || [])
+          .map((conf) => ({
+            label: conf.label,
+            summaryKey: conf.summaryKey,
+            dateKey: conf.dateKey,
+            dateIdx: dateIdxMap[conf.dateKey] ?? -1,
+            valIdx: findColIndex(header, conf.close),
+          }))
+          .filter((item) => item.dateIdx >= 0 && item.valIdx >= 0);
+
+        const bodyRows = rows.slice(headerRowIndex + 1);
+        const buckets = new Map(seriesDefs.map((def) => [def.label, []]));
+        const defByLabel = new Map(seriesDefs.map((def) => [def.label, def]));
+
+        const formatSummaryKey = (label) => {
+          const slug = label.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+          return (slug || label.replace(/\s+/g, '').toLowerCase()) + '_rate';
+        };
+
+        const parseRateValue = (value) => {
+          if (value == null || value === '') return null;
+          const text = String(value).trim();
+          const num = text.endsWith('%') ? parseFloat(text.slice(0, -1)) : parseFloat(text);
+          if (Number.isNaN(num)) return null;
+          return num;
+        };
+
+        bodyRows.forEach((row) => {
+          const firstDate = seriesDefs
+            .map((def) => {
+              const raw = row[def.dateIdx];
+              return raw ? toISODateSafe(raw) : '';
+            })
+            .find((val) => val);
+
+          if (typeof profile.rowFilter === 'function' && !profile.rowFilter({ date: firstDate })) {
+            return;
+          }
+
+          seriesDefs.forEach((def) => {
+            const tRaw = row[def.dateIdx];
+            if (!tRaw) return;
+            const t = toISODateSafe(tRaw);
+            if (!t) return;
+            const v = row[def.valIdx];
+            if (v == null || v === '') return;
+            buckets.get(def.label).push([t, String(v)]);
+          });
+        });
+
+        const series = [];
+        const summary = {};
+
+        buckets.forEach((arr, name) => {
+          const def = defByLabel.get(name);
+          if (!Array.isArray(arr) || !arr.length) return;
+          arr.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+          const key = (def && def.summaryKey) || formatSummaryKey(name);
+          const lastRaw = arr[arr.length - 1][1];
+          const rate = parseRateValue(lastRaw);
+          summary[key] = rate == null ? String(lastRaw) : `${rate.toFixed(4)}%`;
+          series.push({ name, data: arr });
+        });
+
+        const rangePair = deriveRange(series);
+        const exportInfo = {
+          rows: bodyRows.length,
+          last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        };
+        if (rangePair) {
+          exportInfo.range = rangePair;
+        }
+
+        const meta = {
+          timezone: 'Asia/Shanghai',
+          sourceSheet: sheetName,
+          generatedAt: new Date().toISOString(),
+          unit: profile.unit || {},
+          sourceSheets: [sheetName],
+        };
+
+        return {
+          meta,
+          summary,
+          series,
+          export_info: exportInfo,
+        };
+      }
+
+      const nonEmptyRows = rows
+        .slice(headerRowIndex + 1)
+        .filter(
+          (row) =>
+            Array.isArray(row) &&
+            row.some((cell) => cell !== undefined && cell !== null && String(cell).trim() !== '')
+        );
+
+      const dateIndexMap = Object.entries(profile.dateCols || {}).reduce(
+        (acc, [key, matcher]) => {
+          const idx = matchHeaderIndex(matcher);
+          if (idx >= 0) acc[key] = idx;
+          return acc;
+        },
+        {}
+      );
+
+      let dateIdx = matchHeaderIndex(profile.dateCol);
+      if (dateIdx === -1) {
+        const firstDateIdx = Object.values(dateIndexMap).find(
+          (idx) => typeof idx === "number" && idx >= 0
+        );
+        if (typeof firstDateIdx === "number") {
+          dateIdx = firstDateIdx;
+        }
+      }
+
+      if (dateIdx === -1) {
+        return {
+          meta: {
+            timezone: 'Asia/Shanghai',
+            sourceSheet: sheetName,
+            generatedAt: new Date().toISOString(),
+            note: '未匹配到日期列',
+          },
+          summary: {},
+          series: [],
+        };
+      }
+
+      const allowNullPoints = Boolean(profile.allowNullPoints);
+
+      const baseSeriesCols = (profile.series || [])
+        .map((conf) => {
+          const closeIdx = matchHeaderIndex(conf.close);
+          const chgIdx = matchHeaderIndex(conf.chgPct);
+          return {
+            label: conf.label,
+            closeIdx,
+            chgIdx,
+          };
+        })
+        .filter((item) => item.closeIdx >= 0 || item.chgIdx >= 0)
+        .map((item) => ({ ...item, dateIdx }));
+
+      const extraSeriesCols = (profile.seriesByDateKey || [])
+        .map((conf) => {
+          const closeIdx = matchHeaderIndex(conf.close);
+          const assignedDateIdx = profile.dateCols
+            ? dateIndexMap[conf.dateKey]
+            : undefined;
+          return {
+            label: conf.label,
+            closeIdx,
+            chgIdx: -1,
+            dateIdx:
+              typeof assignedDateIdx === 'number' && assignedDateIdx >= 0
+                ? assignedDateIdx
+                : -1,
+          };
+        })
+        .filter((item) => item.closeIdx >= 0 && item.dateIdx >= 0);
+
+      const seriesCols = [...baseSeriesCols, ...extraSeriesCols];
+
+      const eventsDefs = (profile.events || [])
+        .map((evt) => {
+          const indices = (evt.cols || []).flatMap((regex) => {
+            const pattern = regex instanceof RegExp ? regex : new RegExp(String(regex));
+            return header.reduce((acc, cell, idx) => {
+              if (pattern.test(String(cell || '').trim())) acc.push(idx);
+              return acc;
+            }, []);
+          });
+          return { region: evt.region, indices };
+        })
+        .filter((evt) => evt.indices.length);
+
+      const kpiCols = (profile.kpis || [])
+        .map((kpi) => ({
+          key: kpi.key,
+          idx: findColIndex(header, kpi.col),
+          type: kpi.type || 'value',
+          allowBlank: Boolean(kpi.allowBlank),
+        }))
+        .filter((kpi) => kpi.key && kpi.idx >= 0);
+
+      let range = null;
+      if (profile.range === 'prevWeekWorkdays') {
+        range = getPrevWeekWorkdayRange();
+      } else if (typeof profile.lastNDays === 'number' && profile.lastNDays > 0) {
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+        const start = new Date(end.getTime() - (profile.lastNDays - 1) * 86400000);
+        start.setHours(0, 0, 0, 0);
+        range = { start, end };
+      }
+
+      const inRange = (value) => {
+        if (!range) return true;
+        const date = value instanceof Date ? value : toDate(value);
+        if (!date) return false;
+        return date >= range.start && date <= range.end;
+      };
+
+      const seriesMap = new Map();
+      const chgMap = new Map();
+      const eventsMap = new Map();
+      const kpiLastValue = new Map();
+
+      nonEmptyRows.forEach((row) => {
+        const dateCache = new Map();
+        const resolveDateInfo = (idx) => {
+          if (typeof idx !== 'number' || idx < 0) {
+            return { display: '', date: null };
+          }
+          if (dateCache.has(idx)) {
+            return dateCache.get(idx);
+          }
+          const info = normalizeDateValue(row[idx]);
+          dateCache.set(idx, info);
+          return info;
+        };
+
+        const primaryInfo = resolveDateInfo(dateIdx);
+        let fallbackInfo = primaryInfo;
+        if (!fallbackInfo.display) {
+          for (const idx of Object.values(dateIndexMap)) {
+            const info = resolveDateInfo(idx);
+            if (info.display) {
+              fallbackInfo = info;
+              break;
+            }
+          }
+        }
+
+        const hasSeriesDate = seriesCols.some((sc) => {
+          const info = resolveDateInfo(sc.dateIdx ?? dateIdx);
+          return info.display;
+        });
+        if (!fallbackInfo.display && !hasSeriesDate) {
+          return;
+        }
+
+        const rowObj = { date: fallbackInfo.display || '' };
+        seriesCols.forEach((sc) => {
+          if (sc.closeIdx >= 0) {
+            rowObj[`${sc.label}_close`] = row[sc.closeIdx];
+          }
+          if (sc.chgIdx >= 0) {
+            rowObj[`${sc.label}_chgPct`] = row[sc.chgIdx];
+          }
+        });
+
+        if (typeof profile.rowFilter === 'function' && !profile.rowFilter(rowObj)) {
+          return;
+        }
+
+        const compareDate =
+          fallbackInfo.date || (fallbackInfo.display ? toDate(fallbackInfo.display) : null);
+        const fallbackInRange = inRange(compareDate || fallbackInfo.display || null);
+        const seriesInRange = seriesCols.some((sc) => {
+          const info = resolveDateInfo(sc.dateIdx ?? dateIdx);
+          if (!info.display) return false;
+          return inRange(info.date || info.display);
+        });
+
+        if (range && !fallbackInRange && !seriesInRange) {
+          return;
+        }
+
+        const shouldProcessKpi = !range || fallbackInRange;
+
+        kpiCols.forEach((kpi) => {
+          if (kpi.idx < 0 || !shouldProcessKpi) return;
+          const raw = row[kpi.idx];
+
+          if (raw == null || raw === '') {
+            if (kpi.allowBlank) {
+              const record = { value: null, date: compareDate || null };
+              const existing = kpiLastValue.get(kpi.key);
+              if (!existing || !existing.date || !record.date || record.date >= existing.date) {
+                kpiLastValue.set(kpi.key, record);
+              }
+            }
+            return;
+          }
+
+          const formatted = kpi.type === 'pct' ? formatPercent4(raw) : String(raw).trim();
+          if (!formatted && kpi.type === 'pct') {
+            return;
+          }
+
+          const value = formatted || null;
+          if (value == null && !kpi.allowBlank) {
+            return;
+          }
+
+          const record = { value, date: compareDate || null };
+          const existing = kpiLastValue.get(kpi.key);
+          if (!existing || !existing.date || !record.date || record.date >= existing.date) {
+            kpiLastValue.set(kpi.key, record);
+          }
+        });
+
+        seriesCols.forEach((sc) => {
+          const info = resolveDateInfo(sc.dateIdx ?? dateIdx);
+          const dateText = info.display;
+          if (!dateText) return;
+
+          const dateValue = info.date || dateText;
+          if (range && !inRange(dateValue)) {
+            return;
+          }
+
+          if (sc.closeIdx >= 0) {
+            const raw = row[sc.closeIdx];
+            if (raw == null || raw === '') {
+              if (allowNullPoints) {
+                if (!seriesMap.has(sc.label)) {
+                  seriesMap.set(sc.label, { name: sc.label, data: [] });
+                }
+                seriesMap.get(sc.label).data.push([dateText, null]);
+              }
+            } else {
+              if (!seriesMap.has(sc.label)) {
+                seriesMap.set(sc.label, { name: sc.label, data: [] });
+              }
+              seriesMap.get(sc.label).data.push([dateText, String(raw)]);
+            }
+          }
+
+          if (sc.chgIdx >= 0) {
+            const value2 = row[sc.chgIdx];
+            const pct = formatPercent4(value2);
+            if (pct) {
+              if (!chgMap.has(sc.label)) {
+                chgMap.set(sc.label, []);
+              }
+              chgMap.get(sc.label).push([dateText, pct]);
+            }
+          }
+        });
+
+        eventsDefs.forEach((evt) => {
+          if (!shouldProcessKpi) return;
+          const values = evt.indices
+            .map((idx) => row[idx])
+            .filter((cell) => cell != null && String(cell).trim() !== '');
+          if (!values.length) return;
+          if (!eventsMap.has(evt.region)) {
+            eventsMap.set(evt.region, []);
+          }
+          eventsMap.get(evt.region).push({
+            date: fallbackInfo.display || '',
+            items: values.map((value) => String(value).trim()),
+          });
+        });
+      });
+
+      const sortPairsByDate = (pairs) =>
+        pairs.sort((a, b) => {
+          const da = toDate(a[0]) || new Date(a[0]);
+          const db = toDate(b[0]) || new Date(b[0]);
+          return da - db;
+        });
+
+      seriesMap.forEach((serie) => {
+        serie.data = sortPairsByDate(serie.data);
+      });
+      chgMap.forEach((pairs, label) => {
+        chgMap.set(label, sortPairsByDate(pairs));
+      });
+
+      const summary = {};
+      seriesCols.forEach((sc) => {
+        const closeSerie = seriesMap.get(sc.label);
+        if (!closeSerie || !closeSerie.data.length) return;
+        const lastClose = closeSerie.data[closeSerie.data.length - 1][1];
+        if (lastClose == null || lastClose === '') return;
+        const changeSerie = chgMap.get(sc.label);
+        const lastChange = changeSerie && changeSerie.length ? changeSerie[changeSerie.length - 1][1] : null;
+        summary[sc.label] = lastChange ? `${lastClose} (${lastChange})` : String(lastClose);
+      });
+
+      kpiLastValue.forEach((detail, key) => {
+        summary[key] = detail?.value ?? summary[key];
+      });
+
+      const changeSeries = Array.from(chgMap.entries()).map(([label, data]) => ({
+        name: `${label} 涨跌幅`,
+        data,
+        unit: '%',
+      }));
+
+      const events = {};
+      eventsMap.forEach((entries, region) => {
+        events[region] = entries;
+      });
+
+      const meta = {
+        timezone: 'Asia/Shanghai',
+        sourceSheet: sheetName,
+        generatedAt: new Date().toISOString(),
+        unit: profile.unit || {},
+        sourceSheets: [sheetName],
+      };
+
+      if (range) {
+        meta.rangeStart = formatDate(range.start);
+        meta.rangeEnd = formatDate(range.end);
+        const suffix = profile.range === 'prevWeekWorkdays' ? '（上一周工作日）' : '';
+        meta.rangeLabel = `${meta.rangeStart} ~ ${meta.rangeEnd}${suffix}`;
+      }
+
+      if (!seriesMap.size && !Object.keys(summary).length) {
+        meta.note = meta.note || '未匹配到有效的系列数据';
+      }
+
+      const result = {
+        meta,
+        summary,
+        series: Array.from(seriesMap.values()),
+      };
+
+      const exportInfo = {
+        rows: nonEmptyRows.length,
+        last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      };
+      const overallRange = deriveRange(result.series);
+      if (overallRange) {
+        exportInfo.range = overallRange;
+      }
+      result.export_info = exportInfo;
+
+      if (changeSeries.length) {
+        result.changeSeries = changeSeries;
+      }
+      if (Object.keys(events).length) {
+        result.events = events;
+      }
+
+      return result;
+    };
+    const SHEET_TO_FILE = {
+      '国内股市': 'equity_cn.json',
+      '全球股市': 'equity_global.json',
+      '人民币汇率': 'cny_fx.json',
+      '公开市场': 'open_market.json',
+      '公开市场货币': 'open_market.json',
+      'Shibor利率': 'open_market.json',
+      '债券利率': 'bond_yield.json',
+      '集团上市公司': 'group_listed.json',
+      '国能上市公司': 'group_listed.json',
+      '财经资讯': 'news.json',
+    };
+
+    const SHEET_MAPPING = {
+      ...SHEET_TO_FILE,
+      ...((window.dataAdapter && window.dataAdapter.SHEET_TO_FILE) || {}),
+    };
+
+    const KEYWORDS = {
+      date: ['日期', 'date', '时间', 'time'],
+      value: ['数值', 'value', '值', 'price', 'close'],
+      series: ['系列', 'series', '名称', 'name'],
+    };
+
+    // === Header 行索引：允许表头不在第一行 ===
+    function pickHeaderRow(rows, headerRowIndex = 0) {
+      const idx = Math.max(0, Number(headerRowIndex) || 0);
+      return (rows[idx] || []).map((x) => String(x || '').trim());
+    }
+
+    // === 计算“上一周工作日”区间（周一~周五，以本地时区/Asia/Shanghai）===
+    function getPrevWeekWorkdayRange() {
+      const today = new Date();
+      const day = today.getDay();
+      const thisMonday = new Date(today);
+      const diffToMonday = (day + 6) % 7;
+      thisMonday.setDate(today.getDate() - diffToMonday);
+      const prevMonday = new Date(thisMonday);
+      prevMonday.setDate(thisMonday.getDate() - 7);
+      const prevFriday = new Date(prevMonday);
+      prevFriday.setDate(prevMonday.getDate() + 4);
+      prevMonday.setHours(0, 0, 0, 0);
+      prevFriday.setHours(23, 59, 59, 999);
+      return { start: prevMonday, end: prevFriday };
+    }
+
+    // === 工作日判定（周一到周五）===
+    function isWeekday(dateObj) {
+      const d = dateObj.getDay();
+      return d >= 1 && d <= 5;
+    }
+
+    // === 百分比格式化为“xx.xxxx%” (四位小数)；兼容 "0.1234" 或 "12.34%" 或 "12.34" ===
+    function formatPercent4(val) {
+      if (val == null || val === '') return null;
+      const s = String(val).trim();
+      const num = s.endsWith('%') ? parseFloat(s.slice(0, -1)) : parseFloat(s);
+      if (Number.isNaN(num)) return null;
+      const normalized = Math.abs(num) <= 1 && !s.endsWith('%') ? num * 100 : num;
+      return `${normalized.toFixed(4)}%`;
+    }
+
+    function findColIndex(header, matcher) {
+      if (!Array.isArray(header)) return -1;
+      if (typeof matcher === 'string') {
+        return header.findIndex((cell) => cell === matcher);
+      }
+      if (matcher instanceof RegExp) {
+        return header.findIndex((cell) => matcher.test(cell));
+      }
+      return -1;
+    }
+
+    const findColumnIndex = (headers, keywords) => {
+      const lowerHeaders = headers.map((h) => String(h || '').trim().toLowerCase());
+      for (const keyword of keywords) {
+        const idx = lowerHeaders.indexOf(keyword.toLowerCase());
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    };
+
+    const extractSummaryRows = (rows) => {
+      const summary = {};
+      for (const row of rows) {
+        if (!row || row.length === 0) continue;
+        const [key, value] = row;
+        if (!key || value === undefined || value === null) continue;
+        summary[String(key).trim()] = typeof value === 'number' ? value : String(value).trim();
+      }
+      return summary;
+    };
+
+    const parseSeriesRows = (rows, headerRow) => {
+      const headers = headerRow.map((cell) => String(cell || '').trim());
+      const dateIdx = findColumnIndex(headers, KEYWORDS.date);
+      const valueIdx = findColumnIndex(headers, KEYWORDS.value);
+      const seriesIdx = findColumnIndex(headers, KEYWORDS.series);
+
+      if (dateIdx === -1 || valueIdx === -1) {
+        return { series: [], note: '未识别到“日期/数值”列，请检查表头。' };
+      }
+
+      const seriesMap = new Map();
+      rows.forEach((row) => {
+        if (!row) return;
+        const date = row[dateIdx];
+        const value = row[valueIdx];
+        if (date === undefined || value === undefined) return;
+        const seriesName = seriesIdx >= 0 ? row[seriesIdx] || '默认系列' : '默认系列';
+        if (!seriesMap.has(seriesName)) {
+          seriesMap.set(seriesName, []);
+        }
+        seriesMap.get(seriesName).push([String(date).trim(), String(value).trim()]);
+      });
+
+      const series = Array.from(seriesMap.entries()).map(([name, data]) => ({ name, data }));
+      return { series, note: null };
+    };
+
+    const convertWorksheet = (sheetName, sheet) => {
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
+      const baseMeta = {
+        timezone: 'Asia/Shanghai',
+        sourceSheet: sheetName,
+        generatedAt: new Date().toISOString(),
+      };
+
+      if (!rows.length) {
+        return {
+          meta: { ...baseMeta, note: '空工作表' },
+          summary: {},
+          series: [],
+          note: '该工作表为空。',
+        };
+      }
+
+      const profile = PROFILES[sheetName];
+      if (profile) {
+        return buildByProfile(rows, profile, sheetName);
+      }
+
+      const headerIndex = rows.findIndex((row) => {
+        if (!row) return false;
+        const normalized = row.map((cell) => String(cell || '').trim().toLowerCase());
+        const hasDate = KEYWORDS.date.some((key) => normalized.includes(key.toLowerCase()));
+        const hasValue = KEYWORDS.value.some((key) => normalized.includes(key.toLowerCase()));
+        return hasDate && hasValue;
+      });
+
+      let summaryRows = [];
+      let dataRows = [];
+      let headerRow = [];
+
+      if (headerIndex >= 0) {
+        summaryRows = rows.slice(0, headerIndex).filter((row) => row.length >= 2);
+        headerRow = rows[headerIndex];
+        dataRows = rows
+          .slice(headerIndex + 1)
+          .filter((row) => row && row.some((cell) => cell !== undefined && cell !== null && cell !== ''));
+      } else {
+        summaryRows = rows.filter((row) => row.length >= 2);
+      }
+
+      const summary = extractSummaryRows(summaryRows);
+      const { series, note } = headerRow.length
+        ? parseSeriesRows(dataRows, headerRow)
+        : { series: [], note: '未找到包含日期/数值的表头，请确认格式。' };
+
+      const unitEntry = Object.entries(summary).find(([key]) => /单位|unit/i.test(key));
+      const meta = {
+        ...baseMeta,
+        unit: unitEntry ? String(unitEntry[1]) : '',
+        sourceSheets: [sheetName],
+      };
+
+      const exportInfo = {
+        rows: dataRows.length,
+        last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      };
+      const rangePair = deriveRange(series);
+      if (rangePair) {
+        exportInfo.range = rangePair;
+      }
+
+      return { summary, series, meta, note, export_info: exportInfo };
+    };
+
+    const createResultCard = ({ title, fileName, data }) => {
+      const container = document.createElement('article');
+      container.className = 'result-item';
+
+      const header = document.createElement('div');
+      header.className = 'result-item__header';
+      const displayTitle = title || fileName;
+      const seriesCount = Array.isArray(data?.series) ? data.series.length : 0;
+      const summaryCount = data?.summary ? Object.keys(data.summary).length : 0;
+      const sources = Array.isArray(data?.meta?.sourceSheets)
+        ? data.meta.sourceSheets.join('、')
+        : data?.meta?.sourceSheet || '';
+      const metaItems = [
+        `输出文件：<code>${fileName}</code>`,
+        `系列数量：${seriesCount}`,
+        `摘要指标：${summaryCount}`,
+      ];
+      if (sources) {
+        metaItems.push(`来源表：${sources}`);
+      }
+      header.innerHTML = `
+        <div>
+          <h3 style="margin:0;">${displayTitle}</h3>
+          <div class="result-item__meta">
+            ${metaItems.map((item) => `<span>${item}</span>`).join('')}
+          </div>
+        </div>
+      `;
+
+      const actionGroup = document.createElement('div');
+      const previewButton = document.createElement('button');
+      previewButton.className = 'btn btn-secondary';
+      previewButton.type = 'button';
+      previewButton.innerHTML = '<i class="bi bi-eye"></i>预览 JSON';
+
+      const downloadButton = document.createElement('button');
+      downloadButton.className = 'btn';
+      downloadButton.type = 'button';
+      downloadButton.innerHTML = '<i class="bi bi-download"></i>下载 JSON';
+
+      actionGroup.append(previewButton, downloadButton);
+      header.append(actionGroup);
+      container.append(header);
+
+      if (data && data.note) {
+        const note = document.createElement('div');
+        note.className = 'alert';
+        note.textContent = data.note;
+        container.append(note);
+      }
+
+      const preview = document.createElement('textarea');
+      preview.className = 'preview';
+      preview.setAttribute('readonly', 'readonly');
+      preview.style.display = 'none';
+  preview.value = JSON.stringify(data ?? {}, null, 2);
+      container.append(preview);
+
+      previewButton.addEventListener('click', () => {
+        const visible = preview.style.display === 'block';
+        preview.style.display = visible ? 'none' : 'block';
+        previewButton.innerHTML = visible
+          ? '<i class="bi bi-eye"></i>预览 JSON'
+          : '<i class="bi bi-eye-slash"></i>收起预览';
+      });
+
+      downloadButton.addEventListener('click', () => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      });
+
+      return container;
+    };
+
+    const renderResults = (results) => {
+      const resultArea = document.getElementById('result-area');
+      resultArea.innerHTML = '';
+
+      if (!results.length) {
+        const empty = document.createElement('div');
+        empty.className = 'alert';
+        empty.textContent = '未找到可解析的工作表，请确认 Excel 文件的 Sheet 名称。';
+        resultArea.append(empty);
+        return;
+      }
+
+      results.forEach((item) => {
+        const card = createResultCard(item);
+        resultArea.append(card);
+      });
+    };
+
+    const handleFile = async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const outputsByFile = new Map();
+
+      const mergeOutput = (fileName, partialJson, sheetName) => {
+        if (!partialJson) return;
+        const cloned = JSON.parse(JSON.stringify(partialJson));
+        cloned.meta = cloned.meta || {};
+        const sourceSet = new Set();
+        if (Array.isArray(cloned.meta.sourceSheets)) {
+          cloned.meta.sourceSheets.forEach((s) => s && sourceSet.add(s));
+        }
+        if (cloned.meta.sourceSheet) {
+          sourceSet.add(cloned.meta.sourceSheet);
+        }
+        if (sheetName) {
+          sourceSet.add(sheetName);
+        }
+        cloned.meta.sourceSheets = Array.from(sourceSet);
+        if (!cloned.export_info) {
+          cloned.export_info = {};
+        }
+
+        if (!outputsByFile.has(fileName)) {
+          outputsByFile.set(fileName, cloned);
+          return;
+        }
+
+        const prev = outputsByFile.get(fileName);
+        prev.meta = prev.meta || {};
+        const prevSources = new Set(Array.isArray(prev.meta.sourceSheets) ? prev.meta.sourceSheets : []);
+        cloned.meta.sourceSheets.forEach((s) => s && prevSources.add(s));
+        prev.meta.sourceSheets = Array.from(prevSources);
+        prev.meta.unit = { ...(cloned.meta.unit || {}), ...(prev.meta.unit || {}) };
+
+        prev.series = Array.isArray(prev.series) ? prev.series : [];
+        const seriesMap = new Map(prev.series.map((serie) => [serie.name, serie]));
+        (cloned.series || []).forEach((serie) => {
+          if (!serie || !serie.name) return;
+          const incoming = Array.isArray(serie.data) ? serie.data : [];
+          if (seriesMap.has(serie.name)) {
+            const target = seriesMap.get(serie.name);
+            const merged = [
+              ...((Array.isArray(target.data) ? target.data : [])),
+              ...incoming,
+            ].sort((a, b) => new Date(a[0]) - new Date(b[0]));
+            const deduped = [];
+            merged.forEach((point) => {
+              if (!Array.isArray(point) || point.length < 2) return;
+              const last = deduped[deduped.length - 1];
+              if (last && last[0] === point[0]) {
+                deduped[deduped.length - 1] = point;
+              } else {
+                deduped.push(point);
+              }
+            });
+            target.data = deduped;
+          } else {
+            const cloneSerie = JSON.parse(JSON.stringify(serie));
+            prev.series.push(cloneSerie);
+            seriesMap.set(cloneSerie.name, cloneSerie);
+          }
+        });
+
+        if (Array.isArray(cloned.changeSeries) && cloned.changeSeries.length) {
+          prev.changeSeries = Array.isArray(prev.changeSeries) ? prev.changeSeries : [];
+          const changeMap = new Map(prev.changeSeries.map((serie) => [serie.name, serie]));
+          cloned.changeSeries.forEach((serie) => {
+            if (!serie || !serie.name) return;
+            const incoming = Array.isArray(serie.data) ? serie.data : [];
+            if (changeMap.has(serie.name)) {
+              const target = changeMap.get(serie.name);
+              const merged = [
+                ...((Array.isArray(target.data) ? target.data : [])),
+                ...incoming,
+              ].sort((a, b) => new Date(a[0]) - new Date(b[0]));
+              const deduped = [];
+              merged.forEach((point) => {
+                if (!Array.isArray(point) || point.length < 2) return;
+                const last = deduped[deduped.length - 1];
+                if (last && last[0] === point[0]) {
+                  deduped[deduped.length - 1] = point;
+                } else {
+                  deduped.push(point);
+                }
+              });
+              target.data = deduped;
+            } else {
+              const cloneSerie = JSON.parse(JSON.stringify(serie));
+              prev.changeSeries.push(cloneSerie);
+              changeMap.set(cloneSerie.name, cloneSerie);
+            }
+          });
+        }
+
+        if (cloned.events) {
+          prev.events = prev.events || {};
+          Object.entries(cloned.events).forEach(([region, entries]) => {
+            if (!Array.isArray(entries) || !entries.length) return;
+            if (!Array.isArray(prev.events[region])) {
+              prev.events[region] = [];
+            }
+            prev.events[region] = prev.events[region].concat(entries);
+          });
+        }
+
+        prev.summary = Object.assign({}, prev.summary || {}, cloned.summary || {});
+
+        prev.export_info = prev.export_info || {};
+        if (cloned.export_info) {
+          const r1 = prev.export_info.range;
+          const r2 = cloned.export_info.range;
+          if (r1 || r2) {
+            const all = [];
+            if (Array.isArray(r1)) {
+              if (r1[0]) all.push(r1[0]);
+              if (r1[1]) all.push(r1[1]);
+            }
+            if (Array.isArray(r2)) {
+              if (r2[0]) all.push(r2[0]);
+              if (r2[1]) all.push(r2[1]);
+            }
+            all.sort((a, b) => new Date(a) - new Date(b));
+            if (all.length) {
+              prev.export_info.range = [all[0], all[all.length - 1]];
+            }
+          }
+
+          if (cloned.export_info.last_updated) {
+            const normalizeTime = (value) => {
+              if (!value) return null;
+              const formatted = value.includes('T') ? value : value.replace(' ', 'T');
+              const parsed = new Date(formatted);
+              return Number.isNaN(parsed.getTime()) ? null : parsed;
+            };
+            const prevTime = normalizeTime(prev.export_info.last_updated);
+            const nextTime = normalizeTime(cloned.export_info.last_updated);
+            if (!prevTime || (nextTime && nextTime > prevTime)) {
+              prev.export_info.last_updated = cloned.export_info.last_updated;
+            }
+          }
+
+          if (typeof cloned.export_info.rows === 'number') {
+            const prevRows = typeof prev.export_info.rows === 'number' ? prev.export_info.rows : 0;
+            prev.export_info.rows = prevRows + cloned.export_info.rows;
+          }
+        }
+
+        outputsByFile.set(fileName, prev);
+      };
+
+      workbook.SheetNames.forEach((sheetName) => {
+        const fileName = SHEET_MAPPING[sheetName];
+        if (!fileName) return;
+        const sheet = workbook.Sheets[sheetName];
+        const payload = convertWorksheet(sheetName, sheet);
+        mergeOutput(fileName, payload, sheetName);
+      });
+
+      const aggregated = Array.from(outputsByFile.entries()).map(([fileName, data]) => {
+        const sources = Array.isArray(data?.meta?.sourceSheets) ? data.meta.sourceSheets : [];
+        const title = sources.length ? sources.join(' + ') : data?.meta?.sourceSheet || fileName;
+        return { title, fileName, data };
+      });
+
+      renderResults(aggregated);
+    };
+
+    document.getElementById('xlsx-input').addEventListener('change', handleFile);
+  </script>
+</body>
+</html>

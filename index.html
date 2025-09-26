@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>金融市场周报</title>
+  <meta name="description" content="提供专业、清晰、可交互的金融市场周报数据展示。" />
+
+  <script>
+    (() => {
+      try {
+        const saved = localStorage.getItem('theme');
+        if (saved) {
+          document.documentElement.setAttribute('data-theme', saved);
+        }
+      } catch (err) {
+        console.warn('无法读取主题配置', err);
+      }
+    })();
+  </script>
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet"
+        href="https://cdn.staticfile.org/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css"
+        onerror="this.onerror=null;this.href='https://cdn.baomitu.com/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css'" />
+
+  <!-- ECharts -->
+  <script src="https://cdn.staticfile.org/echarts/5.4.3/echarts.min.js"
+          onerror="this.onerror=null;this.src='https://cdn.baomitu.com/echarts/5.4.3/echarts.min.js'"></script>
+
+  <!-- 全局样式 -->
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <noscript>
+    <div class="noscript">当前页面需要启用 JavaScript 才能正常访问。</div>
+  </noscript>
+
+  <div id="header-container" data-component="header"></div>
+
+  <div class="layout">
+    <aside id="sidebar-container" class="sidebar-host" data-component="sidebar"></aside>
+    <main id="main-content" class="main-content" aria-live="polite"></main>
+  </div>
+
+  <div id="footer-container" data-component="footer"></div>
+
+  <script src="./js/load-components.js"></script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
