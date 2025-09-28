@@ -1,89 +1,245 @@
 import { loadSheet } from "../data-adapter.js";
-import { asPercent } from "../utils.js";
+import { percentAxisLabel } from "../utils.js";
+
+const CURRENCIES = [
+  { id: "USDCNY", label: "美元", keyword: "人民币兑美元" },
+  { id: "CNHUSD", label: "离岸美元", keyword: "离岸人民币兑美元", noMid: true },
+  { id: "EURCNY", label: "欧元", keyword: "人民币兑欧元" },
+  { id: "JPY100CNY", label: "100日元", keyword: "人民币兑100日元" },
+  { id: "AUDCNY", label: "澳元", keyword: "人民币兑澳元" },
+];
+
+function metricSuffix(key) {
+  switch (key) {
+    case "rate":
+      return "汇率";
+    case "chg":
+      return "涨跌幅";
+    case "mid":
+      return "央行中间价";
+    case "mid_chg":
+      return "央行中间价调整情况";
+    default:
+      return "";
+  }
+}
+
+function pickSeries(data, currencyKw, metricKey) {
+  if (!Array.isArray(data.series)) return null;
+  const suffix = metricSuffix(metricKey);
+  if (!suffix) return null;
+  const series = data.series.find(
+    (item) =>
+      typeof item.name === "string" &&
+      item.name.includes(currencyKw) &&
+      item.name.includes(suffix)
+  );
+  if (!series) return null;
+  const points = Array.isArray(series.data)
+    ? series.data.map(([t, v]) => [t, v == null ? null : Number(v)])
+    : [];
+  return { name: series.name, points };
+}
+
+function buildSeriesFromTable(data, currencyKw, metricKey) {
+  const table = data.table;
+  if (!Array.isArray(table) || !table.length) return null;
+
+  const cols = Object.keys(table[0]);
+  const dateCol = cols.includes("日期") ? "日期" : cols[0];
+  const metricKw =
+    metricKey === "rate"
+      ? "汇率"
+      : metricKey === "chg"
+      ? "涨跌幅"
+      : metricKey === "mid"
+      ? "中间价"
+      : "中间价调整";
+  const col = cols.find((c) => c.includes(currencyKw) && c.includes(metricKw));
+  if (!col) return null;
+
+  const points = table
+    .filter((row) => row[dateCol])
+    .map((row) => {
+      const raw = row[col];
+      if (raw == null || raw === "") return [row[dateCol], null];
+      let value = raw;
+      if (metricKey === "chg" || metricKey === "mid_chg") {
+        if (typeof value === "string" && value.endsWith("%")) {
+          value = value.slice(0, -1);
+        }
+      }
+      const num = Number(value);
+      return [row[dateCol], Number.isNaN(num) ? null : num];
+    });
+
+  return { name: `${currencyKw}${metricKw}`, points };
+}
+
+function sliceLastWeekdays(points, maxDays = 7) {
+  const arr = (points || [])
+    .filter(([t]) => t)
+    .map(([t, v]) => [new Date(String(t).replace(/-/g, "/")).getTime(), v])
+    .filter(([ts]) => !Number.isNaN(ts))
+    .sort((a, b) => a[0] - b[0]);
+  if (!arr.length) return [];
+  const endTs = arr[arr.length - 1][0];
+  const beginTs = endTs - maxDays * 86400000;
+  return arr.filter(([ts]) => {
+    if (ts < beginTs) return false;
+    const w = new Date(ts).getDay();
+    return w >= 1 && w <= 5;
+  });
+}
+
+function renderKpiChips(container, metricKey, points) {
+  container.innerHTML = "";
+  if (!points.length) {
+    container.innerHTML = '<div class="empty-state">近一周无数据</div>';
+    return;
+  }
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;flex-wrap:wrap;gap:10px;";
+  points.forEach(([ts, v]) => {
+    const d = new Date(ts);
+    const tag = `${d.getMonth() + 1}/${d.getDate()}`;
+    const label =
+      v == null
+        ? "--"
+        : metricKey === "chg" || metricKey === "mid_chg"
+        ? `${Number(v).toFixed(4)}%`
+        : String(v);
+    const chip = document.createElement("div");
+    chip.style.cssText =
+      "border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:12px;";
+    chip.textContent = `${tag}  ${label}`;
+    row.appendChild(chip);
+  });
+  container.appendChild(row);
+}
+
+function lazyInitChart(dom, option) {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        const chart = echarts.init(dom);
+        chart.setOption(option);
+        const handleResize = () => chart.resize();
+        window.addEventListener("resize", handleResize);
+        observer.unobserve(dom);
+      }
+    },
+    { threshold: 0.1 }
+  );
+  observer.observe(dom);
+}
 
 export async function renderCnyFx(mount) {
   const data = await loadSheet("cny_fx");
 
-  const h = document.createElement("h2");
-  h.textContent = "人民币汇率";
-  mount.appendChild(h);
+  const title = document.createElement("h2");
+  title.textContent = "人民币汇率仪表盘";
+  mount.appendChild(title);
 
-  const kpis = [
-    { key: "usdcny_mid", label: "美元中间价" },
-    { key: "usdcny_mid_chg", label: "美元中间价调整" },
-    { key: "eurcny_mid", label: "欧元中间价" },
-    { key: "eurcny_mid_chg", label: "欧元中间价调整" },
-    { key: "jpy100cny_mid", label: "100日元中间价" },
-    { key: "jpy100cny_mid_chg", label: "100日元中间价调整" },
-    { key: "audcny_mid", label: "澳元中间价" },
-    { key: "audcny_mid_chg", label: "澳元中间价调整" },
-  ];
-  const kpiWrap = document.createElement("div");
-  kpiWrap.className = "kpi-grid";
-  kpis.forEach((k) => {
-    const raw = data.summary?.[k.key];
-    const txt = /_chg$/.test(k.key) ? asPercent(raw) : raw ?? "--";
-    const card = document.createElement("div");
-    card.className = "kpi-card";
-    card.innerHTML = `<div class="kpi-label">${k.label}</div><div class="kpi-value">${txt}</div>`;
-    kpiWrap.appendChild(card);
+  CURRENCIES.forEach((cfg) => {
+    const section = document.createElement("section");
+    section.className = "fx-section card";
+    section.innerHTML = `<div class="card-header">${cfg.label}</div>`;
+
+    const grid = document.createElement("div");
+    grid.className = "fx-grid";
+    section.appendChild(grid);
+
+    mount.appendChild(section);
+
+    (() => {
+      const card = document.createElement("div");
+      card.className = "fx-card";
+      card.innerHTML = `<div class="fx-card-title">兑${cfg.label}汇率</div>`;
+      const chartEl = document.createElement("div");
+      chartEl.style.cssText = "height:220px;";
+      card.appendChild(chartEl);
+      grid.appendChild(card);
+
+      const ser =
+        pickSeries(data, cfg.keyword, "rate") ||
+        buildSeriesFromTable(data, cfg.keyword, "rate");
+      const option = {
+        tooltip: { trigger: "axis" },
+        xAxis: { type: "time" },
+        yAxis: { type: "value" },
+        series: [
+          {
+            name: ser?.name || `${cfg.label}汇率`,
+            type: "line",
+            showSymbol: false,
+            data: ser?.points || [],
+          },
+        ],
+      };
+      lazyInitChart(chartEl, option);
+    })();
+
+    (() => {
+      const card = document.createElement("div");
+      card.className = "fx-card";
+      card.innerHTML = `<div class="fx-card-title">${cfg.label}涨跌幅（%）</div>`;
+      const chartEl = document.createElement("div");
+      chartEl.style.cssText = "height:220px;";
+      card.appendChild(chartEl);
+      grid.appendChild(card);
+
+      const ser =
+        pickSeries(data, cfg.keyword, "chg") ||
+        buildSeriesFromTable(data, cfg.keyword, "chg");
+      const option = {
+        tooltip: { trigger: "axis" },
+        xAxis: { type: "time" },
+        yAxis: { type: "value", axisLabel: { formatter: percentAxisLabel } },
+        series: [
+          {
+            name: ser?.name || `${cfg.label}涨跌幅`,
+            type: "line",
+            showSymbol: false,
+            data: ser?.points || [],
+          },
+        ],
+      };
+      lazyInitChart(chartEl, option);
+    })();
+
+    if (!cfg.noMid) {
+      (() => {
+        const card = document.createElement("div");
+        card.className = "fx-card";
+        card.innerHTML = `<div class="fx-card-title">${cfg.label}央行中间价（近一周）</div>`;
+        const body = document.createElement("div");
+        body.style.cssText = "min-height:48px;";
+        card.appendChild(body);
+        grid.appendChild(card);
+
+        const ser =
+          pickSeries(data, cfg.keyword, "mid") ||
+          buildSeriesFromTable(data, cfg.keyword, "mid");
+        const week = sliceLastWeekdays(ser?.points || [], 7);
+        renderKpiChips(body, "mid", week);
+      })();
+
+      (() => {
+        const card = document.createElement("div");
+        card.className = "fx-card";
+        card.innerHTML = `<div class="fx-card-title">${cfg.label}中间价调整（近一周）</div>`;
+        const body = document.createElement("div");
+        body.style.cssText = "min-height:48px;";
+        card.appendChild(body);
+        grid.appendChild(card);
+
+        const ser =
+          pickSeries(data, cfg.keyword, "mid_chg") ||
+          buildSeriesFromTable(data, cfg.keyword, "mid_chg");
+        const week = sliceLastWeekdays(ser?.points || [], 7);
+        renderKpiChips(body, "mid_chg", week);
+      })();
+    }
   });
-  mount.appendChild(kpiWrap);
-
-  const chartEl = document.createElement("div");
-  chartEl.style.cssText = "height:360px;margin-top:12px";
-  mount.appendChild(chartEl);
-
-  const seriesOpt = (data.series || []).map((s) => ({
-    name: s.name,
-    type: "line",
-    showSymbol: false,
-    data: Array.isArray(s.data) ? s.data.map(([t, v]) => [t, Number(v)]) : [],
-  }));
-
-  if (seriesOpt.length) {
-    const ech = echarts.init(chartEl);
-    ech.setOption({
-      tooltip: { trigger: "axis" },
-      legend: { top: 0, type: "scroll" },
-      xAxis: { type: "time" },
-      yAxis: { type: "value" },
-      series: seriesOpt,
-    });
-    window.addEventListener("resize", () => ech.resize());
-  } else {
-    chartEl.innerHTML = '<div class="empty-state">暂无汇率数据</div>';
-  }
-
-  if (Array.isArray(data.table) && data.table.length) {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `<div class="card-header">近一周明细（过滤后全列）</div>`;
-    const tbl = document.createElement("table");
-    tbl.style.cssText =
-      "width:100%;border-collapse:collapse;font-size:14px;margin:8px 0";
-    const cols = Object.keys(data.table[0]);
-    tbl.innerHTML = `<thead><tr>${cols
-      .map(
-        (c) =>
-          `<th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">${c}</th>`
-      )
-      .join("")}</tr></thead><tbody></tbody>`;
-    const tb = tbl.querySelector("tbody");
-    data.table.forEach((row) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = cols
-        .map((k) => {
-          let v = row[k];
-          if (/涨跌幅|调整/.test(k)) v = asPercent(v);
-          return `<td style="padding:6px;border-bottom:1px solid var(--border)">${
-            v ?? "--"
-          }</td>`;
-        })
-        .join("");
-      tb.appendChild(tr);
-    });
-    card.appendChild(tbl);
-    mount.appendChild(card);
-  }
 }

@@ -45,7 +45,206 @@
 
   <div id="footer-container" data-component="footer"></div>
 
-  <script src="./js/load-components.js"></script>
+  <section id="smoke-tools" style="padding: 16px; text-align: center;">
+    <h2 style="font-size: 16px; margin-bottom: 12px;">数据转换烟雾测试</h2>
+    <div style="display: inline-flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center;">
+      <input id="xlsxFile" type="file" accept=".xlsx,.xls" />
+      <button id="btn-smoke" type="button" class="btn">转换烟雾测试</button>
+      <button id="btn-convert" type="button" class="btn btn-secondary">开始转换（人民币汇率）</button>
+    </div>
+  </section>
+
+  <script src="https://cdn.staticfile.org/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.staticfile.org/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    (function () {
+      const btn = document.querySelector('#btn-smoke');
+      const inp = document.querySelector('#xlsxFile');
+      if (!btn || !inp) {
+        console.error('[smoke] 缺少 #btn-smoke 或 #xlsxFile');
+        return;
+      }
+
+      btn.addEventListener('click', async () => {
+        try {
+          if (!window.XLSX) {
+            alert('XLSX 未加载');
+            return;
+          }
+          const f = inp.files?.[0];
+          if (!f) {
+            alert('请选择 Excel 文件');
+            return;
+          }
+
+          const buf = await f.arrayBuffer();
+          const wb = XLSX.read(buf, { type: 'array' });
+          console.log('[smoke] sheetNames:', wb.SheetNames);
+
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+          const sample = { sheet: wb.SheetNames[0], head5: rows.slice(0, 5) };
+
+          const blob = new Blob([JSON.stringify(sample, null, 2)], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'smoke.json';
+          a.click();
+          URL.revokeObjectURL(a.href);
+          alert('已下载 smoke.json（请查看文件内容）');
+        } catch (e) {
+          console.error('[smoke] 失败：', e);
+          alert('烟雾测试失败，请看控制台日志');
+        }
+      });
+    })();
+  </script>
+  <script>
+    // ===== 最小 parser：人民币汇率 → cny_fx.json =====
+    (function () {
+      function normHdr(x) {
+        const s = String(x ?? '').trim().replace(/\s+/g, '');
+        return s.replace(/[（(][^）)]*[）)]\s*$/, '');
+      }
+      function findCol(header, pat) {
+        let i = header.findIndex((h) =>
+          pat instanceof RegExp ? pat.test(String(h)) : String(h) === pat
+        );
+        if (i >= 0) return i;
+        const norm = header.map(normHdr);
+        if (pat instanceof RegExp) return norm.findIndex((h) => pat.test(h));
+        const want = normHdr(pat);
+        return norm.findIndex((h) => h === want);
+      }
+      function toDate(x) {
+        if (!x) return null;
+        const d = new Date(
+          typeof x === 'number' ? (x - 25569) * 86400000 : String(x).replace(/-/g, '/')
+        );
+        return Number.isNaN(d) ? null : d;
+      }
+      function isWk(d) {
+        const w = d.getDay();
+        return w >= 1 && w <= 5;
+      }
+      function monOf(d) {
+        const t = new Date(d);
+        const w = t.getDay() || 7;
+        t.setDate(t.getDate() - (w - 1));
+        t.setHours(0, 0, 0, 0);
+        return t;
+      }
+      function friOf(d) {
+        const m = monOf(d);
+        const f = new Date(m);
+        f.setDate(m.getDate() + 4);
+        f.setHours(23, 59, 59, 999);
+        return f;
+      }
+      function miss(v) {
+        if (v == null) return true;
+        const s = String(v).trim();
+        if (!s) return true;
+        const set = new Set(['-', '--', '—', '——', 'N/A', 'NaN', 'NULL', '无']);
+        if (set.has(s)) return true;
+        const t = s.endsWith('%') ? s.slice(0, -1).trim() : s;
+        return !t || set.has(t);
+      }
+      function num(v) {
+        if (miss(v)) return null;
+        let s = String(v).trim();
+        if (s.endsWith('%')) s = s.slice(0, -1).trim();
+        const n = Number(s);
+        return Number.isNaN(n) ? null : n;
+      }
+
+      window.__parseCnyFxMinimal = function (rows) {
+        const header = rows[0] || [];
+        const body = rows.slice(1);
+
+        const dateIdx = findCol(header, /^日期$/);
+        if (dateIdx < 0) throw new Error('人民币汇率：未找到 日期 列');
+
+        const enriched = body
+          .map((r) => ({ row: r, date: toDate(r[dateIdx]) }))
+          .filter((x) => x.date && isWk(x.date));
+        if (!enriched.length) {
+          return {
+            filename: 'cny_fx.json',
+            json: {
+              series: [],
+              kpis: {},
+              table: [],
+              export_info: {
+                source_sheet: '人民币汇率',
+                range: 'prevWeekWorkdays',
+                diagnostics: { note: 'no rows' },
+              },
+            },
+          };
+        }
+
+        const latest = enriched.reduce((a, b) => (a.date > b.date ? a : b)).date;
+        const mon = monOf(latest);
+        const fri = friOf(latest);
+        const inWeek = enriched
+          .filter((x) => x.date >= mon && x.date <= fri)
+          .sort((a, b) => a.date - b.date);
+
+        const pairs = [
+          ['人民币兑美元', /人民币兑美元汇率$/, /人民币兑美元涨跌幅$/],
+          ['离岸人民币兑美元', /离岸人民币兑美元汇率$/, /离岸人民币兑美元涨跌幅$/],
+          ['人民币兑欧元', /人民币兑欧元汇率$/, /人民币兑欧元涨跌幅$/],
+          ['人民币兑100日元', /人民币兑100日元汇率$/, /人民币兑100日元涨跌幅$/],
+          ['人民币兑澳元', /人民币兑澳元汇率$/, /人民币兑澳元涨跌幅$/],
+        ];
+
+        const series = [];
+        const diag = [];
+
+        for (const [label, closeRe, chgRe] of pairs) {
+          const ciClose = findCol(header, closeRe);
+          const ciChg = findCol(header, chgRe);
+          diag.push({ label, closeHit: ciClose >= 0, chgHit: ciChg >= 0 });
+          if (ciClose >= 0) {
+            series.push({
+              name: `${label} 汇率`,
+              data: inWeek.map(({ row, date }) => [date.toISOString().slice(0, 10), num(row[ciClose])]),
+            });
+          }
+          if (ciChg >= 0) {
+            series.push({
+              name: `${label} 涨跌幅(%)`,
+              data: inWeek.map(({ row, date }) => [date.toISOString().slice(0, 10), num(row[ciChg])]),
+            });
+          }
+        }
+
+        const table = inWeek.map(({ row }) => {
+          const o = {};
+          header.forEach((h, i) => {
+            o[h] = row[i] ?? null;
+          });
+          return o;
+        });
+
+        return {
+          filename: 'cny_fx.json',
+          json: {
+            series,
+            kpis: {},
+            table,
+            export_info: {
+              source_sheet: '人民币汇率',
+              range: 'prevWeekWorkdays',
+              diagnostics: { items: diag },
+            },
+          },
+        };
+      };
+    })();
+  </script>
+  <script src="./tools/conversion-patch.js"></script>
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>

@@ -1,3 +1,4 @@
+import { loadComponents } from "./load-components.js";
 import { renderOpenMarket } from "./views/open-market.js";
 import { renderBondYield } from "./views/bond-yield.js";
 import { renderCnyFx } from "./views/cny-fx.js";
@@ -142,7 +143,7 @@ function initHeader() {
 }
 
 async function bootstrap() {
-  await window.__loadComponents?.([
+  await loadComponents([
     { containerId: "header-container", path: "./components/header.html" },
     { containerId: "sidebar-container", path: "./components/sidebar.html" },
     { containerId: "footer-container", path: "./components/footer.html" },
