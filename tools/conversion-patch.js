@@ -3,6 +3,31 @@ const btnConvert = document.querySelector("#btn-convert"); // 你的“开始转
 const inpFile = document.querySelector("#xlsxFile"); // <input type="file" id="xlsxFile" accept=".xlsx,.xls">
 const logEl = document.querySelector("#convertLog"); // 可选：日志容器 <div id="convertLog"></div>
 
+function getAnchorFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    const raw = url.searchParams.get("anchor");
+    if (!raw) return null;
+    const candidate = new Date(`${raw}T00:00:00`);
+    return Number.isNaN(candidate.getTime()) ? null : candidate;
+  } catch (err) {
+    console.warn("[convert][anchor] 解析失败", err);
+    return null;
+  }
+}
+
+const conversionAnchor = (() => {
+  const preset = window.__conversionAnchor;
+  if (preset instanceof Date && !Number.isNaN(preset.getTime())) {
+    return preset;
+  }
+  const fromUrl = getAnchorFromUrl();
+  const now = fromUrl || new Date();
+  now.setHours(0, 0, 0, 0);
+  window.__conversionAnchor = now;
+  return now;
+})();
+
 function logInfo(msg, cls = "") {
   console[cls === "err" ? "error" : cls === "warn" ? "warn" : "log"](
     "[convert]",
@@ -167,41 +192,92 @@ btnConvert?.addEventListener("click", async () => {
     const wb = XLSX.read(buf, { type: "array" });
     logInfo(`读取工作表：${wb.SheetNames.join(", ")}`);
 
-    const sheetName = wb.SheetNames.find((n) => n === "人民币汇率");
-    if (!sheetName) {
+    const results = [];
+
+    const fxSheetName = wb.SheetNames.find((n) => n === "人民币汇率");
+    if (!fxSheetName) {
       alert("工作簿中找不到 “人民币汇率” 这张表");
       return;
     }
 
-    const ws = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(ws, {
+    const fxSheet = wb.Sheets[fxSheetName];
+    const fxRows = XLSX.utils.sheet_to_json(fxSheet, {
       header: 1,
       raw: true,
       defval: null,
     });
 
-    const res = window.__parseCnyFxMinimal(rows);
-    if (!res || !res.filename || !res.json) {
+    const resFx = window.__parseCnyFxMinimal(fxRows, conversionAnchor);
+    if (!resFx || !resFx.filename || !resFx.json) {
       alert("人民币汇率解析失败");
+      return;
+    }
+    results.push(resFx);
+
+    if (typeof window.__parseOpenMarketShiborMinimal === "function") {
+      const omSheetName = wb.SheetNames.find((n) => n === "公开市场货币");
+      const shiborSheetName = wb.SheetNames.find((n) => n === "Shibor利率");
+      if (omSheetName && shiborSheetName) {
+        const omSheet = wb.Sheets[omSheetName];
+        const shiborSheet = wb.Sheets[shiborSheetName];
+        const omRows = XLSX.utils.sheet_to_json(omSheet, {
+          header: 1,
+          raw: true,
+          defval: null,
+        });
+        const shiborRows = XLSX.utils.sheet_to_json(shiborSheet, {
+          header: 1,
+          raw: true,
+          defval: null,
+        });
+        try {
+          const resOpen = window.__parseOpenMarketShiborMinimal(
+            omRows,
+            shiborRows,
+            conversionAnchor
+          );
+          if (resOpen && resOpen.filename && resOpen.json) {
+            results.push(resOpen);
+            logInfo("已解析 公开市场货币 + Shibor", "info");
+          } else {
+            logInfo("公开市场货币 + Shibor 解析返回空结果", "warn");
+          }
+        } catch (err) {
+          console.error(err);
+          logInfo("公开市场货币 + Shibor 解析失败", "err");
+        }
+      } else {
+        logInfo("未找到公开市场货币或 Shibor利率工作表，跳过最小解析", "warn");
+      }
+    } else {
+      logInfo("最小解析函数 __parseOpenMarketShiborMinimal 不存在", "warn");
+    }
+
+    if (!results.length) {
+      alert("没有可导出的结果");
       return;
     }
 
     if (!window.JSZip) {
-      const blobSingle = new Blob([JSON.stringify(res.json, null, 2)], {
-        type: "application/json",
+      results.forEach((res) => {
+        const blob = new Blob([JSON.stringify(res.json, null, 2)], {
+          type: "application/json",
+        });
+        const aSingle = document.createElement("a");
+        aSingle.href = URL.createObjectURL(blob);
+        aSingle.download = res.filename;
+        aSingle.click();
+        URL.revokeObjectURL(aSingle.href);
       });
-      const aSingle = document.createElement("a");
-      aSingle.href = URL.createObjectURL(blobSingle);
-      aSingle.download = res.filename;
-      aSingle.click();
-      URL.revokeObjectURL(aSingle.href);
-      alert(`已下载 ${res.filename}`);
+      alert(`已下载 ${results.length} 个 JSON 文件`);
       return;
     }
 
     const zip = new JSZip();
     const folder = zip.folder("data/values-only");
-    folder.file(res.filename, JSON.stringify(res.json, null, 2));
+    results.forEach((res) => {
+      folder.file(res.filename, JSON.stringify(res.json, null, 2));
+    });
     const blob = await zip.generateAsync({ type: "blob" });
 
     const a = document.createElement("a");
@@ -209,7 +285,11 @@ btnConvert?.addEventListener("click", async () => {
     a.download = "values-only.zip";
     a.click();
     URL.revokeObjectURL(a.href);
-    alert("已下载 values-only.zip（内含 cny_fx.json）");
+    alert(
+      `已下载 values-only.zip（含 ${results
+        .map((item) => item.filename)
+        .join(", ")}）`
+    );
   } catch (e) {
     console.error(e);
     alert("转换失败，请查看控制台日志");

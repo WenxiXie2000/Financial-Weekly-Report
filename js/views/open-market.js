@@ -9,14 +9,13 @@ export async function renderOpenMarket(mount) {
   mount.appendChild(h);
 
   const kpis = [
-    { key: "rr7d_inj", label: "逆回购7D 投放(亿)" },
-    { key: "rr7d_net", label: "逆回购7D 净投放(亿)" },
-    { key: "mlf_due", label: "MLF 到期(亿)" },
-    { key: "mlf_inj", label: "MLF 投放(亿)" },
-    { key: "mlf_net", label: "MLF 净投放(亿)" },
-    { key: "tmd_inj", label: "国库定存 投放(亿)" },
-    { key: "slf_inj", label: "SLF 投放(亿)" },
-    { key: "pr_inj", label: "正回购 投放(亿)" },
+    { key: "r7d_amt_yi", label: "逆回购7D 投放(亿)" },
+    { key: "r14d_amt_yi", label: "逆回购14D 投放(亿)" },
+    { key: "mlf_amt_yi", label: "MLF 投放(亿)" },
+    { key: "tcd_amt_yi", label: "国库定存 投放(亿)" },
+    { key: "slf_amt_yi", label: "SLF 投放(亿)" },
+    { key: "slo_amt_yi", label: "SLO 投放(亿)" },
+    { key: "repo_amt_yi", label: "正回购 投放(亿)" },
   ];
   const kpiWrap = document.createElement("div");
   kpiWrap.className = "kpi-grid";

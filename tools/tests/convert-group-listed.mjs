@@ -4,6 +4,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 import { fmtISO, SHEET_PROFILES } from "../../js/sheet-profiles.js";
+import { prevCompletedWeekRange, mondayOf, fridayOf } from "../../js/utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -178,24 +179,6 @@ function isWeekday(d) {
   );
 }
 
-function mondayOf(d) {
-  const target = new Date(d);
-  if (Number.isNaN(target.getTime())) return null;
-  const w = target.getDay() || 7;
-  target.setDate(target.getDate() - (w - 1));
-  target.setHours(0, 0, 0, 0);
-  return target;
-}
-
-function fridayOf(d) {
-  const monday = mondayOf(d);
-  if (!monday) return null;
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
-  friday.setHours(23, 59, 59, 999);
-  return friday;
-}
-
 function toDateSafe(value) {
   const date = toDate(value);
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
@@ -204,21 +187,27 @@ function toDateSafe(value) {
   return date;
 }
 
-function computePrevWeekWorkdays(rows, dateIdx) {
+function computePrevWeekWorkdays(rows, dateIdx, now = new Date()) {
   if (!Array.isArray(rows) || typeof dateIdx !== "number") return [];
   const enriched = rows
     .map((row) => ({ row, date: toDateSafe(row?.[dateIdx]) }))
     .filter((item) => item.row && item.date);
   if (!enriched.length) return [];
+  const { mon, fri } = prevCompletedWeekRange(now);
+  const clamp = (items, start, end) =>
+    items.filter(({ date }) => date >= start && date <= end && isWeekday(date));
+  const withinCompleted = clamp(enriched, mon, fri);
+  if (withinCompleted.length) {
+    return withinCompleted;
+  }
   const latestEntry = enriched.reduce((prev, cur) =>
     cur.date > prev.date ? cur : prev
   );
-  const monday = mondayOf(latestEntry.date);
-  const friday = fridayOf(latestEntry.date);
-  if (!monday || !friday) return [];
-  return enriched.filter(
-    ({ date }) => date >= monday && date <= friday && isWeekday(date)
-  );
+  if (!latestEntry || !latestEntry.date) return [];
+  const fallbackMon = mondayOf(latestEntry.date);
+  const fallbackFri = fridayOf(latestEntry.date);
+  if (!fallbackMon || !fallbackFri) return [];
+  return clamp(enriched, fallbackMon, fallbackFri);
 }
 
 const htmlPath = path.resolve(__dirname, "../xlsx-to-json.html");

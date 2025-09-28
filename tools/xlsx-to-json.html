@@ -129,6 +129,33 @@
 
   <script type="module">
     import { SHEET_PROFILES } from '../js/sheet-profiles.js';
+    import { prevCompletedWeekRange, mondayOf, fridayOf } from '../js/utils.js';
+
+    function getAnchorFromUrl() {
+      try {
+        const url = new URL(window.location.href);
+        const raw = url.searchParams.get('anchor');
+        if (!raw) return null;
+        const candidate = new Date(`${raw}T00:00:00`);
+        return Number.isNaN(candidate.getTime()) ? null : candidate;
+      } catch (error) {
+        console.warn('[tool][anchor] URL 解析失败', error);
+        return null;
+      }
+    }
+
+    const ANCHOR = (() => {
+      const preset = window.__conversionAnchor;
+      if (preset instanceof Date && !Number.isNaN(preset.getTime())) {
+        const clone = new Date(preset.getTime());
+        clone.setHours(0, 0, 0, 0);
+        return clone;
+      }
+      const picked = getAnchorFromUrl() || new Date();
+      picked.setHours(0, 0, 0, 0);
+      window.__conversionAnchor = picked;
+      return picked;
+    })();
 
     const PROFILES = SHEET_PROFILES || {};
 
@@ -384,28 +411,37 @@
       return `${num.toFixed(4)}%`;
     };
 
-    const computePrevWeekWorkdays = (rows, dateIdx) => {
+    const computePrevWeekWorkdays = (rows, dateIdx, now = ANCHOR) => {
       if (!Array.isArray(rows) || typeof dateIdx !== 'number' || dateIdx < 0) return [];
 
       const enriched = rows
         .map((row) => ({ row, date: toDateSafe(row?.[dateIdx]) }))
-        .filter((item) => item.row && item.date);
+        .filter((item) => item.row && item.date instanceof Date && !Number.isNaN(item.date.getTime()));
 
       if (!enriched.length) return [];
 
-      const latest = enriched.reduce((prev, cur) => (cur.date > prev.date ? cur : prev));
-      const anchor = new Date(latest.date.getTime());
-      while (!isWeekday(anchor)) {
-        anchor.setDate(anchor.getDate() - 1);
-      }
-      const monday = new Date(anchor.getTime());
-      monday.setDate(anchor.getDate() - (anchor.getDay() - 1));
-      monday.setHours(0, 0, 0, 0);
-      const friday = new Date(monday.getTime());
-      friday.setDate(monday.getDate() + 4);
-      friday.setHours(23, 59, 59, 999);
+      const baseNow =
+        now instanceof Date && !Number.isNaN(now.getTime())
+          ? new Date(now.getTime())
+          : new Date(now || ANCHOR);
+      baseNow.setHours(0, 0, 0, 0);
 
-      return enriched.filter(({ date }) => date >= monday && date <= friday && isWeekday(date));
+      const { mon, fri } = prevCompletedWeekRange(baseNow);
+
+      const clamp = (items, start, end) =>
+        items.filter(({ date }) => date >= start && date <= end && isWeekday(date));
+
+      const withinCompleted = clamp(enriched, mon, fri);
+      if (withinCompleted.length) {
+        return withinCompleted;
+      }
+
+      const latest = enriched.reduce((prev, cur) => (cur.date > prev.date ? cur : prev));
+      if (!latest || !latest.date) return [];
+      const fallbackMon = mondayOf(latest.date);
+      const fallbackFri = fridayOf(latest.date);
+      if (!fallbackMon || !fallbackFri) return [];
+      return clamp(enriched, fallbackMon, fallbackFri);
     };
 
     const pickLatestWeekRow = (rows, dateIdx) => {
@@ -416,7 +452,7 @@
         .filter((item) => item.row && item.date instanceof Date && !Number.isNaN(item.date.getTime()));
       if (!enriched.length) return null;
 
-      const weekRows = computePrevWeekWorkdays(rows, dateIdx);
+  const weekRows = computePrevWeekWorkdays(rows, dateIdx, ANCHOR);
       const pool = weekRows.length ? weekRows : enriched;
       const latest = pool.reduce((prev, cur) => (cur.date > prev.date ? cur : prev));
       if (!latest || !latest.row) return null;
@@ -1311,19 +1347,14 @@
     }
 
     // === 计算“上一周工作日”区间（周一~周五，以本地时区/Asia/Shanghai）===
-    function getPrevWeekWorkdayRange() {
-      const today = new Date();
-      const day = today.getDay();
-      const thisMonday = new Date(today);
-      const diffToMonday = (day + 6) % 7;
-      thisMonday.setDate(today.getDate() - diffToMonday);
-      const prevMonday = new Date(thisMonday);
-      prevMonday.setDate(thisMonday.getDate() - 7);
-      const prevFriday = new Date(prevMonday);
-      prevFriday.setDate(prevMonday.getDate() + 4);
-      prevMonday.setHours(0, 0, 0, 0);
-      prevFriday.setHours(23, 59, 59, 999);
-      return { start: prevMonday, end: prevFriday };
+    function getPrevWeekWorkdayRange(now = ANCHOR) {
+      const baseNow =
+        now instanceof Date && !Number.isNaN(now.getTime())
+          ? new Date(now.getTime())
+          : new Date(now || ANCHOR);
+      baseNow.setHours(0, 0, 0, 0);
+      const { mon, fri } = prevCompletedWeekRange(baseNow);
+      return { start: mon, end: fri };
     }
 
     // === 工作日判定（周一到周五）===
@@ -2023,6 +2054,79 @@
       };
     };
 
+    const buildOpenMarketMinimal = (omPart = {}, shiborPart = {}) => {
+      const hasOm = omPart && Object.keys(omPart).length;
+      const hasShibor = shiborPart && Object.keys(shiborPart).length;
+      if (!hasOm && !hasShibor) return null;
+
+      const summary = {
+        r7d_amt_yi: omPart?.summary?.r7d_amt_yi ?? null,
+        r14d_amt_yi: omPart?.summary?.r14d_amt_yi ?? null,
+        mlf_amt_yi: omPart?.summary?.mlf_amt_yi ?? null,
+        tcd_amt_yi: omPart?.summary?.tcd_amt_yi ?? null,
+        slf_amt_yi: omPart?.summary?.slf_amt_yi ?? null,
+        slo_amt_yi: omPart?.summary?.slo_amt_yi ?? null,
+        repo_amt_yi: omPart?.summary?.repo_amt_yi ?? null,
+      };
+
+      const order = [
+        '逆回购7D利率(%)',
+        '逆回购14D利率(%)',
+        'MLF利率(%)',
+        '国库定存利率(%)',
+        'SLF利率(%)',
+        'SLO利率(%)',
+        '正回购利率(%)',
+        'SHIBOR 隔夜(%)',
+        'SHIBOR 1周(%)',
+        'SHIBOR 2周(%)',
+        'SHIBOR 3月(%)',
+        'SHIBOR 6月(%)',
+        'SHIBOR 9月(%)',
+        'SHIBOR 1年(%)',
+      ];
+
+      const seriesMap = new Map();
+      const collect = (list) => {
+        (Array.isArray(list) ? list : []).forEach((serie) => {
+          if (!serie || !serie.name) return;
+          seriesMap.set(serie.name, Array.isArray(serie.data) ? serie.data : []);
+        });
+      };
+      collect(omPart?.rateSeries);
+      collect(shiborPart?.series);
+
+      const series = order.map((name) => ({
+        name,
+        data: seriesMap.get(name) || [],
+      }));
+
+      const exportInfo = {
+        source_sheet: '公开市场货币 + Shibor利率',
+        range: 'prevCompletedWeek',
+        diagnostics: {
+          om: Array.isArray(omPart?.diagnostics) ? omPart.diagnostics : [],
+          shibor: Array.isArray(shiborPart?.diagnostics) ? shiborPart.diagnostics : [],
+        },
+        last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      };
+
+      if (
+        Array.isArray(omPart?.rangeWindow) &&
+        omPart.rangeWindow.length === 2 &&
+        omPart.rangeWindow.every((item) => typeof item === 'string')
+      ) {
+        exportInfo.range_window = omPart.rangeWindow;
+      }
+
+      return {
+        summary,
+        series,
+        table: Array.isArray(omPart?.table) ? omPart.table : [],
+        export_info: exportInfo,
+      };
+    };
+
     const convertWorksheet = (sheetName, sheet) => {
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
       const baseMeta = {
@@ -2355,7 +2459,6 @@
 
         if (sheetName === '公开市场货币') {
           const profile = PROFILES['公开市场货币'] || {};
-          const targetFile = SHEET_MAPPING[sheetName] || 'open_market.json';
           const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
           const headerRowIndex = Number.isInteger(profile.headerRow)
             ? Math.max(0, profile.headerRow)
@@ -2363,283 +2466,133 @@
           const header = rows[headerRowIndex] || [];
           const body = rows.slice(headerRowIndex + 1);
           const dateIdx = findColIndex(header, profile.dateCol);
+
+          const summary = {
+            r7d_amt_yi: null,
+            r14d_amt_yi: null,
+            mlf_amt_yi: null,
+            tcd_amt_yi: null,
+            slf_amt_yi: null,
+            slo_amt_yi: null,
+            repo_amt_yi: null,
+          };
+          const diagnostics = [];
+          const rateSeries = [];
+          let table = [];
+
+          const summaryKeyMap = {
+            rr7d: 'r7d_amt_yi',
+            rr14d: 'r14d_amt_yi',
+            mlf: 'mlf_amt_yi',
+            tcd: 'tcd_amt_yi',
+            slf: 'slf_amt_yi',
+            slo: 'slo_amt_yi',
+            repo: 'repo_amt_yi',
+          };
+
+          let rangeWindow = [];
+
           if (dateIdx < 0) {
-            throw new Error('公开市场货币：未找到日期列');
-          }
-
-          const picked = pickLatestWeekRow(body, dateIdx);
-          const diagnostics = {
-            sheet: sheetName,
-            range: profile.rangeDefault || 'prevWeekOnly',
-            date: null,
-            items: [],
-          };
-
-          const assignContext = (payload) => {
-            ctx.openMarket = ctx.openMarket || {};
-            ctx.openMarketFile = ctx.openMarketFile || targetFile;
-
-            const existingSeries = Array.isArray(ctx.openMarket.series) ? ctx.openMarket.series : [];
-            const existingDiagnostics =
-              (ctx.openMarket.export_info && ctx.openMarket.export_info.diagnostics) || {};
-            const existingMeta = ctx.openMarket.meta || {};
-            const sourceSheets = new Set(existingMeta.sourceSheets || []);
-            sourceSheets.add(sheetName);
-
-            ctx.openMarket.meta = {
-              timezone: 'Asia/Shanghai',
-              sourceSheet: sheetName,
-              generatedAt: new Date().toISOString(),
-              rangeStrategy: profile.rangeDefault || 'prevWeekOnly',
-              sourceSheets: Array.from(sourceSheets),
-              ...payload.metaExtras,
-            };
-
-            ctx.openMarket.summary = payload.summary || {};
-            ctx.openMarket.table = payload.table || [];
-            ctx.openMarket.series = existingSeries;
-
-            const mergedDiagnostics = {
-              ...existingDiagnostics,
-              money_market: payload.diagnostics,
-            };
-
-            ctx.openMarket.export_info = {
-              ...(ctx.openMarket.export_info || {}),
-              ...(payload.exportInfo || {}),
-              diagnostics: mergedDiagnostics,
-            };
-          };
-
-          if (!picked) {
-            diagnostics.note = '无有效日期行';
-            assignContext({
-              summary: {},
-              table: [],
-              diagnostics,
-              exportInfo: {
-                source_sheet: sheetName,
-                range: profile.rangeDefault || 'prevWeekOnly',
-                last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
-              },
-              metaExtras: { note: diagnostics.note },
+            diagnostics.push({
+              field: 'date',
+              label: '日期',
+              column: null,
+              hit: false,
+              note: '未找到日期列',
             });
-            continue;
-          }
+          } else {
+            const weekRows = computePrevWeekWorkdays(body, dateIdx, ANCHOR);
+            const picked = pickLatestWeekRow(body, dateIdx);
 
-          const { row: lastRow, date: lastDate } = picked;
-          const isoDate =
-            lastDate instanceof Date && !Number.isNaN(lastDate.getTime())
-              ? formatDate(lastDate)
-              : null;
-          diagnostics.date = isoDate;
+            const { mon, fri } = prevCompletedWeekRange(ANCHOR);
+            let windowStart = mon;
+            let windowEnd = fri;
 
-          const take = (regex, label) => {
-            const colIdx = findColIndex(header, regex);
-            if (colIdx < 0) {
-              diagnostics.items.push({
-                label,
-                hit: false,
-                candidates: closestHeaders(header, regex),
+            if (!weekRows.length && picked && picked.date) {
+              windowStart = mondayOf(picked.date);
+              windowEnd = fridayOf(picked.date);
+            }
+
+            if (windowStart && windowEnd) {
+              rangeWindow = [fmtISO(windowStart), fmtISO(windowEnd)];
+            }
+
+            if (picked && picked.row) {
+              const latestRow = picked.row;
+              const iso = picked.date instanceof Date ? fmtISO(picked.date) : '';
+
+              table = [
+                header.reduce((acc, cell, idx) => {
+                  const key = cell != null && String(cell).trim()
+                    ? String(cell).trim()
+                    : `COL_${idx + 1}`;
+                  acc[key] = latestRow[idx] ?? null;
+                  return acc;
+                }, {}),
+              ];
+
+              const items = Array.isArray(profile.items) ? profile.items : [];
+              items.forEach((item) => {
+                if (!item || !item.key) return;
+                const summaryKey = summaryKeyMap[item.key];
+                const baseLabel = item.label || item.key;
+
+                if (summaryKey && item.cols?.inj) {
+                  const amountIdx = findColIndex(header, item.cols.inj);
+                  const amountVal = amountIdx >= 0 ? parseNumberLike(latestRow[amountIdx]) : null;
+                  if (amountVal != null) {
+                    summary[summaryKey] = amountVal;
+                  }
+                  diagnostics.push({
+                    field: summaryKey,
+                    label: `${baseLabel} 投放量(亿)`,
+                    column: amountIdx >= 0 ? header[amountIdx] ?? null : null,
+                    hit: amountIdx >= 0,
+                    value: amountVal,
+                  });
+                }
+
+                if (item.cols?.rate) {
+                  const rateIdx = findColIndex(header, item.cols.rate);
+                  const rawRate = rateIdx >= 0 ? toNumberOrNull(latestRow[rateIdx]) : null;
+                  const rateVal = rawRate != null ? Number(rawRate.toFixed(4)) : null;
+                  const seriesName = `${baseLabel}利率(%)`;
+                  if (iso && rateVal != null) {
+                    rateSeries.push({ name: seriesName, data: [[iso, rateVal]] });
+                  }
+                  diagnostics.push({
+                    field: `rate:${seriesName}`,
+                    label: seriesName,
+                    column: rateIdx >= 0 ? header[rateIdx] ?? null : null,
+                    hit: rateIdx >= 0,
+                    value: rateVal,
+                  });
+                }
               });
-              return null;
             }
-            diagnostics.items.push({
-              label,
-              hit: true,
-              col: header[colIdx] ?? null,
-            });
-            const value = lastRow[colIdx];
-            if (value === '' || value == null) return null;
-            return value;
-          };
-
-          const summary = {};
-          const items = Array.isArray(profile.items) ? profile.items : [];
-          items.forEach((item) => {
-            if (!item || !item.key || !item.cols) return;
-            const prefix = item.key;
-            const label = item.label || item.key;
-
-            if (item.cols.due) {
-              const raw = take(item.cols.due, `${label} 到期量(亿)`);
-              const parsed = parseNumberLike(raw);
-              summary[`${prefix}_due`] = parsed != null ? parsed : null;
-            }
-            if (item.cols.inj) {
-              const raw = take(item.cols.inj, `${label} 投放量(亿)`);
-              const parsed = parseNumberLike(raw);
-              summary[`${prefix}_inj`] = parsed != null ? parsed : null;
-            }
-            if (item.cols.net) {
-              const raw = take(item.cols.net, `${label} 净投放(亿)`);
-              const parsed = parseNumberLike(raw);
-              summary[`${prefix}_net`] = parsed != null ? parsed : null;
-            }
-            if (item.cols.rate) {
-              const raw = take(item.cols.rate, `${label} 利率(%)`);
-              summary[`${prefix}_rate`] = raw != null ? formatPercent4(raw) : null;
-            }
-          });
-
-          const tableRow = {};
-          header.forEach((cell, idx) => {
-            const key = cell != null && String(cell).trim() ? String(cell).trim() : `COL_${idx + 1}`;
-            tableRow[key] = lastRow[idx] ?? null;
-          });
-
-          const exportInfo = {
-            source_sheet: sheetName,
-            range: profile.rangeDefault || 'prevWeekOnly',
-            last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
-          };
-          if (isoDate) {
-            exportInfo.range_window = [isoDate, isoDate];
           }
 
-          assignContext({
+          ctx.openMarketOm = {
             summary,
-            table: [tableRow],
             diagnostics,
-            exportInfo,
-            metaExtras: {},
-          });
+            rateSeries,
+            table,
+            rangeWindow,
+          };
           continue;
         }
 
         if (sheetName === 'Shibor利率') {
           const profile = PROFILES['Shibor利率'] || {};
-          const targetFile = SHEET_MAPPING[sheetName] || 'open_market.json';
           const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
           const result = convertShibor(rows, profile);
 
-          ctx.openMarket = ctx.openMarket || {};
-          ctx.openMarketFile = ctx.openMarketFile || targetFile;
-
-          const existingMeta = ctx.openMarket.meta || {};
-          const existingSummary = ctx.openMarket.summary || {};
-          const existingTable = Array.isArray(ctx.openMarket.table) ? ctx.openMarket.table : [];
-          const existingSeries = Array.isArray(ctx.openMarket.series) ? ctx.openMarket.series : [];
-          const existingExport = ctx.openMarket.export_info || {};
-
-          const incomingMeta = result?.meta || {};
-          const incomingSeries = Array.isArray(result?.series) ? result.series : [];
-          const incomingExport = result?.export_info || {};
-
-          const sourceSheets = new Set(existingMeta.sourceSheets || []);
-          if (Array.isArray(incomingMeta.sourceSheets)) {
-            incomingMeta.sourceSheets.forEach((s) => s && sourceSheets.add(s));
-          }
-          sourceSheets.add(sheetName);
-
-          ctx.openMarket.meta = {
-            ...existingMeta,
-            timezone: 'Asia/Shanghai',
-            generatedAt: new Date().toISOString(),
-            sourceSheet: sheetName,
-            sourceSheets: Array.from(sourceSheets),
-            unit: {
-              ...(existingMeta.unit || {}),
-              ...(incomingMeta.unit || {}),
-            },
+          ctx.openMarketShibor = {
+            series: Array.isArray(result?.series) ? result.series : [],
+            diagnostics: result?.export_info?.diagnostics?.shibor || [],
+            range: Array.isArray(result?.export_info?.range) ? result.export_info.range : undefined,
+            rows: typeof result?.export_info?.rows === 'number' ? result.export_info.rows : undefined,
           };
-          if (existingMeta.rangeStrategy) {
-            ctx.openMarket.meta.rangeStrategy = existingMeta.rangeStrategy;
-          }
-          if (existingMeta.note) {
-            ctx.openMarket.meta.note = existingMeta.note;
-          }
-
-          const seriesMap = new Map();
-          existingSeries.forEach((serie) => {
-            if (!serie || !serie.name) return;
-            seriesMap.set(serie.name, JSON.parse(JSON.stringify(serie)));
-          });
-          incomingSeries.forEach((serie) => {
-            if (!serie || !serie.name) return;
-            if (seriesMap.has(serie.name)) {
-              const target = seriesMap.get(serie.name);
-              const merged = [
-                ...((Array.isArray(target.data) ? target.data : [])),
-                ...((Array.isArray(serie.data) ? serie.data : [])),
-              ].sort((a, b) => new Date(a[0]) - new Date(b[0]));
-              const deduped = [];
-              merged.forEach((point) => {
-                if (!Array.isArray(point) || point.length < 2) return;
-                const last = deduped[deduped.length - 1];
-                if (last && last[0] === point[0]) {
-                  deduped[deduped.length - 1] = point;
-                } else {
-                  deduped.push(point);
-                }
-              });
-              target.data = deduped;
-            } else {
-              seriesMap.set(serie.name, JSON.parse(JSON.stringify(serie)));
-            }
-          });
-          ctx.openMarket.series = Array.from(seriesMap.values());
-
-          ctx.openMarket.summary = Object.keys(existingSummary).length
-            ? existingSummary
-            : result?.summary || {};
-          ctx.openMarket.table = existingTable.length ? existingTable : result?.table || [];
-
-          const mergedDiagnostics = {
-            ...(existingExport.diagnostics || {}),
-          };
-          if (incomingExport.diagnostics && incomingExport.diagnostics.shibor) {
-            mergedDiagnostics.shibor = incomingExport.diagnostics.shibor;
-          }
-
-          const rowsCount =
-            (typeof existingExport.rows === 'number' ? existingExport.rows : 0) +
-            (typeof incomingExport.rows === 'number' ? incomingExport.rows : 0);
-
-          const combinedRange = (() => {
-            const ranges = [];
-            if (Array.isArray(existingExport.range)) {
-              ranges.push(existingExport.range[0], existingExport.range[1]);
-            }
-            if (Array.isArray(incomingExport.range)) {
-              ranges.push(incomingExport.range[0], incomingExport.range[1]);
-            }
-            const normalized = ranges
-              .filter(Boolean)
-              .map((value) => (value.includes('T') ? value : value.replace(' ', 'T')))
-              .map((value) => new Date(value))
-              .filter((date) => !Number.isNaN(date.getTime()))
-              .sort((a, b) => a - b);
-            if (!normalized.length) return existingExport.range || incomingExport.range;
-            return [fmtISO(normalized[0]), fmtISO(normalized[normalized.length - 1])];
-          })();
-
-          ctx.openMarket.export_info = {
-            ...existingExport,
-            ...incomingExport,
-            diagnostics: mergedDiagnostics,
-            rows: rowsCount || undefined,
-          };
-          if (combinedRange) {
-            ctx.openMarket.export_info.range = combinedRange;
-          }
-
-          const normalizeTime = (value) => {
-            if (!value) return null;
-            const formatted = value.includes('T') ? value : value.replace(' ', 'T');
-            const parsed = new Date(formatted);
-            return Number.isNaN(parsed.getTime()) ? null : parsed;
-          };
-          const prevTime = normalizeTime(existingExport.last_updated);
-          const nextTime = normalizeTime(incomingExport.last_updated);
-          if (!prevTime || (nextTime && nextTime > prevTime)) {
-            ctx.openMarket.export_info.last_updated = incomingExport.last_updated;
-          }
-
-          if (incomingExport.range && !ctx.openMarket.export_info.range) {
-            ctx.openMarket.export_info.range = incomingExport.range;
-          }
-
           continue;
         }
 
@@ -2649,8 +2602,11 @@
         mergeOutput(fileName, payload, sheetName);
       }
 
-      if (ctx.openMarket && ctx.openMarketFile) {
-        mergeOutput(ctx.openMarketFile, ctx.openMarket, null);
+      if (ctx.openMarketOm || ctx.openMarketShibor) {
+        const payload = buildOpenMarketMinimal(ctx.openMarketOm, ctx.openMarketShibor);
+        if (payload) {
+          mergeOutput('open_market.json', payload, null);
+        }
       }
 
       const aggregated = Array.from(outputsByFile.entries()).map(([fileName, data]) => {

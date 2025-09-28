@@ -1,3 +1,9 @@
+import {
+  fridayOf as fridayOfUtil,
+  mondayOf as mondayOfUtil,
+  prevCompletedWeekRange,
+} from "./utils.js";
+
 // === 工具函数区 ===
 export function toDateSafe(x) {
   if (!x) return null;
@@ -15,23 +21,9 @@ export function isWeekday(d) {
   return w >= 1 && w <= 5;
 }
 
-export function mondayOf(d) {
-  const target = new Date(d);
-  if (Number.isNaN(target.getTime())) return null;
-  const w = target.getDay() || 7;
-  target.setDate(target.getDate() - (w - 1));
-  target.setHours(0, 0, 0, 0);
-  return target;
-}
+export const mondayOf = mondayOfUtil;
 
-export function fridayOf(d) {
-  const monday = mondayOf(d);
-  if (!monday) return null;
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
-  friday.setHours(23, 59, 59, 999);
-  return friday;
-}
+export const fridayOf = fridayOfUtil;
 
 export function fmtISO(d) {
   if (!(d instanceof Date) || Number.isNaN(d.getTime())) return "";
@@ -41,7 +33,7 @@ export function fmtISO(d) {
   return `${y}-${m}-${dd}`;
 }
 
-export function computeRange(rows, dateIdx, mode) {
+export function computeRange(rows, dateIdx, mode, options = {}) {
   if (!Array.isArray(rows) || typeof dateIdx !== "number") return [];
 
   const enriched = rows
@@ -74,16 +66,32 @@ export function computeRange(rows, dateIdx, mode) {
     );
   }
 
+  const now = options?.now instanceof Date ? options.now : new Date();
+  const { mon, fri } = prevCompletedWeekRange(now);
+
+  const isPrevWeekOnly = mode === "prevWeekOnly";
+
+  const clamp = (items, start, end) =>
+    items.filter((item) => item.date >= start && item.date <= end);
+
+  const withinPrevCompleted = clamp(enriched, mon, fri).filter((item) =>
+    isPrevWeekOnly ? true : isWeekday(item.date)
+  );
+
+  if (withinPrevCompleted.length) {
+    return withinPrevCompleted;
+  }
+
   const latest = enriched.reduce(
     (prev, cur) => (cur.date > prev.date ? cur : prev),
     enriched[0]
   );
   if (!latest || !latest.date) return [];
-  const monday = mondayOf(latest.date);
-  const friday = fridayOf(latest.date);
-  if (!monday || !friday) return [];
-  return enriched.filter(
-    (item) => item.date >= monday && item.date <= friday && isWeekday(item.date)
+  const fallbackMon = mondayOf(latest.date);
+  const fallbackFri = fridayOf(latest.date);
+  if (!fallbackMon || !fallbackFri) return [];
+  return clamp(enriched, fallbackMon, fallbackFri).filter((item) =>
+    isPrevWeekOnly ? true : isWeekday(item.date)
   );
 }
 
