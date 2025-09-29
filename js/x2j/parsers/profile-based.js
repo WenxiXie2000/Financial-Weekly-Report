@@ -16,6 +16,8 @@ import {
   createSheetDiagnostics,
   trackColumn,
 } from './common.js';
+import parseEquityCn from './equity-cn.js';
+import parseEquityGlobal from './equity-global.js';
 
 function pickHeaderRow(rows, headerRowIndex = 0) {
   const idx = Math.max(0, Number(headerRowIndex) || 0);
@@ -33,6 +35,13 @@ function getPrevWeekWorkdayRange(now = new Date()) {
 }
 
 export function parseByProfile(rows, profile = {}, { sheetName = '', anchor = new Date() } = {}) {
+  if (sheetName === '国内股市') {
+    return parseEquityCn(rows, profile, { sheetName, anchor });
+  }
+  if (sheetName === '全球股市') {
+    return parseEquityGlobal(rows, profile, { sheetName, anchor });
+  }
+
   const diagnostics = createSheetDiagnostics(sheetName);
   diagnostics.range = profile?.rangeLabel || profile?.range || null;
 
@@ -66,7 +75,11 @@ export function parseByProfile(rows, profile = {}, { sheetName = '', anchor = ne
   if (Array.isArray(profile.bondGroups) && profile.bondGroups.length) {
     const body = rows.slice(headerRowIndex + 1);
     let range = null;
-    if (profile.range === 'prevWeekOnly' || profile.range === 'prevWeekWorkdays') {
+    if (
+      profile.range === 'prevWeekOnly' ||
+      profile.range === 'prevWeekWorkdays' ||
+      profile.range === 'prevCompletedWeek'
+    ) {
       range = getPrevWeekWorkdayRange(anchor);
     }
     const inRange = (value) => {
@@ -391,7 +404,11 @@ export function parseByProfile(rows, profile = {}, { sheetName = '', anchor = ne
 
     const rangeStrategy = profile.range || profile.rangeDefault;
     let range = null;
-    if (rangeStrategy === 'prevWeekWorkdays' || rangeStrategy === 'prevWeekOnly') {
+    if (
+      rangeStrategy === 'prevWeekWorkdays' ||
+      rangeStrategy === 'prevWeekOnly' ||
+      rangeStrategy === 'prevCompletedWeek'
+    ) {
       if (allDates.length) {
         const latest = allDates.reduce((prev, cur) => (cur > prev ? cur : prev));
         const anchorDate = new Date(latest.getTime());
@@ -432,7 +449,11 @@ export function parseByProfile(rows, profile = {}, { sheetName = '', anchor = ne
       if (!date || Number.isNaN(date.getTime())) return false;
       if (range.start && date < range.start) return false;
       if (range.end && date > range.end) return false;
-      if (rangeStrategy === 'prevWeekWorkdays' && !isWeekday(date)) return false;
+      if (
+        (rangeStrategy === 'prevWeekWorkdays' || rangeStrategy === 'prevCompletedWeek') &&
+        !isWeekday(date)
+      )
+        return false;
       return true;
     };
 
@@ -537,7 +558,10 @@ export function parseByProfile(rows, profile = {}, { sheetName = '', anchor = ne
       meta.rangeStart = range.start ? formatDate(range.start) : '';
       meta.rangeEnd = range.end ? formatDate(range.end) : '';
       if (meta.rangeStart && meta.rangeEnd) {
-        const suffix = rangeStrategy === 'prevWeekWorkdays' ? '（上一周工作日）' : '';
+        const suffix =
+          rangeStrategy === 'prevWeekWorkdays' || rangeStrategy === 'prevCompletedWeek'
+            ? '（上一周工作日）'
+            : '';
         meta.rangeLabel = `${meta.rangeStart} ~ ${meta.rangeEnd}${suffix}`;
       }
     }
@@ -660,7 +684,11 @@ export function parseByProfile(rows, profile = {}, { sheetName = '', anchor = ne
       .filter((d) => d instanceof Date && !Number.isNaN(d.getTime()))
       .sort((a, b) => a - b);
     if (!dates.length) return null;
-    if (strategy === 'prevWeekWorkdays' || strategy === 'prevWeekOnly') {
+    if (
+      strategy === 'prevWeekWorkdays' ||
+      strategy === 'prevWeekOnly' ||
+      strategy === 'prevCompletedWeek'
+    ) {
       const latest = dates[dates.length - 1];
       const anchorDate = new Date(latest.getTime());
       const day = anchorDate.getDay() || 7;
@@ -693,7 +721,11 @@ export function parseByProfile(rows, profile = {}, { sheetName = '', anchor = ne
     if (!date || Number.isNaN(date.getTime())) return false;
     if (range.start && date < range.start) return false;
     if (range.end && date > range.end) return false;
-    if (rangeStrategy === 'prevWeekWorkdays' && !isWeekday(date)) return false;
+    if (
+      (rangeStrategy === 'prevWeekWorkdays' || rangeStrategy === 'prevCompletedWeek') &&
+      !isWeekday(date)
+    )
+      return false;
     return true;
   };
 
@@ -910,7 +942,10 @@ export function parseByProfile(rows, profile = {}, { sheetName = '', anchor = ne
     meta.rangeStart = range.start ? formatDate(range.start) : '';
     meta.rangeEnd = range.end ? formatDate(range.end) : '';
     if (meta.rangeStart && meta.rangeEnd) {
-      const suffix = rangeStrategy === 'prevWeekWorkdays' ? '（上一周工作日）' : '';
+      const suffix =
+        rangeStrategy === 'prevWeekWorkdays' || rangeStrategy === 'prevCompletedWeek'
+          ? '（上一周工作日）'
+          : '';
       meta.rangeLabel = `${meta.rangeStart} ~ ${meta.rangeEnd}${suffix}`;
     }
   }

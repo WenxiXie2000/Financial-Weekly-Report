@@ -17,7 +17,7 @@
 │       ├── group_listed.json    # 集团上市公司
 │       └── news.json            # 财经资讯
 └── tools/
-    └── xlsx-to-json.html        # 浏览器转换工具
+  └── convert.html             # 浏览器转换工具
 ```
 
 > **注意：** 所有文件均需使用 UTF-8（无 BOM）与 LF 换行，文件名全部小写并使用下划线，便于在 Linux (UOS) 环境部署。
@@ -29,13 +29,14 @@
 | 国内股市         | `equity_cn.json` |
 | 全球股市         | `equity_global.json` |
 | 人民币汇率       | `cny_fx.json` |
-| 公开市场         | `open_market.json` |
+| Shibor利率       | `open_market.json` |
+| 公开市场货币     | `open_market.json` |
 | 债券利率         | `bond_yield.json` |
 | 集团上市公司     | `group_listed.json` |
 | 财经资讯         | `news.json` |
 
 - `overview.json` 并非来自 Excel，可根据业务需要手工维护，用于首页总览展示。
-- 若 Excel 工作表名称发生变更，请同步更新 `js/data-adapter.js` 与转换工具中的映射表。
+- 若 Excel 工作表名称发生变更，请同步更新 `js/data-adapter.js` 与 `js/x2j/profiles.js` 中的映射表，并在转换工具验证输出。
 
 ## Excel 表格格式要求
 
@@ -58,16 +59,13 @@
 
 ## 使用浏览器转换工具
 
-1. 启动本地静态服务器（如 VS Code Live Server）并访问 `tools/xlsx-to-json.html`。
+1. 启动本地静态服务器（如 VS Code Live Server）并访问 `tools/convert.html`。
 2. 点击“选择 Excel 文件”，上传最新版《周报数据库valuesOnly.xlsx》。
-3. 页面会列出所有已映射工作表，展示：
-   - 生成文件名；
-   - 序列数量、摘要指标数量；
-   - 解析提醒（若表头缺失或无法识别会提示）。
-4. 点击“预览 JSON”核对结构后，使用“下载 JSON”按钮保存文件。
-5. 将下载的 JSON 文件拷贝到 `data/values-only/` 目录覆盖原文件。
+3. 点击“批量导出 JSON”，工具会在浏览器内解析所有映射 Sheet，生成 `values-only.zip` 并自动下载。
+4. 解压 `values-only.zip`，手动核对每个文件内容（可使用 VS Code 或 JSON 查看器）。
+5. 将解压后的 JSON 文件拷贝到 `data/values-only/` 目录覆盖原文件。
 
-> **提示：** 工具仅在浏览器本地处理 Excel，不会上传到服务器。若表头未被识别，可在 Excel 中调整列名后重新导出。
+> **提示：** 工具仅在浏览器本地处理 Excel，不会上传到服务器。如控制台出现解析提醒，可在 Excel 中调整列名后重新导出。
 
 ## JSON 数据结构说明
 

@@ -36,54 +36,88 @@
       line-height: 1.6;
     }
   </style>
-  <script
-    src="https://cdn.staticfile.org/jszip/3.10.1/jszip.min.js"
-    defer
-    onerror="this.onerror=null;this.src='https://cdn.baomitu.com/jszip/3.10.1/jszip.min.js';"
-  ></script>
-  <script
-    src="https://cdn.staticfile.org/xlsx/0.18.5/xlsx.full.min.js"
-    defer
-    onerror="this.onerror=null;this.src='https://cdn.baomitu.com/xlsx/0.18.5/xlsx.full.min.js';"
-  ></script>
+  <script src="https://cdn.staticfile.org/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.staticfile.org/jszip/3.10.1/jszip.min.js"></script>
   <script type="module">
     import '../js/x2j/utils.js';
     import '../js/x2j/profiles.js';
-    import '../js/x2j/parsers/profile-based.js';
     import '../js/x2j/parsers/cny-fx.js';
-    import '../js/x2j/parsers/group-listed.js';
-    import '../js/x2j/parsers/bond-yield.js';
-    import '../js/x2j/parsers/mid-paper.js';
     import '../js/x2j/parsers/open-market.js';
     import '../js/x2j/parsers/shibor.js';
-    import {
-      registerGlobalCore,
-      createMinimalParsers,
-    } from '../js/x2j/core.js';
+    import '../js/x2j/parsers/bond-yield.js';
+    import '../js/x2j/parsers/mid-paper.js';
+    import '../js/x2j/parsers/equity-cn.js';
+    import '../js/x2j/parsers/equity-global.js';
+  import '../js/x2j/parsers/group-listed.js';
+  import { runArrayBuffer, SHEET_PROFILES } from '../js/x2j/core.js';
 
-    function getAnchorFromUrl() {
-      try {
-        const url = new URL(window.location.href);
-        const raw = url.searchParams.get('anchor');
-        if (!raw) return null;
-        const candidate = new Date(`${raw}T00:00:00`);
-        return Number.isNaN(candidate.getTime()) ? null : candidate;
-      } catch (err) {
-        console.warn('[convert] URL 解析失败', err);
-        return null;
+    const fileInput = document.querySelector('#xlsxFile');
+    const log = document.querySelector('#convertLog');
+    const logInfo = (level, message, extra) => {
+      const logger = level && console[level] ? console[level] : console.log;
+      logger(message, extra || '');
+      if (!log) return;
+      const row = document.createElement('div');
+      row.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      log.appendChild(row);
+      log.scrollTop = log.scrollHeight;
+    };
+
+    document.querySelector('#btn-convert')?.addEventListener('click', async () => {
+      const file = fileInput?.files?.[0];
+      if (!file) {
+        alert('请选择 Excel 文件');
+        return;
       }
-    }
+      try {
+        if (typeof JSZip === 'undefined') {
+          throw new Error('JSZip 未加载');
+        }
+        const anchor = new Date();
+        logInfo('info', `读取 ${file.name}`);
+        const buffer = await file.arrayBuffer();
+        logInfo('info', '解析工作表并构建数据集中…');
+        const result = await runArrayBuffer(buffer, {
+          anchor,
+          profiles: SHEET_PROFILES,
+          XLSX,
+        });
 
-    const anchor = (() => {
-      const picked = getAnchorFromUrl() || new Date();
-      picked.setHours(0, 0, 0, 0);
-      return picked;
-    })();
+        const zip = new JSZip();
+        const folder = zip.folder('values-only');
+        const files = result?.files instanceof Map ? result.files : new Map();
+        const fileNames = [];
 
-    window.__conversionAnchor = anchor;
+        files.forEach((json, filename) => {
+          const pretty = JSON.stringify(json, null, 2);
+          folder.file(filename, pretty, { binary: false });
+          fileNames.push(filename);
+        });
 
-    registerGlobalCore(window);
-    createMinimalParsers(window);
+        if (!fileNames.length) {
+          logInfo('warn', '未生成任何输出文件，请检查输入工作簿是否包含已配置的工作表');
+        }
+
+        if (Array.isArray(result?.diagnostics) && result.diagnostics.length) {
+          logInfo(
+            'info',
+            `捕获 ${result.diagnostics.length} 条诊断信息，可在控制台查看完整详情`,
+            result.diagnostics
+          );
+        }
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(zipBlob);
+        a.download = 'values-only.zip';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        logInfo('info', `已导出 values-only.zip，包含文件：${fileNames.join(', ')}`);
+      } catch (err) {
+        console.error('[convert] 处理失败', err);
+        alert('转换失败，请查看控制台');
+      }
+    });
   </script>
 </head>
 <body class="tool-body">
@@ -115,9 +149,6 @@
             <button type="button" id="btn-convert" class="btn btn-primary">
               批量导出 JSON
             </button>
-            <button type="button" id="btn-open-market-test" class="btn btn-secondary">
-              测试公开市场
-            </button>
           </div>
         </div>
         <div id="convertLog" class="conversion-log" role="log" aria-live="polite"></div>
@@ -130,77 +161,12 @@
         <ol class="step-list">
           <li>下载最新的 Excel 周报文件。</li>
           <li>点击“选择 Excel 文件”上传。</li>
-          <li>点击“批量导出 JSON”生成压缩包；如仅需检查公开市场数据，可用“测试公开市场”。</li>
+          <li>点击“批量导出 JSON”生成压缩包。</li>
           <li>检查输出 JSON 内容，确认无误后替换线上数据源。</li>
         </ol>
       </div>
     </section>
   </main>
 
-  <script src="./conversion-patch.js"></script>
-  <script type="module">
-    const ensureLibraries = () => {
-      if (!window.XLSX) {
-        throw new Error('XLSX 未加载');
-      }
-      if (!window.JSZip) {
-        throw new Error('JSZip 未加载');
-      }
-    };
-
-    async function runOpenMarketOnce(file) {
-      ensureLibraries();
-      const buf = await file.arrayBuffer();
-      const workbook = XLSX.read(buf, { type: 'array' });
-      const toRows = (sheet) =>
-        XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
-
-      const omSheet = workbook.Sheets['公开市场货币'];
-      const shiborSheet = workbook.Sheets['Shibor利率'];
-      if (!omSheet || !shiborSheet) {
-        alert('未找到公开市场货币或 Shibor利率工作表');
-        return;
-      }
-
-      const omRows = toRows(omSheet);
-      const shiborRows = toRows(shiborSheet);
-      const pack = window.__parseOpenMarketShiborMinimal?.(
-        omRows,
-        shiborRows,
-        window.__conversionAnchor
-      );
-      if (!pack || !pack.json) {
-        alert('公开市场解析失败');
-        return;
-      }
-
-      const blob = new Blob([JSON.stringify(pack.json, null, 2)], {
-        type: 'application/json',
-      });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = pack.filename;
-      link.click();
-      URL.revokeObjectURL(link.href);
-      alert(`已下载 ${pack.filename}`);
-    }
-
-    const openMarketButton = document.getElementById('btn-open-market-test');
-    const openMarketInput = document.querySelector('#xlsxFile');
-
-    openMarketButton?.addEventListener('click', async () => {
-      const file = openMarketInput?.files?.[0];
-      if (!file) {
-        alert('请先选择 Excel 文件');
-        return;
-      }
-      try {
-        await runOpenMarketOnce(file);
-      } catch (err) {
-        console.error('[open-market-test] 失败', err);
-        alert('转换失败，请查看控制台日志');
-      }
-    });
-  </script>
 </body>
 </html>

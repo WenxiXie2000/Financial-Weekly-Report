@@ -226,7 +226,7 @@ export const SHEET_PROFILES = {
   国能上市公司: {
     headerRow: 0,
     dateCol: /^日期$/,
-    rangeDefault: 'prevWeekWorkdays',
+    rangeDefault: 'prevCompletedWeek',
     stocks: ['国电电力', '中国神华', '龙源电力', '长源电力', '龙源技术', '英力特'],
     cols: {
       close: (s) => new RegExp(`^${s}收盘价$`),
@@ -245,11 +245,21 @@ export const SHEET_PROFILES = {
       const w = d.getDay();
       return !Number.isNaN(d.getTime()) && w >= 1 && w <= 5;
     },
+    unit: {
+      chg: '%',
+      amount: '亿',
+      amount_chg: '%',
+      mainflow: '亿',
+      pe: '%',
+      pb: '%',
+      dev: '%',
+      turn_ratio: '%',
+    },
   },
   国内股市: {
     headerRow: 1,
     dateCol: /^交易日$/,
-    rangeDefault: 'prevWeekWorkdays',
+    rangeDefault: 'prevCompletedWeek',
     indices: [
       { key: '上证综指', alias: '上证综指' },
       { key: '深圳成指', alias: '深圳成指' },
@@ -276,11 +286,17 @@ export const SHEET_PROFILES = {
       const w = d.getDay();
       return !Number.isNaN(d.getTime()) && w >= 1 && w <= 5;
     },
+    unit: {
+      chg: '%',
+      amount: '亿',
+      amount_chg: '%',
+      mainflow: '亿',
+    },
   },
   全球股市: {
     headerRow: 1,
     dateCol: /^日期$/,
-    rangeDefault: 'prevWeekWorkdays',
+    rangeDefault: 'prevCompletedWeek',
     rowFilter: (row) => {
       if (!row.date) return false;
       const d = new Date(String(row.date).replace(/-/g, '/'));
@@ -306,17 +322,18 @@ export const SHEET_PROFILES = {
   债券利率: {
     headerRow: 0,
     dateCol: /^日期$/,
-    rangeDefault: 'prevWeekWorkdays',
+    range: 'prevCompletedWeek',
+    rangeDefault: 'prevCompletedWeek',
     bondGroups: [
       {
         key: 'aaa_3y',
         label: 'AAA公司债3年',
         rankRange: [1, 5],
         cols: {
-          issuer: /AAA公司债3年{R}公司简称$/,
-          size: /AAA公司债3年{R}发行规模$/,
-          term: /AAA公司债3年{R}发行期限$/,
-          coupon: /AAA公司债3年{R}票面利率$/,
+          issuer: /AAA公司债3年{R}公司简称(?:（[^）]*）)?$/,
+          size: /AAA公司债3年{R}发行规模(?:（[^）]*）)?$/,
+          term: /AAA公司债3年{R}发行期限(?:（[^）]*）)?$/,
+          coupon: /AAA公司债3年{R}票面利率(?:（[^）]*）)?$/,
         },
       },
       {
@@ -324,10 +341,10 @@ export const SHEET_PROFILES = {
         label: 'AAA公司债5年',
         rankRange: [1, 5],
         cols: {
-          issuer: /AAA公司债5年{R}公司简称$/,
-          size: /AAA公司债5年{R}发行规模$/,
-          term: /AAA公司债5年{R}发行期限$/,
-          coupon: /AAA公司债5年{R}票面利率$/,
+          issuer: /AAA公司债5年{R}公司简称(?:（[^）]*）)?$/,
+          size: /AAA公司债5年{R}发行规模(?:（[^）]*）)?$/,
+          term: /AAA公司债5年{R}发行期限(?:（[^）]*）)?$/,
+          coupon: /AAA公司债5年{R}票面利率(?:（[^）]*）)?$/,
         },
       },
       {
@@ -335,10 +352,10 @@ export const SHEET_PROFILES = {
         label: 'AAA中票5年',
         rankRange: [1, 5],
         cols: {
-          issuer: /AAA中票5年{R}公司简称$/,
-          size: /AAA中票5年{R}发行规模$/,
-          term: /AAA中票5年{R}发行期限$/,
-          coupon: /AAA中票5年{R}票面利率$/,
+          issuer: /AAA中票5年{R}公司简称(?:（[^）]*）)?$/,
+          size: /AAA中票5年{R}发行规模(?:（[^）]*）)?$/,
+          term: /AAA中票5年{R}发行期限(?:（[^）]*）)?$/,
+          coupon: /AAA中票5年{R}票面利率(?:（[^）]*）)?$/,
         },
       },
       {
@@ -346,10 +363,10 @@ export const SHEET_PROFILES = {
         label: 'AAA私募债5年',
         rankRange: [1, 5],
         cols: {
-          issuer: /AAA私募债5年{R}公司简称$/,
-          size: /AAA私募债5年{R}发行规模$/,
-          term: /AAA私募债5年{R}发行期限$/,
-          coupon: /AAA私募债5年{R}票面利率$/,
+          issuer: /AAA私募债5年{R}公司简称(?:（[^）]*）)?$/,
+          size: /AAA私募债5年{R}发行规模(?:（[^）]*）)?$/,
+          term: /AAA私募债5年{R}发行期限(?:（[^）]*）)?$/,
+          coupon: /AAA私募债5年{R}票面利率(?:（[^）]*）)?$/,
         },
       },
       {
@@ -357,10 +374,10 @@ export const SHEET_PROFILES = {
         label: '短融',
         rankRange: [1, 5],
         cols: {
-          issuer: /短融{R}公司简称$/,
-          size: /短融{R}发行规模$/,
-          term: /短融{R}发行期限$/,
-          coupon: /短融{R}票面利率$/,
+          issuer: /短融{R}公司简称(?:（[^）]*）)?$/,
+          size: /短融{R}发行规模(?:（[^）]*）)?$/,
+          term: /短融{R}发行期限(?:（[^）]*）)?$/,
+          coupon: /短融{R}票面利率(?:（[^）]*）)?$/,
         },
       },
       {
@@ -368,10 +385,10 @@ export const SHEET_PROFILES = {
         label: '270D超短融',
         rankRange: [1, 5],
         cols: {
-          issuer: /270D超短融{R}公司简称$/,
-          size: /270D超短融{R}发行规模$/,
-          term: /270D超短融{R}发行期限$/,
-          coupon: /270D超短融{R}票面利率$/,
+          issuer: /270D超短融{R}公司简称(?:（[^）]*）)?$/,
+          size: /270D超短融{R}发行规模(?:（[^）]*）)?$/,
+          term: /270D超短融{R}发行期限(?:（[^）]*）)?$/,
+          coupon: /270D超短融{R}票面利率(?:（[^）]*）)?$/,
         },
       },
       {
@@ -379,10 +396,10 @@ export const SHEET_PROFILES = {
         label: '180D超短融',
         rankRange: [1, 5],
         cols: {
-          issuer: /180D超短融{R}公司简称$/,
-          size: /180D超短融{R}发行规模$/,
-          term: /180D超短融{R}发行期限$/,
-          coupon: /180D超短融{R}票面利率$/,
+          issuer: /180D超短融{R}公司简称(?:（[^）]*）)?$/,
+          size: /180D超短融{R}发行规模(?:（[^）]*）)?$/,
+          term: /180D超短融{R}发行期限(?:（[^）]*）)?$/,
+          coupon: /180D超短融{R}票面利率(?:（[^）]*）)?$/,
         },
       },
     ],
@@ -395,7 +412,8 @@ export const SHEET_PROFILES = {
   中票利率: {
     headerRow: 0,
     dateCol: /^日期$/,
-    rangeDefault: 'prevWeekWorkdays',
+    range: 'prevCompletedWeek',
+    rangeDefault: 'prevCompletedWeek',
     series: [
       { label: 'AAA中短票 1年', close: /AAA中短票1年利率$/ },
       { label: 'AAA中短票 3年', close: /AAA中短票3年利率$/ },

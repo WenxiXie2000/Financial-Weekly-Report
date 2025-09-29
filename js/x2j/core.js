@@ -65,6 +65,17 @@ export function mergeDatasets(target, incoming) {
     merged.table = ensureArray(merged.table).concat(ensureArray(addition.table));
   }
 
+  if (addition.top5_latest) {
+    const existingTop5 =
+      merged.top5_latest && typeof merged.top5_latest === 'object' ? { ...merged.top5_latest } : {};
+    const incomingTop5 =
+      addition.top5_latest && typeof addition.top5_latest === 'object' ? addition.top5_latest : {};
+    merged.top5_latest = {
+      ...existingTop5,
+      ...cloneDataset(incomingTop5),
+    };
+  }
+
   merged.export_info = merged.export_info || {};
   if (addition.export_info) {
     const { export_info: prevInfo } = merged;

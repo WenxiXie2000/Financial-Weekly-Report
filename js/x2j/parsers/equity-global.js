@@ -1,20 +1,33 @@
 import { findColIndex, toDateSafe, prevCompletedWeekRange, toNumberOrNull } from '../utils.js';
 import { formatDate, describeMatcher, closestHeaders } from './common.js';
 
-const DEFAULT_SHEET_NAME = '国能上市公司';
-const DEFAULT_HEADER_ROW = 0;
+const INDEX_DEFS = [
+  '道琼斯工业指数',
+  '纳斯达克指数',
+  '标准普尔500',
+  '富时100',
+  '法国CAC40',
+  '德国DAX',
+  '泛欧斯托克600',
+  '恒生指数',
+];
 
 const METRICS = [
-  { key: 'close', suffix: ' 收盘', type: 'number' },
-  { key: 'chg', suffix: ' 涨跌幅(%)', type: 'percent' },
-  { key: 'amount', suffix: ' 成交金额(亿)', type: 'number' },
-  { key: 'amount_chg', suffix: ' 成交金额变化(%)', type: 'percent' },
-  { key: 'mainflow', suffix: ' 主力资金流向(亿)', type: 'number' },
-  { key: 'pe', suffix: ' 市盈率(倍)', type: 'ratio' },
-  { key: 'pb', suffix: ' 市净率(倍)', type: 'ratio' },
-  { key: 'dev', suffix: ' 每日偏离值', type: 'percent' },
-  { key: 'turn_ratio', suffix: ' 换手率比值', type: 'percent' },
+  {
+    key: 'close',
+    suffix: ' 收盘',
+    matcher: (name) => new RegExp(`^${name}收盘价$`),
+    valueType: 'number',
+  },
+  {
+    key: 'chg',
+    suffix: ' 涨跌幅(%)',
+    matcher: (name) => new RegExp(`^${name}涨跌幅$`),
+    valueType: 'percent',
+  },
 ];
+
+const DEFAULT_HEADER_ROW = 1;
 
 const normalizeHeader = (value) => (value == null ? '' : String(value).trim());
 
@@ -29,22 +42,10 @@ const formatNumericValue = (value) => {
   return Number.isFinite(num) ? num : null;
 };
 
-const formatRatioValue = (value) => {
-  const num = toNumberOrNull(value);
-  if (!Number.isFinite(num)) return null;
-  return Number(num.toFixed(4));
-};
-
-const getTransform = (type) => {
-  if (type === 'percent') return formatPercentValue;
-  if (type === 'ratio') return formatRatioValue;
-  return formatNumericValue;
-};
-
-export function parseGroupListed(
+export default function parseEquityGlobal(
   rows,
   profile = {},
-  { anchor = new Date(), sheetName = DEFAULT_SHEET_NAME } = {}
+  { sheetName = '全球股市', anchor = new Date() } = {}
 ) {
   const headerRowIndex = Number.isInteger(profile?.headerRow)
     ? Math.max(0, profile.headerRow)
@@ -128,7 +129,6 @@ export function parseGroupListed(
     };
   }
 
-  const stocks = Array.isArray(profile?.stocks) ? profile.stocks : [];
   const columnTransforms = new Map();
   const seriesList = [];
 
@@ -141,24 +141,16 @@ export function parseGroupListed(
     return existing;
   };
 
-  stocks.forEach((stockRaw) => {
-    const stock = String(stockRaw || '').trim();
-    if (!stock) return;
-
+  INDEX_DEFS.forEach((indexName) => {
     METRICS.forEach((metric) => {
-      const matcherFactory = profile?.cols?.[metric.key];
-      const matcher =
-        typeof matcherFactory === 'function'
-          ? matcherFactory(stock)
-          : new RegExp(`^${stock}${metric.suffix.replace(/[()]/g, '')}$`);
-
-      const columnIdx = trackColumnInfo(matcher, `${stock}${metric.suffix}`);
+      const matcher = metric.matcher(indexName);
+      const columnIdx = trackColumnInfo(matcher, `${indexName} ${metric.suffix}`);
       if (columnIdx < 0) return;
 
-      const transform = getTransform(metric.type);
+      const transform = metric.valueType === 'percent' ? formatPercentValue : formatNumericValue;
       columnTransforms.set(columnIdx, transform);
 
-      const series = ensureSeries(`${stock}${metric.suffix}`);
+      const series = ensureSeries(`${indexName}${metric.suffix}`);
       const pointMap = new Map();
       filtered.forEach(({ row, date }) => {
         const iso = formatDate(date);
@@ -171,11 +163,11 @@ export function parseGroupListed(
     });
   });
 
-  const trackedColumns = Array.from(columnTransforms.keys());
+  const uniqueColumns = Array.from(columnTransforms.keys());
   const table = filtered.map(({ row, date }) => {
     const record = {};
     record[header[dateIdx]] = formatDate(date);
-    trackedColumns.forEach((idx) => {
+    uniqueColumns.forEach((idx) => {
       if (idx === dateIdx) return;
       const transform = columnTransforms.get(idx);
       record[header[idx]] = transform ? transform(row[idx]) : row[idx];
@@ -208,5 +200,3 @@ export function parseGroupListed(
     export_info: exportInfo,
   };
 }
-
-export default parseGroupListed;

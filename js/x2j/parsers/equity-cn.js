@@ -1,20 +1,49 @@
 import { findColIndex, toDateSafe, prevCompletedWeekRange, toNumberOrNull } from '../utils.js';
 import { formatDate, describeMatcher, closestHeaders } from './common.js';
 
-const DEFAULT_SHEET_NAME = '国能上市公司';
-const DEFAULT_HEADER_ROW = 0;
+const INDEX_DEFS = [
+  { key: '上证综指', label: '上证综指' },
+  { key: '深圳成指', label: '深圳成指' },
+  { key: '中小板指', label: '中小板指' },
+  { key: '创业板指', label: '创业板指' },
+  { key: '沪深300', label: '沪深300' },
+  { key: '300电力', label: '300电力' },
+];
 
 const METRICS = [
-  { key: 'close', suffix: ' 收盘', type: 'number' },
-  { key: 'chg', suffix: ' 涨跌幅(%)', type: 'percent' },
-  { key: 'amount', suffix: ' 成交金额(亿)', type: 'number' },
-  { key: 'amount_chg', suffix: ' 成交金额变化(%)', type: 'percent' },
-  { key: 'mainflow', suffix: ' 主力资金流向(亿)', type: 'number' },
-  { key: 'pe', suffix: ' 市盈率(倍)', type: 'ratio' },
-  { key: 'pb', suffix: ' 市净率(倍)', type: 'ratio' },
-  { key: 'dev', suffix: ' 每日偏离值', type: 'percent' },
-  { key: 'turn_ratio', suffix: ' 换手率比值', type: 'percent' },
+  {
+    key: 'close',
+    suffix: ' 收盘',
+    matcher: (name) => new RegExp(`^${name}收盘价$`),
+    valueType: 'number',
+  },
+  {
+    key: 'chg',
+    suffix: ' 涨跌幅(%)',
+    matcher: (name) => new RegExp(`^${name}涨跌幅$`),
+    valueType: 'percent',
+  },
+  {
+    key: 'amount',
+    suffix: ' 成交金额(亿)',
+    matcher: (name) => new RegExp(`^${name}成交金额`),
+    valueType: 'number',
+  },
+  {
+    key: 'amount_chg',
+    suffix: ' 成交金额变化(%)',
+    matcher: (name) => new RegExp(`^${name}成交金额变化$|^${name}成交变化$`),
+    valueType: 'percent',
+  },
+  {
+    key: 'mainflow',
+    suffix: ' 主力资金流向(亿)',
+    matcher: (name) => new RegExp(`^${name}主力资金流向`),
+    valueType: 'number',
+  },
 ];
+
+const DEFAULT_HEADER_ROW = 1;
 
 const normalizeHeader = (value) => (value == null ? '' : String(value).trim());
 
@@ -29,22 +58,10 @@ const formatNumericValue = (value) => {
   return Number.isFinite(num) ? num : null;
 };
 
-const formatRatioValue = (value) => {
-  const num = toNumberOrNull(value);
-  if (!Number.isFinite(num)) return null;
-  return Number(num.toFixed(4));
-};
-
-const getTransform = (type) => {
-  if (type === 'percent') return formatPercentValue;
-  if (type === 'ratio') return formatRatioValue;
-  return formatNumericValue;
-};
-
-export function parseGroupListed(
+export default function parseEquityCn(
   rows,
   profile = {},
-  { anchor = new Date(), sheetName = DEFAULT_SHEET_NAME } = {}
+  { sheetName = '国内股市', anchor = new Date() } = {}
 ) {
   const headerRowIndex = Number.isInteger(profile?.headerRow)
     ? Math.max(0, profile.headerRow)
@@ -83,7 +100,7 @@ export function parseGroupListed(
     return index;
   };
 
-  const dateMatcher = profile?.dateCol || /^日期$/;
+  const dateMatcher = profile?.dateCol || /^交易日$/;
   const dateIdx = trackColumnInfo(dateMatcher, '日期');
   diagnostics.date_column = dateIdx >= 0 ? header[dateIdx] || null : null;
 
@@ -128,7 +145,6 @@ export function parseGroupListed(
     };
   }
 
-  const stocks = Array.isArray(profile?.stocks) ? profile.stocks : [];
   const columnTransforms = new Map();
   const seriesList = [];
 
@@ -141,24 +157,16 @@ export function parseGroupListed(
     return existing;
   };
 
-  stocks.forEach((stockRaw) => {
-    const stock = String(stockRaw || '').trim();
-    if (!stock) return;
-
+  INDEX_DEFS.forEach((indexDef) => {
     METRICS.forEach((metric) => {
-      const matcherFactory = profile?.cols?.[metric.key];
-      const matcher =
-        typeof matcherFactory === 'function'
-          ? matcherFactory(stock)
-          : new RegExp(`^${stock}${metric.suffix.replace(/[()]/g, '')}$`);
-
-      const columnIdx = trackColumnInfo(matcher, `${stock}${metric.suffix}`);
+      const matcher = metric.matcher(indexDef.label);
+      const columnIdx = trackColumnInfo(matcher, `${indexDef.label} ${metric.suffix}`);
       if (columnIdx < 0) return;
 
-      const transform = getTransform(metric.type);
+      const transform = metric.valueType === 'percent' ? formatPercentValue : formatNumericValue;
       columnTransforms.set(columnIdx, transform);
 
-      const series = ensureSeries(`${stock}${metric.suffix}`);
+      const series = ensureSeries(`${indexDef.label}${metric.suffix}`);
       const pointMap = new Map();
       filtered.forEach(({ row, date }) => {
         const iso = formatDate(date);
@@ -171,11 +179,11 @@ export function parseGroupListed(
     });
   });
 
-  const trackedColumns = Array.from(columnTransforms.keys());
+  const uniqueColumns = Array.from(columnTransforms.keys());
   const table = filtered.map(({ row, date }) => {
     const record = {};
     record[header[dateIdx]] = formatDate(date);
-    trackedColumns.forEach((idx) => {
+    uniqueColumns.forEach((idx) => {
       if (idx === dateIdx) return;
       const transform = columnTransforms.get(idx);
       record[header[idx]] = transform ? transform(row[idx]) : row[idx];
@@ -208,5 +216,3 @@ export function parseGroupListed(
     export_info: exportInfo,
   };
 }
-
-export default parseGroupListed;
