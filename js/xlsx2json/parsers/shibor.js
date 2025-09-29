@@ -1,17 +1,17 @@
-import { findColIndex, toDateSafe } from "../utils.js";
+import { findColIndex, toDateSafe } from '../utils.js';
 import {
   fmtISO,
   parsePercentNumber,
   deriveRange,
   createSheetDiagnostics,
   trackColumn,
-} from "./common.js";
+} from './common.js';
 
 /**
  * @typedef {import("../types.js").ShiborJson} ShiborJson
  */
 
-const DEFAULT_SHEET_NAME = "Shibor利率";
+const DEFAULT_SHEET_NAME = 'Shibor利率';
 
 /**
  * 解析 Shibor 利率工作表，生成按期限划分的利率序列。
@@ -21,24 +21,15 @@ const DEFAULT_SHEET_NAME = "Shibor利率";
  * @param {{ sheetName?: string }} [context] 解析上下文。
  * @returns {ShiborJson}
  */
-export function parseShibor(
-  rows,
-  profile = {},
-  { sheetName = DEFAULT_SHEET_NAME } = {}
-) {
-  const headerRowIndex = Number.isInteger(profile?.headerRow)
-    ? Math.max(0, profile.headerRow)
-    : 0;
+export function parseShibor(rows, profile = {}, { sheetName = DEFAULT_SHEET_NAME } = {}) {
+  const headerRowIndex = Number.isInteger(profile?.headerRow) ? Math.max(0, profile.headerRow) : 0;
   const header = rows[headerRowIndex] || [];
   const body = rows
     .slice(headerRowIndex + 1)
     .filter(
       (row) =>
         Array.isArray(row) &&
-        row.some(
-          (cell) =>
-            cell !== undefined && cell !== null && String(cell).trim() !== ""
-        )
+        row.some((cell) => cell !== undefined && cell !== null && String(cell).trim() !== '')
     );
 
   const groups = Array.isArray(profile?.groups) ? profile.groups : [];
@@ -54,8 +45,8 @@ export function parseShibor(
 
   groups.forEach((group, groupIndex) => {
     const groupKey = group?.key || `group_${groupIndex}`;
-    const dateIdx = trackColumn(diagnostics, header, group?.dateCol ?? "", {
-      category: "date",
+    const dateIdx = trackColumn(diagnostics, header, group?.dateCol ?? '', {
+      category: 'date',
       label: `${group?.label || groupKey} 日期列`,
       allowMissing: true,
       extra: { group: groupKey, range: group?.range || null },
@@ -64,7 +55,7 @@ export function parseShibor(
 
     if (dateIdx < 0) {
       if (dateEntry) {
-        dateEntry.note = dateEntry.note || "未找到日期列";
+        dateEntry.note = dateEntry.note || '未找到日期列';
       }
       return;
     }
@@ -105,11 +96,8 @@ export function parseShibor(
     }
 
     let cutoff = null;
-    if (
-      typeof group?.range === "string" &&
-      group.range.startsWith("lastNDays:")
-    ) {
-      const n = Number(group.range.split(":")[1] || "0");
+    if (typeof group?.range === 'string' && group.range.startsWith('lastNDays:')) {
+      const n = Number(group.range.split(':')[1] || '0');
       if (Number.isFinite(n) && n > 0) {
         const latest = datedRows[datedRows.length - 1].date;
         cutoff = new Date(latest.getTime());
@@ -123,16 +111,16 @@ export function parseShibor(
         return;
       }
 
-      const colIdx = trackColumn(diagnostics, header, item?.col ?? "", {
-        category: "rate",
-        label: item?.label || item?.key || "",
-        extra: { group: groupKey, key: item?.key || "" },
+      const colIdx = trackColumn(diagnostics, header, item?.col ?? '', {
+        category: 'rate',
+        label: item?.label || item?.key || '',
+        extra: { group: groupKey, key: item?.key || '' },
       });
       const itemEntry = diagnostics.items[diagnostics.items.length - 1] || null;
 
       if (colIdx < 0) {
         if (itemEntry) {
-          itemEntry.note = itemEntry.note || "未找到数据列";
+          itemEntry.note = itemEntry.note || '未找到数据列';
         }
         return;
       }
@@ -171,9 +159,9 @@ export function parseShibor(
       }
 
       series.push({
-        name: item.label || item.key || "",
+        name: item.label || item.key || '',
         data,
-        unit: "%",
+        unit: '%',
       });
     });
   });
@@ -185,22 +173,22 @@ export function parseShibor(
   const overallRange = deriveRange(series);
 
   const meta = {
-    timezone: "Asia/Shanghai",
+    timezone: 'Asia/Shanghai',
     sourceSheet: sheetName,
     generatedAt: new Date().toISOString(),
     sourceSheets: [sheetName],
-    unit: { rate: "%" },
+    unit: { rate: '%' },
   };
 
   const exportInfo = {
     source_sheet: sheetName,
     rows: totalPoints,
-    last_updated: new Date().toISOString().slice(0, 19).replace("T", " "),
+    last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
     diagnostics,
   };
   if (overallRange) {
     exportInfo.range = overallRange;
-    diagnostics.range = diagnostics.range || overallRange.join(" ~ ");
+    diagnostics.range = diagnostics.range || overallRange.join(' ~ ');
   }
 
   return {

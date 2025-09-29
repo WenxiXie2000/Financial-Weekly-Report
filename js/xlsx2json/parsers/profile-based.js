@@ -6,7 +6,7 @@ import {
   toDateSafe,
   isWeekday,
   prevCompletedWeekRange,
-} from "../utils.js";
+} from '../utils.js';
 import {
   formatDate,
   deriveRange,
@@ -15,7 +15,7 @@ import {
   toISODateSafe,
   createSheetDiagnostics,
   trackColumn,
-} from "./common.js";
+} from './common.js';
 
 /**
  * @typedef {import("../types.js").BondYieldJson} BondYieldJson
@@ -24,7 +24,7 @@ import {
 
 function pickHeaderRow(rows, headerRowIndex = 0) {
   const idx = Math.max(0, Number(headerRowIndex) || 0);
-  return (rows[idx] || []).map((x) => String(x || "").trim());
+  return (rows[idx] || []).map((x) => String(x || '').trim());
 }
 
 function getPrevWeekWorkdayRange(now = new Date()) {
@@ -45,21 +45,17 @@ function getPrevWeekWorkdayRange(now = new Date()) {
  * @param {{ sheetName?: string, anchor?: Date }} [context] 解析上下文。
  * @returns {BondYieldJson|ProfileJson}
  */
-export function parseByProfile(
-  rows,
-  profile = {},
-  { sheetName = "", anchor = new Date() } = {}
-) {
+export function parseByProfile(rows, profile = {}, { sheetName = '', anchor = new Date() } = {}) {
   const diagnostics = createSheetDiagnostics(sheetName);
   diagnostics.range = profile?.rangeLabel || profile?.range || null;
 
   if (!Array.isArray(rows) || rows.length === 0) {
     return {
       meta: {
-        timezone: "Asia/Shanghai",
+        timezone: 'Asia/Shanghai',
         sourceSheet: sheetName,
         generatedAt: new Date().toISOString(),
-        note: "空数据表",
+        note: '空数据表',
       },
       summary: {},
       series: [],
@@ -67,17 +63,15 @@ export function parseByProfile(
     };
   }
 
-  const headerRowIndex = Number.isInteger(profile.headerRow)
-    ? Math.max(0, profile.headerRow)
-    : 0;
+  const headerRowIndex = Number.isInteger(profile.headerRow) ? Math.max(0, profile.headerRow) : 0;
   const header = pickHeaderRow(rows, headerRowIndex);
   const track = (matcher, options = {}) => {
     if (matcher == null) return -1;
     return trackColumn(diagnostics, header, matcher, options);
   };
   const dateIdx = track(profile.dateCol, {
-    category: "date",
-    label: "日期列",
+    category: 'date',
+    label: '日期列',
   });
   if (dateIdx >= 0 && !diagnostics.dateCol) {
     diagnostics.dateCol = header[dateIdx] || null;
@@ -85,44 +79,30 @@ export function parseByProfile(
   if (Array.isArray(profile.bondGroups) && profile.bondGroups.length) {
     const body = rows.slice(headerRowIndex + 1);
     let range = null;
-    if (
-      profile.range === "prevWeekOnly" ||
-      profile.range === "prevWeekWorkdays"
-    ) {
+    if (profile.range === 'prevWeekOnly' || profile.range === 'prevWeekWorkdays') {
       range = getPrevWeekWorkdayRange(anchor);
     }
     const inRange = (value) => {
       if (!range) return true;
       if (!value) return false;
-      const parsed = new Date(String(value).replace(/-/g, "/"));
-      return (
-        !Number.isNaN(parsed.getTime()) &&
-        parsed >= range.start &&
-        parsed <= range.end
-      );
+      const parsed = new Date(String(value).replace(/-/g, '/'));
+      return !Number.isNaN(parsed.getTime()) && parsed >= range.start && parsed <= range.end;
     };
 
     const expandMatcher = (regexTpl, rank) => {
       if (regexTpl instanceof RegExp) {
-        return new RegExp(
-          regexTpl.source.replace("{R}", String(rank)),
-          regexTpl.flags
-        );
+        return new RegExp(regexTpl.source.replace('{R}', String(rank)), regexTpl.flags);
       }
-      const pattern = String(regexTpl || "").replace("{R}", String(rank));
+      const pattern = String(regexTpl || '').replace('{R}', String(rank));
       return new RegExp(pattern);
     };
     if (dateIdx < 0) {
-      throw new Error(`${sheetName || "表"}：未找到日期列`);
+      throw new Error(`${sheetName || '表'}：未找到日期列`);
     }
 
     const groupDefs = profile.bondGroups
       .map((group) => {
-        if (
-          !group ||
-          !Array.isArray(group.rankRange) ||
-          group.rankRange.length < 2
-        ) {
+        if (!group || !Array.isArray(group.rankRange) || group.rankRange.length < 2) {
           return null;
         }
         const [rankStart, rankEnd] = group.rankRange;
@@ -130,30 +110,30 @@ export function parseByProfile(
         for (let rank = rankStart; rank <= rankEnd; rank += 1) {
           const issuerIdx = group?.cols?.issuer
             ? track(expandMatcher(group.cols.issuer, rank), {
-                category: "bond",
-                label: `${group?.label || group.key || "组"} R${rank} 发行人`,
-                extra: { group: group?.key, rank, field: "issuer" },
+                category: 'bond',
+                label: `${group?.label || group.key || '组'} R${rank} 发行人`,
+                extra: { group: group?.key, rank, field: 'issuer' },
               })
             : -1;
           const sizeIdx = group?.cols?.size
             ? track(expandMatcher(group.cols.size, rank), {
-                category: "bond",
-                label: `${group?.label || group.key || "组"} R${rank} 发行规模`,
-                extra: { group: group?.key, rank, field: "size" },
+                category: 'bond',
+                label: `${group?.label || group.key || '组'} R${rank} 发行规模`,
+                extra: { group: group?.key, rank, field: 'size' },
               })
             : -1;
           const termIdx = group?.cols?.term
             ? track(expandMatcher(group.cols.term, rank), {
-                category: "bond",
-                label: `${group?.label || group.key || "组"} R${rank} 期限`,
-                extra: { group: group?.key, rank, field: "term" },
+                category: 'bond',
+                label: `${group?.label || group.key || '组'} R${rank} 期限`,
+                extra: { group: group?.key, rank, field: 'term' },
               })
             : -1;
           const couponIdx = group?.cols?.coupon
             ? track(expandMatcher(group.cols.coupon, rank), {
-                category: "bond",
-                label: `${group?.label || group.key || "组"} R${rank} 票面利率`,
-                extra: { group: group?.key, rank, field: "coupon" },
+                category: 'bond',
+                label: `${group?.label || group.key || '组'} R${rank} 票面利率`,
+                extra: { group: group?.key, rank, field: 'coupon' },
               })
             : -1;
 
@@ -176,7 +156,7 @@ export function parseByProfile(
 
         return {
           key: group.key,
-          label: group.label || group.key || String(group.key ?? "组"),
+          label: group.label || group.key || String(group.key ?? '组'),
           ranks: rankDefs,
         };
       })
@@ -192,10 +172,7 @@ export function parseByProfile(
       const isoDate = toISODateSafe(tRaw);
       if (!isoDate || !inRange(isoDate)) continue;
 
-      if (
-        typeof profile.rowFilter === "function" &&
-        !profile.rowFilter({ date: isoDate })
-      ) {
+      if (typeof profile.rowFilter === 'function' && !profile.rowFilter({ date: isoDate })) {
         continue;
       }
 
@@ -215,19 +192,13 @@ export function parseByProfile(
           const termClean = missingToNull(termRaw);
           const couponNum = toNumberOrNull(couponRaw);
 
-          if (
-            issuerClean == null &&
-            sizeNum == null &&
-            termClean == null &&
-            couponNum == null
-          ) {
+          if (issuerClean == null && sizeNum == null && termClean == null && couponNum == null) {
             return;
           }
 
           ranks.push({
             rank,
-            issuer:
-              issuerClean == null ? null : String(issuerClean).trim() || null,
+            issuer: issuerClean == null ? null : String(issuerClean).trim() || null,
             size: Number.isFinite(sizeNum) ? sizeNum : null,
             term: termClean == null ? null : String(termClean).trim() || null,
             coupon: Number.isFinite(couponNum) ? couponNum : null,
@@ -246,12 +217,9 @@ export function parseByProfile(
         }
         sumSizeMap.get(def.key).push([isoDate, String(sumSize)]);
 
-        const coupons = ranks
-          .map((item) => item.coupon)
-          .filter((val) => Number.isFinite(val));
+        const coupons = ranks.map((item) => item.coupon).filter((val) => Number.isFinite(val));
         if (coupons.length) {
-          const avg =
-            coupons.reduce((acc, val) => acc + val, 0) / coupons.length;
+          const avg = coupons.reduce((acc, val) => acc + val, 0) / coupons.length;
           if (!seriesMap.has(def.key)) {
             seriesMap.set(def.key, { label: def.label, data: [] });
           }
@@ -259,12 +227,9 @@ export function parseByProfile(
         }
 
         const latest = latestBoard[def.key];
-        const currentDate = new Date(isoDate.replace(/-/g, "/"));
+        const currentDate = new Date(isoDate.replace(/-/g, '/'));
         if (!Number.isNaN(currentDate.getTime())) {
-          if (
-            !latest ||
-            new Date(latest.__date.replace(/-/g, "/")) < currentDate
-          ) {
+          if (!latest || new Date(latest.__date.replace(/-/g, '/')) < currentDate) {
             latestBoard[def.key] = {
               __date: isoDate,
               rows: ranks.map((item) => {
@@ -283,18 +248,14 @@ export function parseByProfile(
       }
     }
 
-    const seriesEntries = Array.from(seriesMap.entries()).map(
-      ([key, payload]) => {
-        const sorted = payload.data.sort(
-          (a, b) => new Date(a[0]) - new Date(b[0])
-        );
-        return {
-          key,
-          label: payload.label,
-          data: sorted,
-        };
-      }
-    );
+    const seriesEntries = Array.from(seriesMap.entries()).map(([key, payload]) => {
+      const sorted = payload.data.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+      return {
+        key,
+        label: payload.label,
+        data: sorted,
+      };
+    });
 
     const series = seriesEntries.map((entry) => ({
       name: `${entry.label} 票面利率(均值)`,
@@ -311,14 +272,11 @@ export function parseByProfile(
 
     series.forEach((serie) => {
       if (!Array.isArray(serie.data) || !serie.data.length) return;
-      const baseName = serie.name.replace(/\s*票面利率\(均值\)\s*$/, "").trim();
+      const baseName = serie.name.replace(/\s*票面利率\(均值\)\s*$/, '').trim();
       if (!baseName) return;
-      const summaryKeyBase = baseName.replace(
-        /[^A-Za-z0-9\u4e00-\u9fa5]+/g,
-        ""
-      );
+      const summaryKeyBase = baseName.replace(/[^A-Za-z0-9\u4e00-\u9fa5]+/g, '');
       const lastVal = serie.data[serie.data.length - 1][1];
-      if (lastVal == null || lastVal === "") return;
+      if (lastVal == null || lastVal === '') return;
       const num = Number(lastVal);
       summary[`${summaryKeyBase}_avg_coupon`] = Number.isFinite(num)
         ? `${num.toFixed(4)}%`
@@ -336,7 +294,7 @@ export function parseByProfile(
 
     const exportInfo = {
       rows: body.length,
-      last_updated: new Date().toISOString().slice(0, 19).replace("T", " "),
+      last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
     };
     const rangePair = deriveRange(series);
     if (rangePair) {
@@ -344,7 +302,7 @@ export function parseByProfile(
     }
 
     const meta = {
-      timezone: "Asia/Shanghai",
+      timezone: 'Asia/Shanghai',
       sourceSheet: sheetName,
       generatedAt: new Date().toISOString(),
       unit: profile.unit || {},
@@ -363,36 +321,28 @@ export function parseByProfile(
     };
   }
 
-  if (
-    Array.isArray(profile.seriesByDateKey) &&
-    profile.seriesByDateKey.length
-  ) {
-    const dateIdxMap = Object.entries(profile.dateCols || {}).reduce(
-      (acc, [key, matcher]) => {
-        const idx = track(matcher, {
-          category: "date",
-          label: `${key} 日期列`,
-          extra: { dateKey: key },
-        });
-        if (idx >= 0) {
-          acc[key] = idx;
-          if (!diagnostics.dateCol) {
-            diagnostics.dateCol = header[idx] || null;
-          }
+  if (Array.isArray(profile.seriesByDateKey) && profile.seriesByDateKey.length) {
+    const dateIdxMap = Object.entries(profile.dateCols || {}).reduce((acc, [key, matcher]) => {
+      const idx = track(matcher, {
+        category: 'date',
+        label: `${key} 日期列`,
+        extra: { dateKey: key },
+      });
+      if (idx >= 0) {
+        acc[key] = idx;
+        if (!diagnostics.dateCol) {
+          diagnostics.dateCol = header[idx] || null;
         }
-        return acc;
-      },
-      {}
-    );
+      }
+      return acc;
+    }, {});
 
     const seriesDefs = profile.seriesByDateKey
       .map((conf) => {
-        const dateIdx = conf.dateKey ? dateIdxMap[conf.dateKey] ?? -1 : -1;
+        const dateIdx = conf.dateKey ? (dateIdxMap[conf.dateKey] ?? -1) : -1;
         const valIdx = track(conf.close, {
-          category: "series",
-          label: `${
-            conf.label || conf.summaryKey || conf.dateKey || "系列"
-          } 收盘`,
+          category: 'series',
+          label: `${conf.label || conf.summaryKey || conf.dateKey || '系列'} 收盘`,
           extra: { key: conf.summaryKey || conf.label || conf.dateKey },
         });
         if (dateIdx < 0 || valIdx < 0) return null;
@@ -407,12 +357,12 @@ export function parseByProfile(
 
     if (!seriesDefs.length) {
       const meta = {
-        timezone: "Asia/Shanghai",
+        timezone: 'Asia/Shanghai',
         sourceSheet: sheetName,
         generatedAt: new Date().toISOString(),
         unit: profile.unit || {},
         sourceSheets: [sheetName],
-        note: "未匹配到有效的系列配置",
+        note: '未匹配到有效的系列配置',
       };
       return {
         meta,
@@ -420,7 +370,7 @@ export function parseByProfile(
         series: [],
         export_info: {
           rows: 0,
-          last_updated: new Date().toISOString().slice(0, 19).replace("T", " "),
+          last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
           diagnostics,
         },
         diagnostics: diagnostics.items,
@@ -428,8 +378,8 @@ export function parseByProfile(
     }
 
     const formatSummaryKey = (label) => {
-      const slug = label.replace(/[^A-Za-z0-9]/g, "").toLowerCase();
-      return (slug || label.replace(/\s+/g, "").toLowerCase()) + "_rate";
+      const slug = label.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+      return (slug || label.replace(/\s+/g, '').toLowerCase()) + '_rate';
     };
 
     const bodyRows = rows.slice(headerRowIndex + 1);
@@ -449,22 +399,14 @@ export function parseByProfile(
       .filter(Boolean);
 
     const allDates = enriched
-      .map(
-        (entry) =>
-          entry.fallback.date || toDateSafe(entry.fallback.info.display)
-      )
+      .map((entry) => entry.fallback.date || toDateSafe(entry.fallback.info.display))
       .filter((d) => d instanceof Date && !Number.isNaN(d.getTime()));
 
     const rangeStrategy = profile.range || profile.rangeDefault;
     let range = null;
-    if (
-      rangeStrategy === "prevWeekWorkdays" ||
-      rangeStrategy === "prevWeekOnly"
-    ) {
+    if (rangeStrategy === 'prevWeekWorkdays' || rangeStrategy === 'prevWeekOnly') {
       if (allDates.length) {
-        const latest = allDates.reduce((prev, cur) =>
-          cur > prev ? cur : prev
-        );
+        const latest = allDates.reduce((prev, cur) => (cur > prev ? cur : prev));
         const anchorDate = new Date(latest.getTime());
         const day = anchorDate.getDay() || 7;
         anchorDate.setHours(0, 0, 0, 0);
@@ -477,15 +419,10 @@ export function parseByProfile(
       } else {
         range = getPrevWeekWorkdayRange(anchor);
       }
-    } else if (
-      typeof rangeStrategy === "string" &&
-      rangeStrategy.startsWith("lastNDays:")
-    ) {
-      const n = Number(rangeStrategy.split(":")[1] || "7");
+    } else if (typeof rangeStrategy === 'string' && rangeStrategy.startsWith('lastNDays:')) {
+      const n = Number(rangeStrategy.split(':')[1] || '7');
       if (allDates.length) {
-        const latest = allDates.reduce((prev, cur) =>
-          cur > prev ? cur : prev
-        );
+        const latest = allDates.reduce((prev, cur) => (cur > prev ? cur : prev));
         const end = new Date(latest.getTime());
         end.setHours(23, 59, 59, 999);
         const start = new Date(latest.getTime());
@@ -493,10 +430,8 @@ export function parseByProfile(
         start.setHours(0, 0, 0, 0);
         range = { start, end };
       }
-    } else if (rangeStrategy && typeof rangeStrategy === "object") {
-      const start = rangeStrategy.start
-        ? toDateSafe(rangeStrategy.start)
-        : null;
+    } else if (rangeStrategy && typeof rangeStrategy === 'object') {
+      const start = rangeStrategy.start ? toDateSafe(rangeStrategy.start) : null;
       const end = rangeStrategy.end ? toDateSafe(rangeStrategy.end) : null;
       if (start || end) {
         range = { start, end };
@@ -510,8 +445,7 @@ export function parseByProfile(
       if (!date || Number.isNaN(date.getTime())) return false;
       if (range.start && date < range.start) return false;
       if (range.end && date > range.end) return false;
-      if (rangeStrategy === "prevWeekWorkdays" && !isWeekday(date))
-        return false;
+      if (rangeStrategy === 'prevWeekWorkdays' && !isWeekday(date)) return false;
       return true;
     };
 
@@ -523,19 +457,14 @@ export function parseByProfile(
       pairs
         .slice()
         .sort(
-          (a, b) =>
-            (toDateSafe(a[0]) || new Date(a[0])) -
-            (toDateSafe(b[0]) || new Date(b[0]))
+          (a, b) => (toDateSafe(a[0]) || new Date(a[0])) - (toDateSafe(b[0]) || new Date(b[0]))
         );
 
     enriched.forEach((entry) => {
       const fallbackInfo = entry.fallback.info;
-      const fallbackDate =
-        entry.fallback.date || toDateSafe(fallbackInfo.display) || null;
+      const fallbackDate = entry.fallback.date || toDateSafe(fallbackInfo.display) || null;
       const fallbackInRange = inRange(fallbackDate || fallbackInfo.display);
-      const seriesInRange = entry.entries.some((item) =>
-        inRange(item.date || item.info.display)
-      );
+      const seriesInRange = entry.entries.some((item) => inRange(item.date || item.info.display));
       if (range && !fallbackInRange && !seriesInRange) {
         return;
       }
@@ -543,7 +472,7 @@ export function parseByProfile(
       let recorded = false;
 
       entry.entries.forEach(({ def, info, date, raw }) => {
-        if (raw == null || raw === "") return;
+        if (raw == null || raw === '') return;
 
         const displayDate = info.display || fallbackInfo.display;
         if (!displayDate) return;
@@ -553,8 +482,7 @@ export function parseByProfile(
           if (!fallbackInRange) return;
         }
 
-        const textValue =
-          typeof raw === "number" ? String(raw) : String(raw).trim();
+        const textValue = typeof raw === 'number' ? String(raw) : String(raw).trim();
         if (!textValue) return;
 
         if (!buckets.has(def.label)) {
@@ -593,9 +521,7 @@ export function parseByProfile(
       if (latest) {
         summary[summaryKey] =
           formatPercent4(latest.text) ||
-          (typeof latest.value === "number"
-            ? String(latest.value)
-            : latest.text);
+          (typeof latest.value === 'number' ? String(latest.value) : latest.text);
       } else if (serie.data.length) {
         const last = serie.data[serie.data.length - 1][1];
         summary[summaryKey] = formatPercent4(last) || last;
@@ -604,7 +530,7 @@ export function parseByProfile(
 
     const exportInfo = {
       rows: usedRows.length,
-      last_updated: new Date().toISOString().slice(0, 19).replace("T", " "),
+      last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
     };
     const overallRange = deriveRange(series);
     if (overallRange) {
@@ -613,7 +539,7 @@ export function parseByProfile(
     exportInfo.diagnostics = diagnostics;
 
     const meta = {
-      timezone: "Asia/Shanghai",
+      timezone: 'Asia/Shanghai',
       sourceSheet: sheetName,
       generatedAt: new Date().toISOString(),
       unit: profile.unit || {},
@@ -621,11 +547,10 @@ export function parseByProfile(
     };
 
     if (range) {
-      meta.rangeStart = range.start ? formatDate(range.start) : "";
-      meta.rangeEnd = range.end ? formatDate(range.end) : "";
+      meta.rangeStart = range.start ? formatDate(range.start) : '';
+      meta.rangeEnd = range.end ? formatDate(range.end) : '';
       if (meta.rangeStart && meta.rangeEnd) {
-        const suffix =
-          rangeStrategy === "prevWeekWorkdays" ? "（上一周工作日）" : "";
+        const suffix = rangeStrategy === 'prevWeekWorkdays' ? '（上一周工作日）' : '';
         meta.rangeLabel = `${meta.rangeStart} ~ ${meta.rangeEnd}${suffix}`;
       }
     }
@@ -648,31 +573,31 @@ export function parseByProfile(
       const closeIdx =
         conf.close != null
           ? track(conf.close, {
-              category: "series",
+              category: 'series',
               label: `${label} 收盘`,
-              extra: { key: baseKey, field: "close" },
+              extra: { key: baseKey, field: 'close' },
             })
           : -1;
       const chgIdx =
         conf.chgPct != null
           ? track(conf.chgPct, {
-              category: "series",
+              category: 'series',
               label: `${label} 涨跌幅(%)`,
-              extra: { key: baseKey, field: "chgPct" },
+              extra: { key: baseKey, field: 'chgPct' },
             })
           : conf.chg != null
-          ? track(conf.chg, {
-              category: "series",
-              label: `${label} 涨跌幅`,
-              extra: { key: baseKey, field: "chg" },
-            })
-          : -1;
+            ? track(conf.chg, {
+                category: 'series',
+                label: `${label} 涨跌幅`,
+                extra: { key: baseKey, field: 'chg' },
+              })
+            : -1;
       const dateIdxOverride =
         conf.dateCol != null
           ? track(conf.dateCol, {
-              category: "date",
+              category: 'date',
               label: `${label} 日期`,
-              extra: { key: baseKey, field: "date" },
+              extra: { key: baseKey, field: 'date' },
             })
           : -1;
       return {
@@ -688,24 +613,24 @@ export function parseByProfile(
     .map((kpi) => ({
       key: kpi.key,
       idx: track(kpi.col, {
-        category: "kpi",
+        category: 'kpi',
         label: `KPI ${kpi.key}`,
         extra: { field: kpi.key },
       }),
-      type: kpi.type || "text",
+      type: kpi.type || 'text',
       allowBlank: Boolean(kpi.allowBlank),
     }))
     .filter((item) => item.key && item.idx >= 0);
 
   const eventsDefs = (profile.events || [])
     .map((evt) => ({
-      region: evt.region || "default",
+      region: evt.region || 'default',
       indices: (Array.isArray(evt.cols) ? evt.cols : [])
         .map((matcher, idx) =>
           track(matcher, {
-            category: "event",
-            label: `${evt.region || "default"} 事件列`,
-            extra: { region: evt.region || "default", index: idx },
+            category: 'event',
+            label: `${evt.region || 'default'} 事件列`,
+            extra: { region: evt.region || 'default', index: idx },
           })
         )
         .filter((idx) => idx >= 0),
@@ -714,9 +639,7 @@ export function parseByProfile(
 
   const bodyRows = rows.slice(headerRowIndex + 1);
   const nonEmptyRows = bodyRows.filter(
-    (row) =>
-      Array.isArray(row) &&
-      row.some((cell) => cell != null && String(cell).trim() !== "")
+    (row) => Array.isArray(row) && row.some((cell) => cell != null && String(cell).trim() !== '')
   );
 
   const candidateDates = (() => {
@@ -739,8 +662,8 @@ export function parseByProfile(
 
   const rangeStrategy = profile.range || profile.rangeDefault;
   const resolveRange = (strategy) => {
-    if (!strategy || strategy === "all") return null;
-    if (typeof strategy === "object") {
+    if (!strategy || strategy === 'all') return null;
+    if (typeof strategy === 'object') {
       const start = strategy.start ? toDateSafe(strategy.start) : null;
       const end = strategy.end ? toDateSafe(strategy.end) : null;
       if (!start && !end) return null;
@@ -750,7 +673,7 @@ export function parseByProfile(
       .filter((d) => d instanceof Date && !Number.isNaN(d.getTime()))
       .sort((a, b) => a - b);
     if (!dates.length) return null;
-    if (strategy === "prevWeekWorkdays" || strategy === "prevWeekOnly") {
+    if (strategy === 'prevWeekWorkdays' || strategy === 'prevWeekOnly') {
       const latest = dates[dates.length - 1];
       const anchorDate = new Date(latest.getTime());
       const day = anchorDate.getDay() || 7;
@@ -762,8 +685,8 @@ export function parseByProfile(
       friday.setHours(23, 59, 59, 999);
       return { start: monday, end: friday };
     }
-    if (typeof strategy === "string" && strategy.startsWith("lastNDays:")) {
-      const n = Number(strategy.split(":")[1] || "90");
+    if (typeof strategy === 'string' && strategy.startsWith('lastNDays:')) {
+      const n = Number(strategy.split(':')[1] || '90');
       const latest = dates[dates.length - 1];
       const end = new Date(latest.getTime());
       end.setHours(23, 59, 59, 999);
@@ -783,7 +706,7 @@ export function parseByProfile(
     if (!date || Number.isNaN(date.getTime())) return false;
     if (range.start && date < range.start) return false;
     if (range.end && date > range.end) return false;
-    if (rangeStrategy === "prevWeekWorkdays" && !isWeekday(date)) return false;
+    if (rangeStrategy === 'prevWeekWorkdays' && !isWeekday(date)) return false;
     return true;
   };
 
@@ -794,8 +717,8 @@ export function parseByProfile(
 
   nonEmptyRows.forEach((row) => {
     const resolveDateInfo = (idx) => {
-      if (typeof idx !== "number" || idx < 0) {
-        return { date: null, display: "" };
+      if (typeof idx !== 'number' || idx < 0) {
+        return { date: null, display: '' };
       }
       return normalizeDateValue(row[idx]);
     };
@@ -821,9 +744,7 @@ export function parseByProfile(
     }
     if (!fallbackInfo.display && hasSeriesDate) {
       const sc = seriesCols.find((item) => {
-        const info = resolveDateInfo(
-          item.dateIdx >= 0 ? item.dateIdx : dateIdx
-        );
+        const info = resolveDateInfo(item.dateIdx >= 0 ? item.dateIdx : dateIdx);
         return Boolean(info.display);
       });
       if (sc) {
@@ -831,7 +752,7 @@ export function parseByProfile(
       }
     }
 
-    const rowObj = { date: fallbackInfo.display || "" };
+    const rowObj = { date: fallbackInfo.display || '' };
     seriesCols.forEach((sc) => {
       if (sc.closeIdx >= 0) {
         rowObj[`${sc.label}_close`] = row[sc.closeIdx];
@@ -841,16 +762,13 @@ export function parseByProfile(
       }
     });
 
-    if (typeof profile.rowFilter === "function" && !profile.rowFilter(rowObj)) {
+    if (typeof profile.rowFilter === 'function' && !profile.rowFilter(rowObj)) {
       return;
     }
 
     const compareDate =
-      fallbackInfo.date ||
-      (fallbackInfo.display ? toDateSafe(fallbackInfo.display) : null);
-    const fallbackInRange = inRange(
-      compareDate || fallbackInfo.display || null
-    );
+      fallbackInfo.date || (fallbackInfo.display ? toDateSafe(fallbackInfo.display) : null);
+    const fallbackInRange = inRange(compareDate || fallbackInfo.display || null);
     const seriesInRange = seriesCols.some((sc) => {
       const info = resolveDateInfo(sc.dateIdx >= 0 ? sc.dateIdx : dateIdx);
       if (!info.display) return false;
@@ -867,41 +785,27 @@ export function parseByProfile(
       if (kpi.idx < 0 || !shouldProcessKpi) return;
       const raw = row[kpi.idx];
 
-      const normalizedValue =
-        kpi.type === "pct" ? toPctString4OrNull(raw) : missingToNull(raw);
+      const normalizedValue = kpi.type === 'pct' ? toPctString4OrNull(raw) : missingToNull(raw);
 
       if (normalizedValue == null) {
         if (kpi.allowBlank) {
           const record = { value: null, date: compareDate || null };
           const existing = kpiLastValue.get(kpi.key);
-          if (
-            !existing ||
-            !existing.date ||
-            !record.date ||
-            record.date >= existing.date
-          ) {
+          if (!existing || !existing.date || !record.date || record.date >= existing.date) {
             kpiLastValue.set(kpi.key, record);
           }
         }
         return;
       }
 
-      const value =
-        kpi.type === "pct"
-          ? normalizedValue
-          : String(normalizedValue).trim() || null;
+      const value = kpi.type === 'pct' ? normalizedValue : String(normalizedValue).trim() || null;
       if (value == null && !kpi.allowBlank) {
         return;
       }
 
       const record = { value, date: compareDate || null };
       const existing = kpiLastValue.get(kpi.key);
-      if (
-        !existing ||
-        !existing.date ||
-        !record.date ||
-        record.date >= existing.date
-      ) {
+      if (!existing || !existing.date || !record.date || record.date >= existing.date) {
         kpiLastValue.set(kpi.key, record);
       }
     });
@@ -918,9 +822,9 @@ export function parseByProfile(
 
       if (sc.closeIdx >= 0) {
         const raw = row[sc.closeIdx];
-        const isMidBond = sheetName === "中票利率";
+        const isMidBond = sheetName === '中票利率';
         const value = isMidBond ? toNumberOrNull(raw) : raw;
-        const isMissing = isMidBond ? value == null : raw == null || raw === "";
+        const isMissing = isMidBond ? value == null : raw == null || raw === '';
 
         if (isMissing) {
           if (allowNullPoints) {
@@ -954,13 +858,13 @@ export function parseByProfile(
       if (!shouldProcessKpi) return;
       const values = evt.indices
         .map((idx) => row[idx])
-        .filter((cell) => cell != null && String(cell).trim() !== "");
+        .filter((cell) => cell != null && String(cell).trim() !== '');
       if (!values.length) return;
       if (!eventsMap.has(evt.region)) {
         eventsMap.set(evt.region, []);
       }
       eventsMap.get(evt.region).push({
-        date: fallbackInfo.display || "",
+        date: fallbackInfo.display || '',
         items: values.map((value) => String(value).trim()),
       });
     });
@@ -985,15 +889,11 @@ export function parseByProfile(
     const closeSerie = seriesMap.get(sc.label);
     if (!closeSerie || !closeSerie.data.length) return;
     const lastClose = closeSerie.data[closeSerie.data.length - 1][1];
-    if (lastClose == null || lastClose === "") return;
+    if (lastClose == null || lastClose === '') return;
     const changeSerie = chgMap.get(sc.label);
     const lastChange =
-      changeSerie && changeSerie.length
-        ? changeSerie[changeSerie.length - 1][1]
-        : null;
-    summary[sc.label] = lastChange
-      ? `${lastClose} (${lastChange})`
-      : String(lastClose);
+      changeSerie && changeSerie.length ? changeSerie[changeSerie.length - 1][1] : null;
+    summary[sc.label] = lastChange ? `${lastClose} (${lastChange})` : String(lastClose);
   });
 
   kpiLastValue.forEach((detail, key) => {
@@ -1003,7 +903,7 @@ export function parseByProfile(
   const changeSeries = Array.from(chgMap.entries()).map(([label, data]) => ({
     name: `${label} 涨跌幅`,
     data,
-    unit: "%",
+    unit: '%',
   }));
 
   const events = {};
@@ -1012,7 +912,7 @@ export function parseByProfile(
   });
 
   const meta = {
-    timezone: "Asia/Shanghai",
+    timezone: 'Asia/Shanghai',
     sourceSheet: sheetName,
     generatedAt: new Date().toISOString(),
     unit: profile.unit || {},
@@ -1020,17 +920,16 @@ export function parseByProfile(
   };
 
   if (range) {
-    meta.rangeStart = range.start ? formatDate(range.start) : "";
-    meta.rangeEnd = range.end ? formatDate(range.end) : "";
+    meta.rangeStart = range.start ? formatDate(range.start) : '';
+    meta.rangeEnd = range.end ? formatDate(range.end) : '';
     if (meta.rangeStart && meta.rangeEnd) {
-      const suffix =
-        rangeStrategy === "prevWeekWorkdays" ? "（上一周工作日）" : "";
+      const suffix = rangeStrategy === 'prevWeekWorkdays' ? '（上一周工作日）' : '';
       meta.rangeLabel = `${meta.rangeStart} ~ ${meta.rangeEnd}${suffix}`;
     }
   }
 
   if (!seriesMap.size && !Object.keys(summary).length) {
-    meta.note = meta.note || "未匹配到有效的系列数据";
+    meta.note = meta.note || '未匹配到有效的系列数据';
   }
 
   const result = {
@@ -1041,7 +940,7 @@ export function parseByProfile(
 
   const exportInfo = {
     rows: nonEmptyRows.length,
-    last_updated: new Date().toISOString().slice(0, 19).replace("T", " "),
+    last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
   };
   const overallRange = deriveRange(result.series);
   if (overallRange) {

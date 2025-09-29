@@ -1,10 +1,10 @@
-import parseByProfile from "./profile-based.js";
+import parseByProfile from './profile-based.js';
 
 /**
  * @typedef {import("../types.js").BondYieldJson} BondYieldJson
  */
 
-const DEFAULT_SHEET_NAME = "债券利率";
+const DEFAULT_SHEET_NAME = '债券利率';
 
 /**
  * 解析债券利率工作表，复用通用的 profile-based 解析器。
@@ -19,9 +19,7 @@ export function parseBondYield(
   profile = {},
   { sheetName = DEFAULT_SHEET_NAME, anchor = new Date() } = {}
 ) {
-  return /** @type {BondYieldJson} */ (
-    parseByProfile(rows, profile, { sheetName, anchor })
-  );
+  return /** @type {BondYieldJson} */ (parseByProfile(rows, profile, { sheetName, anchor }));
 }
 
 export default parseBondYield;

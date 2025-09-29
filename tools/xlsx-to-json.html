@@ -8,9 +8,61 @@
         onerror="this.onerror=null;this.href='https://cdn.baomitu.com/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css'" />
   <link rel="stylesheet" href="../css/style.css" />
   <style>
-    body {
-      padding: 24px;
+    :root {
+      color-scheme: light dark;
+      --surface: rgba(255, 255, 255, 0.85);
+      --surface-elevated: rgba(255, 255, 255, 0.95);
+      --border: rgba(82, 87, 100, 0.25);
+      --border-strong: rgba(82, 87, 100, 0.45);
+      --accent: #2563eb;
+      --accent-soft: rgba(37, 99, 235, 0.12);
+      --accent-strong: rgba(37, 99, 235, 0.2);
+      --attention: #c2410c;
+      --attention-soft: rgba(194, 65, 12, 0.12);
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.08);
+      --shadow-md: 0 12px 32px rgba(15, 23, 42, 0.12);
     }
+
+    body {
+      margin: 0;
+      padding: 32px 24px 64px;
+      font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
+      color: var(--text-primary);
+    }
+
+    h1, h2, h3 {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    p {
+      margin: 0;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    .tool-header {
+      max-width: 960px;
+      margin: 0 auto 32px;
+      padding: 0 8px;
+    }
+
+    .tool-header__title {
+      font-size: clamp(1.75rem, 2.3vw, 2.4rem);
+      margin-bottom: 12px;
+    }
+
+    .tool-header__subtitle {
+      font-size: 1rem;
+      max-width: 640px;
+    }
+
     .tool-container {
       max-width: 960px;
       margin: 0 auto;
@@ -18,2520 +70,297 @@
       flex-direction: column;
       gap: 24px;
     }
+
     .tool-card {
-      border-radius: 16px;
+      background: var(--surface);
+      backdrop-filter: blur(22px);
+      border-radius: var(--radius-lg);
       border: 1px solid var(--border);
-      background: var(--card);
-      box-shadow: var(--shadow);
-      padding: 24px;
-    }
-    .step-list {
-      margin: 0;
-      padding-left: 20px;
-      color: var(--muted);
-    }
-    .result-grid {
-      display: grid;
-      gap: 16px;
-    }
-    .result-item {
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px;
-      background: var(--card);
+      box-shadow: var(--shadow-sm);
+      padding: 28px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 20px;
     }
+
+    .upload-panel {
+      display: grid;
+      gap: 18px;
+    }
+
+    .upload-panel__action {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      border-radius: var(--radius-md);
+      border: 1px dashed var(--border-strong);
+      background: rgba(255, 255, 255, 0.6);
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .upload-panel__action:hover {
+      border-color: var(--accent);
+      box-shadow: 0 12px 28px rgba(37, 99, 235, 0.12);
+      color: var(--accent);
+    }
+
+    .upload-panel__action input[type="file"] {
+      display: none;
+    }
+
+    .upload-panel__hint {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .upload-panel__hint span {
+      background: rgba(148, 163, 184, 0.16);
+      padding: 6px 10px;
+      border-radius: 999px;
+    }
+
+    .result-area {
+      min-height: 96px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .result-item {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface-elevated);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 20px 22px;
+    }
+
     .result-item__header {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
-      align-items: baseline;
-    }
-    .result-item__meta {
-      font-size: 14px;
-      color: var(--muted);
-      display: flex;
-      gap: 12px;
+      gap: 16px;
+      align-items: flex-start;
       flex-wrap: wrap;
     }
-    textarea.preview {
-      width: 100%;
-      min-height: 160px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      padding: 12px;
-      font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
-      background: var(--surface);
-      color: var(--text);
-      resize: vertical;
+
+    .result-item__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      margin-top: 12px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
     }
+
+    .result-item__meta span {
+      background: rgba(15, 23, 42, 0.04);
+      border-radius: 999px;
+      padding: 4px 10px;
+    }
+
+    .btn-group,
+    .result-item__header > div:last-child {
+      display: inline-flex;
+      gap: 10px;
+    }
+
     .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      color: white;
+      background: var(--accent);
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 8px 16px;
-      border-radius: 999px;
-      border: 1px solid transparent;
-      background: var(--primary);
-      color: #fff;
-      cursor: pointer;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
+
     .btn:hover {
       transform: translateY(-1px);
-      box-shadow: 0 6px 14px rgba(37, 99, 235, 0.18);
+      box-shadow: 0 14px 30px rgba(37, 99, 235, 0.2);
     }
+
     .btn-secondary {
-      background: transparent;
-      color: var(--primary);
-      border-color: var(--primary);
+      background: rgba(37, 99, 235, 0.08);
+      color: var(--accent);
     }
+
+    .btn-secondary:hover {
+      background: rgba(37, 99, 235, 0.15);
+    }
+
     .alert {
-      padding: 16px;
-      border-radius: 12px;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      background: rgba(239, 68, 68, 0.1);
-      color: #b91c1c;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      padding: 14px 18px;
+      background: rgba(148, 163, 184, 0.12);
+      font-size: 0.95rem;
+      color: var(--text-secondary);
     }
-    details.diagnostics-panel {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px 16px;
-      background: var(--surface);
-      color: var(--text);
+
+    .preview {
+      font-family: "JetBrains Mono", "Fira Code", monospace;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      min-height: 200px;
+      background: rgba(15, 23, 42, 0.96);
+      color: #e2e8f0;
+      overflow-x: auto;
     }
-    details.diagnostics-panel summary {
+
+    .diagnostics-panel {
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(37, 99, 235, 0.2);
+      background: var(--accent-soft);
+      padding: 16px 18px;
+      font-size: 0.95rem;
+    }
+
+    .diagnostics-panel[open] {
+      background: rgba(37, 99, 235, 0.06);
+    }
+
+    .diagnostics-panel summary {
       cursor: pointer;
       font-weight: 600;
-      color: var(--primary);
-      outline: none;
+      color: var(--accent);
+      margin-bottom: 12px;
+      list-style: none;
     }
+
+    .diagnostics-panel summary::-webkit-details-marker {
+      display: none;
+    }
+
     .diagnostics-list {
-      margin-top: 8px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .diagnostics-sheet {
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(37, 99, 235, 0.18);
+      background: rgba(255, 255, 255, 0.82);
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      font-size: 13px;
-      color: var(--muted);
+      gap: 10px;
+      padding: 12px 14px;
     }
-    .diagnostics-sheet {
-      padding-top: 6px;
-      border-top: 1px dashed var(--border);
-    }
-    .diagnostics-sheet:first-of-type {
-      border-top: none;
-      padding-top: 0;
-    }
+
     .diagnostics-entry {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 8px 12px;
       align-items: center;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
     }
-    .diagnostics-entry strong {
-      color: var(--text);
-    }
-    .diagnostics-chip {
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 12px;
-      line-height: 1.4;
-      background: rgba(59, 130, 246, 0.12);
-      color: #2563eb;
-    }
-    .diagnostics-chip.warn {
-      background: rgba(239, 68, 68, 0.12);
-      color: #dc2626;
-    }
+
     .diagnostics-more {
-      font-style: italic;
+      color: var(--accent);
+    }
+
+    .diagnostics-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.16);
+      color: #15803d;
+      font-weight: 600;
+    }
+
+    .diagnostics-chip.warn {
+      background: var(--attention-soft);
+      color: var(--attention);
+    }
+
+    footer {
+      max-width: 960px;
+      margin: 40px auto 0;
+      padding: 0 8px;
+      font-size: 0.85rem;
+      color: rgba(71, 85, 105, 0.75);
+    }
+
+    code {
+      font-family: "JetBrains Mono", "SFMono-Regular", monospace;
+      background: rgba(15, 23, 42, 0.08);
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 24px 16px 48px;
+      }
+
+      .tool-card {
+        padding: 22px;
+      }
+
+      .result-item {
+        padding: 18px;
+      }
     }
   </style>
-  <script src="https://cdn.staticfile.org/xlsx/0.18.5/xlsx.full.min.js"
-          onerror="this.onerror=null;this.src='https://cdn.baomitu.com/xlsx/0.18.5/xlsx.full.min.js'"></script>
-  <script defer src="../js/data-adapter.js"></script>
 </head>
 <body>
-  <main class="tool-container">
-    <header>
-      <h1 class="page-title">Excel 转 JSON 工具</h1>
-      <p class="muted">使用 SheetJS 在浏览器本地解析《周报数据库valuesOnly.xlsx》，并按模块导出网站所需的 JSON 文件。</p>
-    </header>
+  <header class="tool-header">
+    <h1 class="tool-header__title">Excel 转 JSON 转换助手</h1>
+    <p class="tool-header__subtitle">
+      将周报 Excel 中的多个工作表一键转换为 JSON 文件，自动匹配输出路径并生成诊断提示，帮助你快速检查数据格式与缺失项。
+    </p>
+  </header>
 
+  <main class="tool-container">
     <section class="tool-card">
-      <h2>使用步骤</h2>
-      <ol class="step-list">
-        <li>点击下方输入框，选择 <strong>周报数据库valuesOnly.xlsx</strong> 文件。</li>
-        <li>工具会自动读取每个工作表，并按照预设映射命名输出文件。</li>
-        <li>检查每个模块的 JSON 预览，确认结构后点击“下载 JSON”。</li>
-        <li>将下载的文件放入 <code>./data/values-only/</code> 目录，覆盖旧数据即可。</li>
-      </ol>
-      <div style="margin-top: 16px;">
-        <label for="xlsx-input" class="btn">
-          <i class="bi bi-upload"></i>
-          选择 Excel 文件
+      <div class="upload-panel">
+        <div>
+          <h2 style="margin-bottom: 8px;">选择待转换的 Excel 文件</h2>
+          <p>支持 <code>.xlsx</code> / <code>.xlsm</code> / <code>.xlsb</code>，我们会自动识别支持的工作表。</p>
+        </div>
+        <label class="upload-panel__action">
+          <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+          <span>点击选择或拖拽 Excel 文件到此处</span>
+          <input id="xlsx-input" type="file" accept=".xlsx,.xlsm,.xlsb" />
         </label>
-        <input id="xlsx-input" type="file" accept=".xlsx,.xls" style="display:none;" />
+        <div class="upload-panel__hint">
+          <span><i class="bi bi-lightning-charge" aria-hidden="true"></i> 自动生成诊断记录</span>
+          <span><i class="bi bi-database" aria-hidden="true"></i> 匹配输出 JSON 文件名</span>
+          <span><i class="bi bi-shield-check" aria-hidden="true"></i> 支持逐个预览与下载</span>
+        </div>
       </div>
     </section>
 
-    <section id="result-area" class="result-grid" aria-live="polite"></section>
+    <section class="tool-card">
+      <div>
+        <h2 style="margin-bottom: 8px;">转换结果</h2>
+        <p>上传后将在此呈现生成的 JSON 文件、诊断提醒及快速预览。</p>
+      </div>
+      <div id="result-area" class="result-area" aria-live="polite"></div>
+    </section>
   </main>
 
-  <script type="module">
-    import { SHEET_PROFILES } from '../js/sheet-profiles.js';
-    import { prevCompletedWeekRange } from '../js/utils.js';
-    import { convertSheets, getOutputFile } from '../js/xlsx2json/core.js';
-
-    function getAnchorFromUrl() {
-      try {
-        const url = new URL(window.location.href);
-        const raw = url.searchParams.get('anchor');
-        if (!raw) return null;
-        const candidate = new Date(`${raw}T00:00:00`);
-        return Number.isNaN(candidate.getTime()) ? null : candidate;
-      } catch (error) {
-        console.warn('[tool][anchor] URL 解析失败', error);
-        return null;
-      }
-    }
-
-    const ANCHOR = (() => {
-      const preset = window.__conversionAnchor;
-      if (preset instanceof Date && !Number.isNaN(preset.getTime())) {
-        const clone = new Date(preset.getTime());
-        clone.setHours(0, 0, 0, 0);
-        return clone;
-      }
-      const picked = getAnchorFromUrl() || new Date();
-      picked.setHours(0, 0, 0, 0);
-      window.__conversionAnchor = picked;
-      return picked;
-    })();
-
-    const PROFILES = SHEET_PROFILES || {};
-
-    const saveJson = (fileName, data) => {
-      try {
-        const payload = JSON.stringify(data ?? {}, null, 2);
-        const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-      } catch (error) {
-        console.error('[saveJson] 下载 JSON 失败', error);
-      }
-    };
-
-    const pad2 = (value) => String(value).padStart(2, '0');
-
-    const excelSerialToDate = (serial) => {
-      if (typeof serial !== 'number' || Number.isNaN(serial)) return null;
-      if (typeof XLSX !== 'undefined' && XLSX.SSF && XLSX.SSF.parse_date_code) {
-        const parsed = XLSX.SSF.parse_date_code(serial);
-        if (parsed) {
-          const date = new Date(parsed.y, (parsed.m || 1) - 1, parsed.d || 1, parsed.H || 0, parsed.M || 0, parsed.S || 0, parsed.u || 0);
-          date.setHours(0, 0, 0, 0);
-          return date;
-        }
-      }
-      const base = new Date(Date.UTC(1899, 11, 30));
-      const millis = serial * 86400000;
-      const date = new Date(base.getTime() + millis);
-      if (Number.isNaN(date.getTime())) return null;
-      date.setHours(0, 0, 0, 0);
-      return date;
-    };
-
-        function deriveRange(series = []) {
-          let minDate = null;
-          let maxDate = null;
-          series.forEach((item) => {
-            if (!item || !Array.isArray(item.data)) return;
-            item.data.forEach((entry) => {
-              if (!Array.isArray(entry) || entry.length === 0) return;
-              const raw = entry[0];
-              const parsed = toDate(raw) || new Date(raw);
-              if (!parsed || Number.isNaN(parsed.getTime())) return;
-              if (!minDate || parsed < minDate) {
-                minDate = new Date(parsed.getTime());
-              }
-              if (!maxDate || parsed > maxDate) {
-                maxDate = new Date(parsed.getTime());
-              }
-            });
-          });
-          if (!minDate || !maxDate) {
-            return null;
-          }
-          return [toISODateSafe(minDate), toISODateSafe(maxDate)];
-        }
-    const toDate = (value) => {
-      if (value instanceof Date) {
-        const cloned = new Date(value.getTime());
-        cloned.setHours(0, 0, 0, 0);
-        return cloned;
-      }
-      if (typeof value === 'number') {
-        return excelSerialToDate(value);
-      }
-      if (typeof value === 'string') {
-        const trimmed = value.trim();
-        if (!trimmed) return null;
-        const normalized = trimmed.includes('/') ? trimmed : trimmed.replace(/-/g, '/');
-        const date = new Date(normalized);
-        if (Number.isNaN(date.getTime())) return null;
-        date.setHours(0, 0, 0, 0);
-        return date;
-      }
-      return null;
-    };
-
-    const formatDate = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-    const fmtISO = (date) => {
-      if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
-      return formatDate(date);
-    };
-
-    function toISODateSafe(value) {
-      if (value instanceof Date && !Number.isNaN(value.getTime())) {
-        const year = value.getFullYear();
-        const month = pad2(value.getMonth() + 1);
-        const day = pad2(value.getDate());
-        const hour = pad2(value.getHours());
-        const minute = pad2(value.getMinutes());
-        return value.getHours() || value.getMinutes()
-          ? `${year}-${month}-${day} ${hour}:${minute}`
-          : `${year}-${month}-${day}`;
-      }
-
-      const text = String(value ?? '').trim();
-      if (!text) return '';
-      const normalized = text.replace(/\//g, '-');
-      const parsed = new Date(normalized);
-      if (!Number.isNaN(parsed.getTime())) {
-        const year = parsed.getFullYear();
-        const month = pad2(parsed.getMonth() + 1);
-        const day = pad2(parsed.getDate());
-        const hour = pad2(parsed.getHours());
-        const minute = pad2(parsed.getMinutes());
-        return /:/.test(text)
-          ? `${year}-${month}-${day} ${hour}:${minute}`
-          : `${year}-${month}-${day}`;
-      }
-      return text;
-    }
-
-    const normalizeDateValue = (value) => {
-      const date = toDate(value);
-      if (date) {
-        return { date, display: formatDate(date) };
-      }
-      const display = value == null ? '' : String(value).trim();
-      return { date: null, display };
-    };
-
-    const toDateSafe = (value) => {
-      const date = toDate(value);
-      if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
-        return null;
-      }
-      date.setHours(0, 0, 0, 0);
-      return date;
-    };
-
-    const describeMatcher = (matcher) => {
-      if (matcher instanceof RegExp) return matcher.toString();
-      if (Array.isArray(matcher)) {
-        return matcher.map((item) => describeMatcher(item)).join(' / ');
-      }
-      return String(matcher ?? '');
-    };
-
-    const normalizeHeaderLabel = (input) => {
-      const text = String(input ?? '').trim();
-      const noSpace = text.replace(/\s+/g, '');
-      return noSpace.replace(/[（(][^）)]*[）)]\s*$/, '');
-    };
-
-    const closestHeaders = (header, pattern, topK = 3) => {
-      const target = normalizeHeaderLabel(
-        pattern instanceof RegExp
-          ? String(pattern).replace(/^\/|\/[a-z]*$/gi, '')
-          : pattern
-      );
-      if (!target) return [];
-
-      const score = (source) => {
-        const normalized = normalizeHeaderLabel(source);
-        const m = normalized.length;
-        const n = target.length;
-        if (!m || !n) return 0;
-        const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-        for (let i = 1; i <= m; i += 1) {
-          for (let j = 1; j <= n; j += 1) {
-            if (normalized[i - 1] === target[j - 1]) {
-              dp[i][j] = dp[i - 1][j - 1] + 1;
-            } else {
-              dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-            }
-          }
-        }
-        return dp[m][n] / Math.max(m, n);
-      };
-
-      return (header || [])
-        .map((col) => [String(col ?? ''), score(col)])
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, topK)
-        .map(([col]) => col)
-        .filter(Boolean);
-    };
-
-    const parsePercentNumber = (value) => {
-      if (value == null || value === '') return null;
-      if (typeof value === 'number') return value;
-      const text = String(value).trim();
-      if (!text) return null;
-      const normalized = text.endsWith('%') ? text.slice(0, -1) : text;
-      const num = Number(normalized.replace(/,/g, ''));
-      return Number.isNaN(num) ? null : num;
-    };
-
-    const parseNumberLike = (value) => {
-      if (value == null || value === '') return null;
-      if (typeof value === 'number') return value;
-      const num = Number(String(value).trim().replace(/,/g, ''));
-      return Number.isNaN(num) ? null : num;
-    };
-
-    const isMissingRaw = (value) => {
-      if (value === null || value === undefined) return true;
-      if (typeof value === 'number') return Number.isNaN(value);
-      const s = String(value).trim();
-      if (!s) return true;
-      const S = s.replace(/\u200B/g, '');
-      const set = new Set([
-        '-',
-        '--',
-        '---',
-        '—',
-        '——',
-        '— —',
-        '–',
-        '—–',
-        'N/A',
-        'NA',
-        'NaN',
-        'NULL',
-        'null',
-        '无',
-      ]);
-      if (set.has(S)) return true;
-      const t = S.endsWith('%') ? S.slice(0, -1).trim() : S;
-      if (!t) return true;
-      if (set.has(t)) return true;
-      return false;
-    };
-
-    const missingToNull = (value) => (isMissingRaw(value) ? null : value);
-
-    const toNumberOrNull = (value) => {
-      const normalized = missingToNull(value);
-      if (normalized === null) return null;
-      let text = String(normalized).trim();
-      if (text.endsWith('%')) {
-        text = text.slice(0, -1).trim();
-      }
-      const num = Number(text);
-      return Number.isNaN(num) ? null : num;
-    };
-
-    const toPctString4OrNull = (value) => {
-      const normalized = missingToNull(value);
-      if (normalized === null) return null;
-      let text = String(normalized).trim();
-      if (text.endsWith('%')) {
-        text = text.slice(0, -1).trim();
-      }
-      const num = Number(text);
-      if (Number.isNaN(num)) return null;
-      return `${num.toFixed(4)}%`;
-    };
-
-    const computePrevWeekWorkdays = (rows, dateIdx, now = ANCHOR) => {
-      if (!Array.isArray(rows) || typeof dateIdx !== 'number' || dateIdx < 0) return [];
-
-      const enriched = rows
-        .map((row) => ({ row, date: toDateSafe(row?.[dateIdx]) }))
-        .filter((item) => item.row && item.date instanceof Date && !Number.isNaN(item.date.getTime()));
-
-      if (!enriched.length) return [];
-
-      const baseNow =
-        now instanceof Date && !Number.isNaN(now.getTime())
-          ? new Date(now.getTime())
-          : new Date(now || ANCHOR);
-      baseNow.setHours(0, 0, 0, 0);
-
-      const { mon, fri } = prevCompletedWeekRange(baseNow);
-      if (
-        !(mon instanceof Date) ||
-        Number.isNaN(mon.getTime()) ||
-        !(fri instanceof Date) ||
-        Number.isNaN(fri.getTime())
-      ) {
-        return [];
-      }
-
-      return enriched.filter(
-        ({ date }) => date >= mon && date <= fri && isWeekday(date)
-      );
-    };
-
-    const pickLatestWeekRow = (rows, dateIdx) => {
-      if (!Array.isArray(rows) || typeof dateIdx !== 'number' || dateIdx < 0) return null;
-
-      const weekRows = computePrevWeekWorkdays(rows, dateIdx, ANCHOR);
-      if (!weekRows.length) return null;
-
-      const latest = weekRows.reduce((prev, cur) => (cur.date > prev.date ? cur : prev));
-      if (!latest || !latest.row) return null;
-
-      return {
-        row: latest.row,
-        date: latest.date,
-      };
-    };
-
-    const deriveRange = (series = []) => {
-      let minDate = null;
-      let maxDate = null;
-      series.forEach((item) => {
-        if (!item || !Array.isArray(item.data)) return;
-        item.data.forEach((entry) => {
-          if (!Array.isArray(entry) || entry.length < 2) return;
-          const parsed = toDateSafe(entry[0]) || toDateSafe(entry[0]?.[0]);
-          if (!parsed) return;
-          if (!minDate || parsed < minDate) minDate = new Date(parsed.getTime());
-          if (!maxDate || parsed > maxDate) maxDate = new Date(parsed.getTime());
-        });
-      });
-      if (!minDate || !maxDate) return [];
-      return [formatDate(minDate), formatDate(maxDate)];
-    };
-
-    const buildByProfile = (rows, profile = {}, sheetName = '') => {
-      if (!Array.isArray(rows) || rows.length === 0) {
-        return {
-          meta: {
-            timezone: 'Asia/Shanghai',
-            sourceSheet: sheetName,
-            generatedAt: new Date().toISOString(),
-            note: '空数据表',
-          },
-          summary: {},
-          series: [],
-        };
-      }
-
-      const headerRowIndex = Number.isInteger(profile.headerRow)
-        ? Math.max(0, profile.headerRow)
-        : 0;
-      const header = pickHeaderRow(rows, headerRowIndex);
-
-      const matchHeaderIndex = (matcher) => {
-        if (!matcher) return -1;
-        const regex = matcher instanceof RegExp ? matcher : new RegExp(String(matcher));
-        return header.findIndex((cell) => regex.test(String(cell || '').trim()));
-      };
-
-      if (Array.isArray(profile.bondGroups) && profile.bondGroups.length) {
-        const body = rows.slice(headerRowIndex + 1);
-
-        let range = null;
-        if (profile.range === 'prevWeekWorkdays') {
-          range = getPrevWeekWorkdayRange();
-        }
-
-        const inRange = (value) => {
-          if (!range) return true;
-          if (!value) return false;
-          const parsed = new Date(String(value).replace(/-/g, '/'));
-          return !Number.isNaN(parsed.getTime()) && parsed >= range.start && parsed <= range.end;
-        };
-
-        const expandMatcher = (regexTpl, rank) => {
-          if (regexTpl instanceof RegExp) {
-            return new RegExp(regexTpl.source.replace('{R}', String(rank)), regexTpl.flags);
-          }
-          const pattern = String(regexTpl || '').replace('{R}', String(rank));
-          return new RegExp(pattern);
-        };
-
-        const dateIdx = findColIndex(header, profile.dateCol);
-        if (dateIdx < 0) {
-          throw new Error('未找到日期列');
-        }
-
-        const seriesMap = new Map();
-        const sumSizeMap = new Map();
-        const latestBoard = {};
-
-        for (const row of body) {
-          const tRaw = row[dateIdx];
-          if (!tRaw) continue;
-          const isoDate = toISODateSafe(tRaw);
-          if (!isoDate || !inRange(isoDate)) continue;
-
-          if (typeof profile.rowFilter === 'function' && !profile.rowFilter({ date: isoDate })) {
-            continue;
-          }
-
-          for (const group of profile.bondGroups) {
-            if (!group || !Array.isArray(group.rankRange) || group.rankRange.length < 2) continue;
-            const [rankStart, rankEnd] = group.rankRange;
-            const ranks = [];
-
-            for (let rank = rankStart; rank <= rankEnd; rank += 1) {
-              const issuerMatcher = group?.cols?.issuer;
-              const sizeMatcher = group?.cols?.size;
-              const termMatcher = group?.cols?.term;
-              const couponMatcher = group?.cols?.coupon;
-
-              const issuerIdx = issuerMatcher
-                ? findColIndex(header, expandMatcher(issuerMatcher, rank))
-                : -1;
-              const sizeIdx = sizeMatcher
-                ? findColIndex(header, expandMatcher(sizeMatcher, rank))
-                : -1;
-              const termIdx = termMatcher
-                ? findColIndex(header, expandMatcher(termMatcher, rank))
-                : -1;
-              const couponIdx = couponMatcher
-                ? findColIndex(header, expandMatcher(couponMatcher, rank))
-                : -1;
-
-              if (issuerIdx < 0 && sizeIdx < 0 && termIdx < 0 && couponIdx < 0) {
-                continue;
-              }
-
-              const issuerRaw = issuerIdx >= 0 ? row[issuerIdx] : null;
-              const sizeRaw = sizeIdx >= 0 ? row[sizeIdx] : null;
-              const termRaw = termIdx >= 0 ? row[termIdx] : null;
-              const couponRaw = couponIdx >= 0 ? row[couponIdx] : null;
-
-              const issuerClean = missingToNull(issuerRaw);
-              const sizeNum = toNumberOrNull(sizeRaw);
-              const termClean = missingToNull(termRaw);
-              const couponNum = toNumberOrNull(couponRaw);
-
-              if (
-                issuerClean == null &&
-                sizeNum == null &&
-                termClean == null &&
-                couponNum == null
-              ) {
-                continue;
-              }
-
-              ranks.push({
-                rank,
-                issuer:
-                  issuerClean == null
-                    ? null
-                    : String(issuerClean).trim() || null,
-                size: Number.isFinite(sizeNum) ? sizeNum : null,
-                term:
-                  termClean == null
-                    ? null
-                    : String(termClean).trim() || null,
-                coupon: Number.isFinite(couponNum) ? couponNum : null,
-                couponRaw,
-              });
-            }
-
-            if (!ranks.length) continue;
-
-            const sumSize = ranks.reduce(
-              (acc, item) => acc + (Number.isFinite(item.size) ? item.size : 0),
-              0
-            );
-            if (!sumSizeMap.has(group.key)) {
-              sumSizeMap.set(group.key, []);
-            }
-            sumSizeMap.get(group.key).push([isoDate, String(sumSize)]);
-
-            const coupons = ranks
-              .map((item) => item.coupon)
-              .filter((val) => Number.isFinite(val));
-            if (coupons.length) {
-              const avg = coupons.reduce((acc, val) => acc + val, 0) / coupons.length;
-              if (!seriesMap.has(group.key)) {
-                seriesMap.set(group.key, { label: group.label, data: [] });
-              }
-              seriesMap.get(group.key).data.push([isoDate, avg.toFixed(4)]);
-            }
-
-            const latest = latestBoard[group.key];
-            const currentDate = new Date(isoDate.replace(/-/g, '/'));
-            if (!Number.isNaN(currentDate.getTime())) {
-              if (!latest || new Date(latest.__date.replace(/-/g, '/')) < currentDate) {
-                latestBoard[group.key] = {
-                  __date: isoDate,
-                  rows: ranks.map((item) => {
-                    const couponSource = item.couponRaw ?? item.coupon;
-                    return {
-                      rank: item.rank,
-                      issuer: missingToNull(item.issuer) ?? null,
-                      size_yi: toNumberOrNull(item.size),
-                      term: missingToNull(item.term) ?? null,
-                      coupon_pct: toPctString4OrNull(couponSource),
-                    };
-                  }),
-                };
-              }
-            }
-          }
-        }
-
-        const seriesEntries = Array.from(seriesMap.entries()).map(([key, payload]) => {
-          const sorted = payload.data.sort((a, b) => new Date(a[0]) - new Date(b[0]));
-          return {
-            key,
-            label: payload.label,
-            data: sorted,
-          };
-        });
-
-        const series = seriesEntries.map((entry) => ({
-          name: `${entry.label} 票面利率(均值)`,
-          data: entry.data,
-        }));
-
-        const summary = {};
-        sumSizeMap.forEach((arr, key) => {
-          if (!Array.isArray(arr) || !arr.length) return;
-          arr.sort((a, b) => new Date(a[0]) - new Date(b[0]));
-          const last = arr[arr.length - 1][1];
-          summary[`${key}_sum_size`] = last;
-        });
-
-        series.forEach((serie) => {
-          if (!Array.isArray(serie.data) || !serie.data.length) return;
-          const baseName = serie.name.replace(/\s*票面利率\(均值\)\s*$/, '').trim();
-          if (!baseName) return;
-          const summaryKeyBase = baseName.replace(/[^A-Za-z0-9\u4e00-\u9fa5]+/g, '');
-          const lastVal = serie.data[serie.data.length - 1][1];
-          if (lastVal == null || lastVal === '') return;
-          const num = Number(lastVal);
-          summary[`${summaryKeyBase}_avg_coupon`] = Number.isFinite(num)
-            ? `${num.toFixed(4)}%`
-            : String(lastVal);
-        });
-
-        const board = {};
-        Object.entries(latestBoard).forEach(([key, value]) => {
-          if (!value || !value.rows) return;
-          board[key] = {
-            date: value.__date,
-            rows: [...value.rows].sort((a, b) => a.rank - b.rank),
-          };
-        });
-
-        const exportInfo = {
-          rows: body.length,
-          last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
-        };
-        const rangePair = deriveRange(series);
-        if (rangePair) {
-          exportInfo.range = rangePair;
-        }
-
-        const meta = {
-          timezone: 'Asia/Shanghai',
-          sourceSheet: sheetName,
-          generatedAt: new Date().toISOString(),
-          unit: profile.unit || {},
-          sourceSheets: [sheetName],
-        };
-
-        return {
-          meta,
-          series,
-          summary,
-          board,
-          export_info: exportInfo,
-        };
-      }
-
-      if (Array.isArray(profile.seriesByDateKey) && profile.seriesByDateKey.length) {
-        const dateIdxMap = Object.entries(profile.dateCols || {}).reduce((acc, [key, matcher]) => {
-          const idx = findColIndex(header, matcher);
-          if (idx >= 0) acc[key] = idx;
-          return acc;
-        }, {});
-
-        const seriesDefs = profile.seriesByDateKey
-          .map((conf) => {
-            const dateIdx = conf.dateKey ? dateIdxMap[conf.dateKey] ?? -1 : -1;
-            const valIdx = findColIndex(header, conf.close);
-            if (dateIdx < 0 || valIdx < 0) return null;
-            return {
-              label: conf.label,
-              summaryKey: conf.summaryKey,
-              dateIdx,
-              valIdx,
-            };
-          })
-          .filter(Boolean);
-
-        if (!seriesDefs.length) {
-          const meta = {
-            timezone: 'Asia/Shanghai',
-            sourceSheet: sheetName,
-            generatedAt: new Date().toISOString(),
-            unit: profile.unit || {},
-            sourceSheets: [sheetName],
-            note: '未匹配到有效的系列配置',
-          };
-          return {
-            meta,
-            summary: {},
-            series: [],
-            export_info: {
-              rows: 0,
-              last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
-            },
-          };
-        }
-
-        const formatSummaryKey = (label) => {
-          const slug = label.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
-          return (slug || label.replace(/\s+/g, '').toLowerCase()) + '_rate';
-        };
-
-        const bodyRows = rows.slice(headerRowIndex + 1);
-        const enriched = bodyRows
-          .map((row) => {
-            if (!Array.isArray(row)) return null;
-            const entries = seriesDefs.map((def) => {
-              const info = normalizeDateValue(row[def.dateIdx]);
-              const date = info.date || toDate(info.display);
-              const raw = row[def.valIdx];
-              return { def, info, date, raw };
-            });
-            const fallback = entries.find((entry) => entry.info.display) || null;
-            if (!fallback) return null;
-            return { row, entries, fallback };
-          })
-          .filter(Boolean);
-
-        const allDates = enriched
-          .map((entry) => entry.fallback.date || toDate(entry.fallback.info.display))
-          .filter((d) => d instanceof Date && !Number.isNaN(d.getTime()));
-
-        const rangeStrategy = profile.range || profile.rangeDefault;
-        let range = null;
-        if (rangeStrategy === 'prevWeekWorkdays' || rangeStrategy === 'prevWeekOnly') {
-          if (allDates.length) {
-            const latest = allDates.reduce((prev, cur) => (cur > prev ? cur : prev));
-            const anchor = new Date(latest.getTime());
-            const day = anchor.getDay() || 7;
-            anchor.setHours(0, 0, 0, 0);
-            const monday = new Date(anchor.getTime());
-            monday.setDate(anchor.getDate() - (day - 1));
-            const friday = new Date(monday.getTime());
-            friday.setDate(monday.getDate() + 4);
-            friday.setHours(23, 59, 59, 999);
-            range = { start: monday, end: friday };
-          } else {
-            range = getPrevWeekWorkdayRange();
-          }
-        } else if (typeof rangeStrategy === 'string' && rangeStrategy.startsWith('lastNDays:')) {
-          const n = Number(rangeStrategy.split(':')[1] || '7');
-          if (allDates.length) {
-            const latest = allDates.reduce((prev, cur) => (cur > prev ? cur : prev));
-            const end = new Date(latest.getTime());
-            end.setHours(23, 59, 59, 999);
-            const start = new Date(latest.getTime());
-            start.setDate(start.getDate() - Math.max(0, n - 1));
-            start.setHours(0, 0, 0, 0);
-            range = { start, end };
-          }
-        } else if (rangeStrategy && typeof rangeStrategy === 'object') {
-          const start = rangeStrategy.start ? toDate(rangeStrategy.start) : null;
-          const end = rangeStrategy.end ? toDate(rangeStrategy.end) : null;
-          if (start || end) {
-            range = { start, end };
-          }
-        }
-
-        const inRange = (value) => {
-          if (!range) return true;
-          if (!value) return false;
-          const date = value instanceof Date ? value : toDate(value);
-          if (!date || Number.isNaN(date.getTime())) return false;
-          if (range.start && date < range.start) return false;
-          if (range.end && date > range.end) return false;
-          if (rangeStrategy === 'prevWeekWorkdays' && !isWeekday(date)) return false;
-          return true;
-        };
-
-        const buckets = new Map();
-        const latestByLabel = new Map();
-        const usedRows = [];
-
-        const toSortedPairs = (pairs) =>
-          pairs
-            .slice()
-            .sort((a, b) => (toDate(a[0]) || new Date(a[0])) - (toDate(b[0]) || new Date(b[0])));
-
-        enriched.forEach((entry) => {
-          const fallbackInfo = entry.fallback.info;
-          const fallbackDate = entry.fallback.date || toDate(fallbackInfo.display) || null;
-          const fallbackInRange = inRange(fallbackDate || fallbackInfo.display);
-          const seriesInRange = entry.entries.some((item) =>
-            inRange(item.date || item.info.display)
-          );
-          if (range && !fallbackInRange && !seriesInRange) {
-            return;
-          }
-
-          let recorded = false;
-
-          entry.entries.forEach(({ def, info, date, raw }) => {
-            if (raw == null || raw === '') return;
-
-            const displayDate = info.display || fallbackInfo.display;
-            if (!displayDate) return;
-
-            const dateValue = date || fallbackDate || toDate(displayDate);
-            if (range && !inRange(dateValue || displayDate)) {
-              if (!fallbackInRange) return;
-            }
-
-            const textValue =
-              typeof raw === 'number' ? String(raw) : String(raw).trim();
-            if (!textValue) return;
-
-            if (!buckets.has(def.label)) {
-              buckets.set(def.label, []);
-            }
-            buckets.get(def.label).push([displayDate, textValue]);
-
-            const summaryDate = dateValue || toDate(displayDate) || null;
-            latestByLabel.set(def.label, {
-              text: textValue,
-              value: raw,
-              date: summaryDate,
-            });
-
-            recorded = true;
-          });
-
-          if (recorded) {
-            usedRows.push(entry);
-          }
-        });
-
-        const defByLabel = new Map(seriesDefs.map((item) => [item.label, item]));
-        const series = Array.from(buckets.entries())
-          .map(([label, data]) => ({
-            name: label,
-            data: toSortedPairs(data),
-          }))
-          .filter((serie) => Array.isArray(serie.data) && serie.data.length);
-
-        const summary = {};
-        series.forEach((serie) => {
-          const def = defByLabel.get(serie.name);
-          const summaryKey = def?.summaryKey || formatSummaryKey(serie.name);
-          const latest = latestByLabel.get(serie.name);
-          if (latest) {
-            summary[summaryKey] =
-              formatPercent4(latest.text) ||
-              (typeof latest.value === 'number' ? String(latest.value) : latest.text);
-          } else if (serie.data.length) {
-            const last = serie.data[serie.data.length - 1][1];
-            summary[summaryKey] = formatPercent4(last) || last;
-          }
-        });
-
-        const exportInfo = {
-          rows: usedRows.length,
-          last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
-        };
-        const overallRange = deriveRange(series);
-        if (overallRange) {
-          exportInfo.range = overallRange;
-        }
-
-        const meta = {
-          timezone: 'Asia/Shanghai',
-          sourceSheet: sheetName,
-          generatedAt: new Date().toISOString(),
-          unit: profile.unit || {},
-          sourceSheets: [sheetName],
-        };
-
-        if (range) {
-          meta.rangeStart = range.start ? formatDate(range.start) : '';
-          meta.rangeEnd = range.end ? formatDate(range.end) : '';
-          if (meta.rangeStart && meta.rangeEnd) {
-            const suffix = rangeStrategy === 'prevWeekWorkdays' ? '（上一周工作日）' : '';
-            meta.rangeLabel = `${meta.rangeStart} ~ ${meta.rangeEnd}${suffix}`;
-          }
-        }
-
-        return {
-          meta,
-          series,
-          summary,
-          export_info: exportInfo,
-        };
-      }
-
-      const dateIdx = findColIndex(header, profile.dateCol);
-      const allowNullPoints = profile.allowNullPoints !== false;
-      const seriesConfigs = Array.isArray(profile.series) ? profile.series : [];
-      const seriesCols = seriesConfigs
-        .map((conf) => {
-          const label = conf?.label || conf?.name || conf?.key;
-          if (!label) return null;
-          const closeIdx = conf.close ? findColIndex(header, conf.close) : -1;
-          const chgIdx =
-            conf.chgPct != null
-              ? findColIndex(header, conf.chgPct)
-              : conf.chg != null
-              ? findColIndex(header, conf.chg)
-              : -1;
-          const dateIdxOverride =
-            conf.dateCol != null ? findColIndex(header, conf.dateCol) : -1;
-          return {
-            label,
-            closeIdx,
-            chgIdx,
-            dateIdx: dateIdxOverride,
-          };
-        })
-        .filter((item) => item && (item.closeIdx >= 0 || item.chgIdx >= 0));
-
-      const kpiCols = (profile.kpis || [])
-        .map((kpi) => ({
-          key: kpi.key,
-          idx: findColIndex(header, kpi.col),
-          type: kpi.type || 'text',
-          allowBlank: Boolean(kpi.allowBlank),
-        }))
-        .filter((item) => item.key && item.idx >= 0);
-
-      const eventsDefs = (profile.events || [])
-        .map((evt) => ({
-          region: evt.region || 'default',
-          indices: (Array.isArray(evt.cols) ? evt.cols : [])
-            .map((matcher) => findColIndex(header, matcher))
-            .filter((idx) => idx >= 0),
-        }))
-        .filter((evt) => evt.indices.length);
-
-      const bodyRows = rows.slice(headerRowIndex + 1);
-      const nonEmptyRows = bodyRows.filter(
-        (row) => Array.isArray(row) && row.some((cell) => cell != null && String(cell).trim() !== '')
-      );
-
-      const candidateDates = (() => {
-        const collected = [];
-        nonEmptyRows.forEach((row) => {
-          if (dateIdx >= 0) {
-            const info = normalizeDateValue(row[dateIdx]);
-            if (info.date) collected.push(info.date);
-          }
-          seriesCols.forEach((sc) => {
-            const idx = sc.dateIdx >= 0 ? sc.dateIdx : dateIdx;
-            if (idx >= 0) {
-              const info = normalizeDateValue(row[idx]);
-              if (info.date) collected.push(info.date);
-            }
-          });
-        });
-        return collected;
-      })();
-
-      const rangeStrategy = profile.range || profile.rangeDefault;
-      const resolveRange = (strategy) => {
-        if (!strategy || strategy === 'all') return null;
-        if (typeof strategy === 'object') {
-          const start = strategy.start ? toDate(strategy.start) : null;
-          const end = strategy.end ? toDate(strategy.end) : null;
-          if (!start && !end) return null;
-          return { start, end };
-        }
-        const dates = candidateDates
-          .filter((d) => d instanceof Date && !Number.isNaN(d.getTime()))
-          .sort((a, b) => a - b);
-        if (!dates.length) return null;
-        if (strategy === 'prevWeekWorkdays' || strategy === 'prevWeekOnly') {
-          const latest = dates[dates.length - 1];
-          const anchor = new Date(latest.getTime());
-          const day = anchor.getDay() || 7;
-          anchor.setHours(0, 0, 0, 0);
-          const monday = new Date(anchor.getTime());
-          monday.setDate(anchor.getDate() - (day - 1));
-          const friday = new Date(monday.getTime());
-          friday.setDate(monday.getDate() + 4);
-          friday.setHours(23, 59, 59, 999);
-          return { start: monday, end: friday };
-        }
-  if (typeof strategy === 'string' && strategy.startsWith('lastNDays:')) {
-          const n = Number(strategy.split(':')[1] || '7');
-          const latest = dates[dates.length - 1];
-          const end = new Date(latest.getTime());
-          end.setHours(23, 59, 59, 999);
-          const start = new Date(latest.getTime());
-          start.setDate(start.getDate() - Math.max(0, n - 1));
-          start.setHours(0, 0, 0, 0);
-          return { start, end };
-        }
-        return null;
-      };
-      const range = resolveRange(rangeStrategy);
-
-      const inRange = (value) => {
-        if (!range) return true;
-        if (!value) return false;
-        const date = value instanceof Date ? value : toDate(value);
-        if (!date || Number.isNaN(date.getTime())) return false;
-        if (range.start && date < range.start) return false;
-        if (range.end && date > range.end) return false;
-        if (rangeStrategy === 'prevWeekWorkdays' && !isWeekday(date)) return false;
-        return true;
-      };
-
-      const seriesMap = new Map();
-      const chgMap = new Map();
-      const eventsMap = new Map();
-      const kpiLastValue = new Map();
-
-      nonEmptyRows.forEach((row) => {
-        const resolveDateInfo = (idx) => {
-          if (typeof idx !== 'number' || idx < 0) {
-            return { date: null, display: '' };
-          }
-          return normalizeDateValue(row[idx]);
-        };
-
-        let fallbackInfo = resolveDateInfo(dateIdx);
-        if (!fallbackInfo.display) {
-          for (const sc of seriesCols) {
-            const info = resolveDateInfo(sc.dateIdx >= 0 ? sc.dateIdx : dateIdx);
-            if (info.display) {
-              fallbackInfo = info;
-              break;
-            }
-          }
-        }
-
-        const hasSeriesDate = seriesCols.some((sc) => {
-          const info = resolveDateInfo(sc.dateIdx >= 0 ? sc.dateIdx : dateIdx);
-          return Boolean(info.display);
-        });
-
-        if (!fallbackInfo.display && !hasSeriesDate) {
-          return;
-        }
-        if (!fallbackInfo.display && hasSeriesDate) {
-          const sc = seriesCols.find((item) => {
-            const info = resolveDateInfo(item.dateIdx >= 0 ? item.dateIdx : dateIdx);
-            return Boolean(info.display);
-          });
-          if (sc) {
-            fallbackInfo = resolveDateInfo(sc.dateIdx >= 0 ? sc.dateIdx : dateIdx);
-          }
-        }
-
-        const rowObj = { date: fallbackInfo.display || '' };
-        seriesCols.forEach((sc) => {
-          if (sc.closeIdx >= 0) {
-            rowObj[`${sc.label}_close`] = row[sc.closeIdx];
-          }
-          if (sc.chgIdx >= 0) {
-            rowObj[`${sc.label}_chgPct`] = row[sc.chgIdx];
-          }
-        });
-
-        if (typeof profile.rowFilter === 'function' && !profile.rowFilter(rowObj)) {
-          return;
-        }
-
-        const compareDate =
-          fallbackInfo.date || (fallbackInfo.display ? toDate(fallbackInfo.display) : null);
-        const fallbackInRange = inRange(compareDate || fallbackInfo.display || null);
-        const seriesInRange = seriesCols.some((sc) => {
-          const info = resolveDateInfo(sc.dateIdx >= 0 ? sc.dateIdx : dateIdx);
-          if (!info.display) return false;
-          return inRange(info.date || info.display);
-        });
-
-        if (range && !fallbackInRange && !seriesInRange) {
-          return;
-        }
-
-        const shouldProcessKpi = !range || fallbackInRange;
-
-        kpiCols.forEach((kpi) => {
-          if (kpi.idx < 0 || !shouldProcessKpi) return;
-          const raw = row[kpi.idx];
-
-          const normalizedValue =
-            kpi.type === 'pct' ? toPctString4OrNull(raw) : missingToNull(raw);
-
-          if (normalizedValue == null) {
-            if (kpi.allowBlank) {
-              const record = { value: null, date: compareDate || null };
-              const existing = kpiLastValue.get(kpi.key);
-              if (!existing || !existing.date || !record.date || record.date >= existing.date) {
-                kpiLastValue.set(kpi.key, record);
-              }
-            }
-            return;
-          }
-
-          const value =
-            kpi.type === 'pct' ? normalizedValue : String(normalizedValue).trim() || null;
-          if (value == null && !kpi.allowBlank) {
-            return;
-          }
-
-          const record = { value, date: compareDate || null };
-          const existing = kpiLastValue.get(kpi.key);
-          if (!existing || !existing.date || !record.date || record.date >= existing.date) {
-            kpiLastValue.set(kpi.key, record);
-          }
-        });
-
-        seriesCols.forEach((sc) => {
-          const info = resolveDateInfo(sc.dateIdx >= 0 ? sc.dateIdx : dateIdx);
-          const dateText = info.display || fallbackInfo.display;
-          if (!dateText) return;
-
-          const dateValue = info.date || compareDate || toDate(dateText);
-          if (range && !inRange(dateValue || dateText)) {
-            return;
-          }
-
-          if (sc.closeIdx >= 0) {
-            const raw = row[sc.closeIdx];
-            const isMidBond = sheetName === '中票利率';
-            const value = isMidBond ? toNumberOrNull(raw) : raw;
-            const isMissing = isMidBond ? value == null : raw == null || raw === '';
-
-            if (isMissing) {
-              if (allowNullPoints) {
-                if (!seriesMap.has(sc.label)) {
-                  seriesMap.set(sc.label, { name: sc.label, data: [] });
-                }
-                seriesMap.get(sc.label).data.push([dateText, null]);
-              }
-            } else {
-              if (!seriesMap.has(sc.label)) {
-                seriesMap.set(sc.label, { name: sc.label, data: [] });
-              }
-              const storedValue = isMidBond ? value : String(raw);
-              seriesMap.get(sc.label).data.push([dateText, storedValue]);
-            }
-          }
-
-          if (sc.chgIdx >= 0) {
-            const value2 = row[sc.chgIdx];
-            const pct = formatPercent4(value2);
-            if (pct) {
-              if (!chgMap.has(sc.label)) {
-                chgMap.set(sc.label, []);
-              }
-              chgMap.get(sc.label).push([dateText, pct]);
-            }
-          }
-        });
-
-        eventsDefs.forEach((evt) => {
-          if (!shouldProcessKpi) return;
-          const values = evt.indices
-            .map((idx) => row[idx])
-            .filter((cell) => cell != null && String(cell).trim() !== '');
-          if (!values.length) return;
-          if (!eventsMap.has(evt.region)) {
-            eventsMap.set(evt.region, []);
-          }
-          eventsMap.get(evt.region).push({
-            date: fallbackInfo.display || '',
-            items: values.map((value) => String(value).trim()),
-          });
-        });
-      });
-
-      const sortPairsByDate = (pairs) =>
-        pairs.sort((a, b) => {
-          const da = toDate(a[0]) || new Date(a[0]);
-          const db = toDate(b[0]) || new Date(b[0]);
-          return da - db;
-        });
-
-      seriesMap.forEach((serie) => {
-        serie.data = sortPairsByDate(serie.data);
-      });
-      chgMap.forEach((pairs, label) => {
-        chgMap.set(label, sortPairsByDate(pairs));
-      });
-
-      const summary = {};
-      seriesCols.forEach((sc) => {
-        const closeSerie = seriesMap.get(sc.label);
-        if (!closeSerie || !closeSerie.data.length) return;
-        const lastClose = closeSerie.data[closeSerie.data.length - 1][1];
-        if (lastClose == null || lastClose === '') return;
-        const changeSerie = chgMap.get(sc.label);
-        const lastChange =
-          changeSerie && changeSerie.length ? changeSerie[changeSerie.length - 1][1] : null;
-        summary[sc.label] = lastChange ? `${lastClose} (${lastChange})` : String(lastClose);
-      });
-
-      kpiLastValue.forEach((detail, key) => {
-        summary[key] = detail?.value ?? summary[key];
-      });
-
-      const changeSeries = Array.from(chgMap.entries()).map(([label, data]) => ({
-        name: `${label} 涨跌幅`,
-        data,
-        unit: '%',
-      }));
-
-      const events = {};
-      eventsMap.forEach((entries, region) => {
-        events[region] = entries;
-      });
-
-      const meta = {
-        timezone: 'Asia/Shanghai',
-        sourceSheet: sheetName,
-        generatedAt: new Date().toISOString(),
-        unit: profile.unit || {},
-        sourceSheets: [sheetName],
-      };
-
-      if (range) {
-        meta.rangeStart = range.start ? formatDate(range.start) : '';
-        meta.rangeEnd = range.end ? formatDate(range.end) : '';
-        if (meta.rangeStart && meta.rangeEnd) {
-          const suffix = rangeStrategy === 'prevWeekWorkdays' ? '（上一周工作日）' : '';
-          meta.rangeLabel = `${meta.rangeStart} ~ ${meta.rangeEnd}${suffix}`;
-        }
-      }
-
-      if (!seriesMap.size && !Object.keys(summary).length) {
-        meta.note = meta.note || '未匹配到有效的系列数据';
-      }
-
-      const result = {
-        meta,
-        summary,
-        series: Array.from(seriesMap.values()),
-      };
-
-      const exportInfo = {
-        rows: nonEmptyRows.length,
-        last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
-      };
-      const overallRange = deriveRange(result.series);
-      if (overallRange) {
-        exportInfo.range = overallRange;
-      }
-      result.export_info = exportInfo;
-
-      if (changeSeries.length) {
-        result.changeSeries = changeSeries;
-      }
-      if (Object.keys(events).length) {
-        result.events = events;
-      }
-
-      return result;
-    };
-    const SHEET_TO_FILE = {
-      '国内股市': 'equity_cn.json',
-      '全球股市': 'equity_global.json',
-      '人民币汇率': 'cny_fx.json',
-      '公开市场': 'open_market.json',
-      '公开市场货币': 'open_market.json',
-      'Shibor利率': 'open_market.json',
-      '债券利率': 'bond_yield.json',
-      '集团上市公司': 'group_listed.json',
-      '国能上市公司': 'group_listed.json',
-      '财经资讯': 'news.json',
-    };
-
-    const SHEET_MAPPING = {
-      ...SHEET_TO_FILE,
-      ...((window.dataAdapter && window.dataAdapter.SHEET_TO_FILE) || {}),
-    };
-
-    const KEYWORDS = {
-      date: ['日期', 'date', '时间', 'time'],
-      value: ['数值', 'value', '值', 'price', 'close'],
-      series: ['系列', 'series', '名称', 'name'],
-    };
-
-    // === Header 行索引：允许表头不在第一行 ===
-    function pickHeaderRow(rows, headerRowIndex = 0) {
-      const idx = Math.max(0, Number(headerRowIndex) || 0);
-      return (rows[idx] || []).map((x) => String(x || '').trim());
-    }
-
-    // === 计算“上一周工作日”区间（周一~周五，以本地时区/Asia/Shanghai）===
-    function getPrevWeekWorkdayRange(now = ANCHOR) {
-      const baseNow =
-        now instanceof Date && !Number.isNaN(now.getTime())
-          ? new Date(now.getTime())
-          : new Date(now || ANCHOR);
-      baseNow.setHours(0, 0, 0, 0);
-      const { mon, fri } = prevCompletedWeekRange(baseNow);
-      return { start: mon, end: fri };
-    }
-
-    // === 工作日判定（周一到周五）===
-    function isWeekday(dateObj) {
-      const d = dateObj.getDay();
-      return d >= 1 && d <= 5;
-    }
-
-    function computeRangeRows(rows, dateIdx, mode) {
-      if (!Array.isArray(rows) || typeof dateIdx !== 'number' || dateIdx < 0) return [];
-
-      const enriched = rows
-        .map((row) => ({ row, date: toDateSafe(row?.[dateIdx]) }))
-        .filter((item) => item.row && item.date instanceof Date && !Number.isNaN(item.date.getTime()));
-      if (!enriched.length) return [];
-
-      const sorted = enriched.slice().sort((a, b) => a.date - b.date);
-
-      if (typeof mode === 'string' && mode.startsWith('lastNDays:')) {
-        const n = Number(mode.split(':')[1] || '90');
-        const latest = sorted[sorted.length - 1].date;
-        const begin = new Date(latest.getTime() - n * 86400000);
-        return sorted.filter(
-          (item) => item.date >= begin && item.date <= latest && isWeekday(item.date)
-        );
-      }
-
-      return sorted;
-    }
-
-    // === 百分比格式化为“xx.xxxx%” (四位小数)；兼容 "0.1234" 或 "12.34%" 或 "12.34" ===
-    function formatPercent4(val) {
-      if (val == null || val === '') return null;
-      const s = String(val).trim();
-      const num = s.endsWith('%') ? parseFloat(s.slice(0, -1)) : parseFloat(s);
-      if (Number.isNaN(num)) return null;
-      const normalized = Math.abs(num) <= 1 && !s.endsWith('%') ? num * 100 : num;
-      return `${normalized.toFixed(4)}%`;
-    }
-
-    function formatNumber4(val) {
-      if (val == null || val === '') return null;
-      if (typeof val === 'number') {
-        if (Number.isNaN(val)) return null;
-        return val.toFixed(4);
-      }
-      const normalized = Number(String(val).trim().replace(/,/g, ''));
-      if (Number.isNaN(normalized)) return null;
-      return normalized.toFixed(4);
-    }
-
-    function findColIndex(header, matcher) {
-      if (!Array.isArray(header)) return -1;
-      const original = header.map((cell) => String(cell ?? ''));
-      const normalized = original.map((cell) => normalizeHeaderLabel(cell));
-
-      if (typeof matcher === 'string') {
-        const idx = original.findIndex((cell) => cell === matcher);
-        if (idx >= 0) return idx;
-        const want = normalizeHeaderLabel(matcher);
-        return normalized.findIndex((cell) => cell === want);
-      }
-
-      if (matcher instanceof RegExp) {
-        const idx = original.findIndex((cell) => matcher.test(cell));
-        if (idx >= 0) return idx;
-        return normalized.findIndex((cell) => matcher.test(cell));
-      }
-
-      return -1;
-    }
-
-    const findColumnIndex = (headers, keywords) => {
-      const lowerHeaders = headers.map((h) => String(h || '').trim().toLowerCase());
-      for (const keyword of keywords) {
-        const idx = lowerHeaders.indexOf(keyword.toLowerCase());
-        if (idx >= 0) return idx;
-      }
-      return -1;
-    };
-
-    const extractSummaryRows = (rows) => {
-      const summary = {};
-      for (const row of rows) {
-        if (!row || row.length === 0) continue;
-        const [key, value] = row;
-        if (!key || value === undefined || value === null) continue;
-        summary[String(key).trim()] = typeof value === 'number' ? value : String(value).trim();
-      }
-      return summary;
-    };
-
-    const parseSeriesRows = (rows, headerRow) => {
-      const headers = headerRow.map((cell) => String(cell || '').trim());
-      const dateIdx = findColumnIndex(headers, KEYWORDS.date);
-      const valueIdx = findColumnIndex(headers, KEYWORDS.value);
-      const seriesIdx = findColumnIndex(headers, KEYWORDS.series);
-
-      if (dateIdx === -1 || valueIdx === -1) {
-        return { series: [], note: '未识别到“日期/数值”列，请检查表头。' };
-      }
-
-      const seriesMap = new Map();
-      rows.forEach((row) => {
-        if (!row) return;
-        const date = row[dateIdx];
-        const value = row[valueIdx];
-        if (date === undefined || value === undefined) return;
-        const seriesName = seriesIdx >= 0 ? row[seriesIdx] || '默认系列' : '默认系列';
-        if (!seriesMap.has(seriesName)) {
-          seriesMap.set(seriesName, []);
-        }
-        seriesMap.get(seriesName).push([String(date).trim(), String(value).trim()]);
-      });
-
-      const series = Array.from(seriesMap.entries()).map(([name, data]) => ({ name, data }));
-      return { series, note: null };
-    };
-
-    const convertGroupListed = (rows, profile = {}) => {
-      const headerRowIndex = Number.isInteger(profile?.headerRow)
-        ? Math.max(0, profile.headerRow)
-        : 0;
-      const header = rows[headerRowIndex] || [];
-      const body = rows
-        .slice(headerRowIndex + 1)
-        .filter(
-          (row) =>
-            Array.isArray(row) &&
-            row.some((cell) => cell !== undefined && cell !== null && String(cell).trim() !== '')
-        );
-
-      const dateIdx = findColIndex(header, profile?.dateCol);
-      if (dateIdx < 0) {
-        throw new Error('国能上市公司：未找到日期列');
-      }
-
-      let weekRows = computePrevWeekWorkdays(body, dateIdx)
-        .map((item) => ({ ...item, iso: fmtISO(item.date) }))
-        .sort((a, b) => a.date - b.date);
-
-      if (typeof profile?.rowFilter === 'function') {
-        weekRows = weekRows.filter((item) => profile.rowFilter({ date: item.iso }));
-      }
-
-      const diagnostics = {
-        sheet: '国能上市公司',
-        dateCol: header[dateIdx] || null,
-        range: 'prevWeekWorkdays',
-        items: [],
-      };
-
-      diagnostics.items.push({
-        category: 'date',
-        label: '日期列',
-        matcher: describeMatcher(profile?.dateCol),
-        matched: dateIdx >= 0,
-        column: header[dateIdx] || null,
-        closest: dateIdx >= 0 ? [] : closestHeaders(header, profile?.dateCol),
-        points: weekRows.length,
-        dateRange:
-          weekRows.length >= 2 ? [weekRows[0].iso, weekRows[weekRows.length - 1].iso] : [],
-      });
-
-      const toDisplayDate = (row, cached) => {
-        if (cached?.iso) return cached.iso;
-        const safe = toDateSafe(row?.[dateIdx]);
-        if (safe) return fmtISO(safe);
-        return row?.[dateIdx] ?? null;
-      };
-
-      const recordDiag = (matcher, label, metric) => {
-        if (!matcher) {
-          const entry = {
-            category: 'series',
-            label,
-            metric,
-            matcher: '',
-            matched: false,
-            column: null,
-            closest: [],
-            points: 0,
-            dateRange: [],
-          };
-          diagnostics.items.push(entry);
-          return { idx: -1, entry };
-        }
-        const idx = findColIndex(header, matcher);
-        const entry = {
-          category: 'series',
-          label,
-          metric,
-          matcher: describeMatcher(matcher),
-          matched: idx >= 0,
-          column: idx >= 0 ? header[idx] || null : null,
-          closest: idx >= 0 ? [] : closestHeaders(header, matcher),
-          points: 0,
-          dateRange: [],
-        };
-        diagnostics.items.push(entry);
-        return { idx, entry };
-      };
-
-      const metricDefs = [
-        { key: 'close', suffix: ' 收盘', label: '收盘', parser: parseNumberLike, isPct: false },
-        { key: 'chg', suffix: ' 涨跌幅(%)', label: '涨跌幅(%)', parser: parsePercentNumber, isPct: true },
-        { key: 'amount', suffix: ' 成交金额(亿)', label: '成交金额(亿)', parser: parseNumberLike, isPct: false },
-        { key: 'amount_chg', suffix: ' 成交金额变化(%)', label: '成交金额变化(%)', parser: parsePercentNumber, isPct: true },
-        { key: 'mainflow', suffix: ' 主力资金流向(亿)', label: '主力资金流向(亿)', parser: parseNumberLike, isPct: false },
-        { key: 'pe', suffix: ' 市盈率(倍)', label: '市盈率(倍)', parser: parseNumberLike, isPct: false },
-        { key: 'pb', suffix: ' 市净率(倍)', label: '市净率(倍)', parser: parseNumberLike, isPct: false },
-        {
-          key: 'dev',
-          suffix: ' 每日偏离值',
-          label: '每日偏离值',
-          parser: (value) => parsePercentNumber(value) ?? parseNumberLike(value),
-          isPct: false,
-        },
-        {
-          key: 'turn_ratio',
-          suffix: ' 换手率比值',
-          label: '换手率比值',
-          parser: (value) => parsePercentNumber(value) ?? parseNumberLike(value),
-          isPct: false,
-        },
-      ];
-
-      const series = [];
-
-      (profile?.stocks || []).forEach((stock) => {
-        const name = String(stock || '').trim();
-        if (!name) return;
-        metricDefs.forEach((metric) => {
-          const matcherFactory = profile?.cols?.[metric.key];
-          const matcher = typeof matcherFactory === 'function' ? matcherFactory(name) : null;
-          const diag = recordDiag(matcher, `${name} ${metric.label}`, metric.key);
-
-          const data = weekRows.map((item) => {
-            const value = diag.idx >= 0 ? item.row?.[diag.idx] : null;
-            if (value === '' || value == null) {
-              return [item.iso, null];
-            }
-
-            let parsed = metric.parser(value);
-            if (metric.isPct && typeof value === 'string' && value.endsWith('%')) {
-              parsed = parseFloat(value.slice(0, -1));
-              if (Number.isNaN(parsed)) parsed = null;
-            }
-            if (parsed == null || Number.isNaN(parsed)) {
-              return [item.iso, null];
-            }
-            return [item.iso, parsed];
-          });
-
-          if (diag.entry) {
-            diag.entry.points = data.filter(([, v]) => v != null).length;
-            const range = deriveRange([{ data }]);
-            if (Array.isArray(range) && range.length === 2) {
-              diag.entry.dateRange = range;
-            }
-          }
-
-          series.push({ name: `${name}${metric.suffix}`, data });
-        });
-      });
-
-      const table = weekRows.map((item) => {
-        const record = {};
-        header.forEach((col, idx) => {
-          if (idx === dateIdx) {
-            record[col] = toDisplayDate(item.row, item);
-          } else {
-            record[col] = item.row?.[idx] ?? null;
-          }
-        });
-        return record;
-      });
-
-      const rangeWindow =
-        weekRows.length >= 2 ? [weekRows[0].iso, weekRows[weekRows.length - 1].iso] : [];
-
-      const diagnosticEntries = diagnostics.items.map((item) => ({
-        category: item.category || 'series',
-        label: item.label,
-        metric: item.metric || '',
-        matcher: item.matcher,
-        matched: Boolean(item.matched),
-        column: item.column || null,
-        closest: Array.isArray(item.closest) ? item.closest : [],
-        points: typeof item.points === 'number' ? item.points : 0,
-        dateRange: Array.isArray(item.dateRange) ? item.dateRange : [],
-      }));
-
-      const exportInfo = {
-        source_sheet: '国能上市公司',
-        range: 'prevWeekWorkdays',
-        rows: weekRows.length,
-        range_window: rangeWindow,
-        last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
-        diagnostics,
-      };
-
-      const meta = {
-        timezone: 'Asia/Shanghai',
-        sourceSheet: '国能上市公司',
-        generatedAt: new Date().toISOString(),
-        rangeStrategy: 'prevWeekWorkdays',
-        sourceSheets: ['国能上市公司'],
-      };
-
-      return {
-        meta,
-        summary: {},
-        series,
-        table,
-        export_info: exportInfo,
-        diagnostics: diagnosticEntries,
-      };
-    };
-
-    const convertCnyFx = (rows, profile = {}) => {
-      const headerRowIndex = Number.isInteger(profile?.headerRow)
-        ? Math.max(0, profile.headerRow)
-        : 0;
-      const header = rows[headerRowIndex] || [];
-      const body = rows
-        .slice(headerRowIndex + 1)
-        .filter(
-          (row) =>
-            Array.isArray(row) &&
-            row.some((cell) => cell !== undefined && cell !== null && String(cell).trim() !== '')
-        );
-
-      const dateIdx = findColIndex(header, profile?.dateCol);
-      if (dateIdx < 0) {
-        throw new Error('人民币汇率：未找到日期列');
-      }
-
-      let weekRows = computePrevWeekWorkdays(body, dateIdx)
-        .map((item) => ({ ...item, iso: fmtISO(item.date) }))
-        .sort((a, b) => a.date - b.date);
-
-      if (typeof profile?.rowFilter === 'function') {
-        weekRows = weekRows.filter((item) => profile.rowFilter({ date: item.iso }));
-      }
-
-      const diagnostics = {
-        sheet: '人民币汇率',
-        dateCol: header[dateIdx] || null,
-        range: profile?.rangeDefault || 'prevWeekWorkdays',
-        items: [],
-      };
-
-      diagnostics.items.push({
-        category: 'date',
-        label: '日期列',
-        matcher: describeMatcher(profile?.dateCol),
-        matched: dateIdx >= 0,
-        column: header[dateIdx] || null,
-        closest: dateIdx >= 0 ? [] : closestHeaders(header, profile?.dateCol),
-        points: weekRows.length,
-        dateRange:
-          weekRows.length >= 2 ? [weekRows[0].iso, weekRows[weekRows.length - 1].iso] : [],
-      });
-
-      const recordDiag = (matcher, label, metric) => {
-        if (!matcher) {
-          const entry = {
-            category: 'series',
-            label,
-            metric,
-            matcher: '',
-            matched: false,
-            column: null,
-            closest: [],
-            points: 0,
-            dateRange: [],
-          };
-          diagnostics.items.push(entry);
-          return { idx: -1, entry };
-        }
-        const idx = findColIndex(header, matcher);
-        const entry = {
-          category: 'series',
-          label,
-          metric,
-          matcher: describeMatcher(matcher),
-          matched: idx >= 0,
-          column: idx >= 0 ? header[idx] || null : null,
-          closest: idx >= 0 ? [] : closestHeaders(header, matcher),
-          points: 0,
-          dateRange: [],
-        };
-        diagnostics.items.push(entry);
-        return { idx, entry };
-      };
-
-      const metricDefs = [
-        { key: 'rate', suffix: ' 汇率', label: '汇率', parser: parseNumberLike, isPct: false },
-        { key: 'chg', suffix: ' 涨跌幅(%)', label: '涨跌幅(%)', parser: parsePercentNumber, isPct: true },
-        { key: 'mid', suffix: ' 央行中间价', label: '央行中间价', parser: parseNumberLike, isPct: false },
-        {
-          key: 'mid_chg',
-          suffix: ' 央行中间价调整(%)',
-          label: '央行中间价调整(%)',
-          parser: parsePercentNumber,
-          isPct: true,
-        },
-      ];
-
-      const series = [];
-      const kpis = {};
-
-      (profile?.currencies || []).forEach((currency) => {
-        const keyBase = String(currency?.key || '').trim().toLowerCase();
-        if (!keyBase) return;
-        kpis[`${keyBase}_mid`] = null;
-        kpis[`${keyBase}_mid_chg`] = null;
-      });
-
-      (profile?.currencies || []).forEach((currency) => {
-        const keyword = String(currency?.keyword || '').trim();
-        const keyBase = String(currency?.key || '').trim().toLowerCase();
-        if (!keyword || !keyBase) return;
-
-        metricDefs.forEach((metric) => {
-          if (currency?.noMid && metric.key.startsWith('mid')) {
-            return;
-          }
-          const matcherFactory = profile?.cols?.[metric.key];
-          const matcher = typeof matcherFactory === 'function' ? matcherFactory(keyword) : null;
-          const diag = recordDiag(matcher, `${keyword}${metric.label}`, metric.key);
-
-          const data = weekRows.map((item) => {
-            const raw = diag.idx >= 0 ? item.row?.[diag.idx] : null;
-            if (raw === '' || raw == null) {
-              return [item.iso, null];
-            }
-            const parsed = metric.parser(raw);
-            if (parsed == null || Number.isNaN(parsed)) {
-              return [item.iso, null];
-            }
-            return [item.iso, parsed];
-          });
-
-          if (diag.entry) {
-            diag.entry.points = data.filter(([, v]) => v != null).length;
-            const range = deriveRange([{ data }]);
-            if (Array.isArray(range) && range.length === 2) {
-              diag.entry.dateRange = range;
-            }
-          }
-
-          series.push({ name: `${keyword}${metric.suffix}`, data });
-        });
-      });
-
-      const table = weekRows.map((item) => {
-        const record = {};
-        header.forEach((col, idx) => {
-          if (idx === dateIdx) {
-            record[col] = item.iso;
-          } else {
-            record[col] = item.row?.[idx] ?? null;
-          }
-        });
-        return record;
-      });
-
-      if (weekRows.length) {
-        const last = weekRows[weekRows.length - 1];
-        (profile?.currencies || []).forEach((currency) => {
-          const keyword = String(currency?.keyword || '').trim();
-          const keyBase = String(currency?.key || '').trim().toLowerCase();
-          if (!keyword || !keyBase || currency?.noMid) return;
-
-          const midMatcherFactory = profile?.cols?.mid;
-          const midMatcher = typeof midMatcherFactory === 'function' ? midMatcherFactory(keyword) : null;
-          const midIdx = midMatcher ? findColIndex(header, midMatcher) : -1;
-          if (midIdx >= 0) {
-            const formatted = formatNumber4(last.row?.[midIdx]);
-            if (formatted != null) {
-              kpis[`${keyBase}_mid`] = formatted;
-            }
-          }
-
-          const midChgMatcherFactory = profile?.cols?.mid_chg;
-          const midChgMatcher =
-            typeof midChgMatcherFactory === 'function' ? midChgMatcherFactory(keyword) : null;
-          const midChgIdx = midChgMatcher ? findColIndex(header, midChgMatcher) : -1;
-          if (midChgIdx >= 0) {
-            const formatted = formatPercent4(last.row?.[midChgIdx]);
-            if (formatted != null) {
-              kpis[`${keyBase}_mid_chg`] = formatted;
-            }
-          }
-        });
-      }
-
-      const rangeWindow =
-        weekRows.length >= 2 ? [weekRows[0].iso, weekRows[weekRows.length - 1].iso] : [];
-
-      const diagnosticEntries = diagnostics.items.map((item) => ({
-        category: item.category || 'series',
-        label: item.label,
-        metric: item.metric || '',
-        matcher: item.matcher,
-        matched: Boolean(item.matched),
-        column: item.column || null,
-        closest: Array.isArray(item.closest) ? item.closest : [],
-        points: typeof item.points === 'number' ? item.points : 0,
-        dateRange: Array.isArray(item.dateRange) ? item.dateRange : [],
-      }));
-
-      const exportInfo = {
-        source_sheet: '人民币汇率',
-        range: profile?.rangeDefault || 'prevWeekWorkdays',
-        rows: weekRows.length,
-        range_window: rangeWindow,
-        last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
-        diagnostics,
-      };
-
-      const meta = {
-        timezone: 'Asia/Shanghai',
-        sourceSheet: '人民币汇率',
-        generatedAt: new Date().toISOString(),
-        rangeStrategy: profile?.rangeDefault || 'prevWeekWorkdays',
-        sourceSheets: ['人民币汇率'],
-      };
-
-      return {
-        meta,
-        summary: {},
-        series,
-        table,
-        kpis,
-        export_info: exportInfo,
-        diagnostics: diagnosticEntries,
-      };
-    };
-
-    const convertShibor = (rows, profile = {}) => {
-      const headerRowIndex = Number.isInteger(profile?.headerRow)
-        ? Math.max(0, profile.headerRow)
-        : 0;
-      const header = rows[headerRowIndex] || [];
-      const body = rows
-        .slice(headerRowIndex + 1)
-        .filter(
-          (row) =>
-            Array.isArray(row) &&
-            row.some((cell) => cell !== undefined && cell !== null && String(cell).trim() !== '')
-        );
-
-      const groups = Array.isArray(profile?.groups) ? profile.groups : [];
-      const diagGroups = [];
-      const series = [];
-
-      const normalizeRate = (value) => {
-        const parsed = parsePercentNumber(value);
-        if (parsed == null || Number.isNaN(parsed)) return null;
-        return Number(Number(parsed).toFixed(4));
-      };
-
-      groups.forEach((group) => {
-        const dateMatcher = group?.dateCol;
-        const dateIdx = findColIndex(header, dateMatcher);
-        const dateDiag = {
-          matcher: describeMatcher(dateMatcher),
-          hit: dateIdx >= 0,
-          column: dateIdx >= 0 ? header[dateIdx] || null : null,
-          candidates: dateIdx >= 0 ? [] : closestHeaders(header, dateMatcher),
-          points: 0,
-          dateRange: [],
-        };
-
-        const itemDefs = (Array.isArray(group?.items) ? group.items : []).map((item) => {
-          const colIdx = findColIndex(header, item?.col);
-          const diag = {
-            key: item?.key || '',
-            label: item?.label || item?.key || '',
-            matcher: describeMatcher(item?.col),
-            hit: colIdx >= 0,
-            column: colIdx >= 0 ? header[colIdx] || null : null,
-            candidates: colIdx >= 0 ? [] : closestHeaders(header, item?.col),
-            points: 0,
-            dateRange: [],
-          };
-          return { item, colIdx, diag };
-        });
-
-        const diagGroup = {
-          range: group?.range || null,
-          date: dateDiag,
-          items: itemDefs.map(({ diag }) => diag),
-        };
-        diagGroups.push(diagGroup);
-
-        if (dateIdx < 0) {
-          return;
-        }
-
-        const datedRows = body
-          .map((row) => {
-            const date = toDateSafe(row?.[dateIdx]);
-            if (!date) return null;
-            return { row, date, iso: fmtISO(date) };
-          })
-          .filter(Boolean)
-          .sort((a, b) => a.date - b.date);
-
-        dateDiag.points = datedRows.length;
-        if (datedRows.length === 1) {
-          dateDiag.dateRange = [datedRows[0].iso, datedRows[0].iso];
-        } else if (datedRows.length >= 2) {
-          dateDiag.dateRange = [datedRows[0].iso, datedRows[datedRows.length - 1].iso];
-        }
-
-        if (!datedRows.length) {
-          return;
-        }
-
-        let cutoff = null;
-        if (typeof group?.range === 'string' && group.range.startsWith('lastNDays:')) {
-          const n = Number(group.range.split(':')[1] || '0');
-          if (Number.isFinite(n) && n > 0) {
-            const latest = datedRows[datedRows.length - 1].date;
-            cutoff = new Date(latest.getTime());
-            cutoff.setHours(0, 0, 0, 0);
-            cutoff.setDate(cutoff.getDate() - (n - 1));
-          }
-        }
-
-        itemDefs.forEach(({ item, colIdx, diag }) => {
-          if (!item || colIdx < 0) {
-            return;
-          }
-
-          const data = [];
-          datedRows.forEach(({ row, iso, date }) => {
-            if (cutoff && date < cutoff) {
-              return;
-            }
-            const raw = row[colIdx];
-            const value = normalizeRate(raw);
-            if (value == null) {
-              return;
-            }
-            data.push([iso, value]);
-          });
-
-          if (!data.length) {
-            return;
-          }
-
-          diag.points = data.length;
-          const range = deriveRange([{ data }]);
-          if (Array.isArray(range) && range.length === 2) {
-            diag.dateRange = range;
-          }
-
-          series.push({
-            name: item.label || item.key || '',
-            data,
-            unit: '%',
-          });
-        });
-      });
-
-      const totalPoints = series.reduce((acc, serie) => acc + (Array.isArray(serie.data) ? serie.data.length : 0), 0);
-      const overallRange = deriveRange(series);
-
-      const meta = {
-        timezone: 'Asia/Shanghai',
-        sourceSheet: 'Shibor利率',
-        generatedAt: new Date().toISOString(),
-        sourceSheets: ['Shibor利率'],
-        unit: { rate: '%' },
-      };
-
-      const exportInfo = {
-        source_sheet: 'Shibor利率',
-        rows: totalPoints,
-        last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
-        diagnostics: { shibor: diagGroups },
-      };
-      if (overallRange) {
-        exportInfo.range = overallRange;
-      }
-
-      return {
-        meta,
-        summary: {},
-        series,
-        export_info: exportInfo,
-      };
-    };
-
-    const buildOpenMarketMinimal = (omPart = {}, shiborPart = {}) => {
-      const hasOm = omPart && Object.keys(omPart).length;
-      const hasShibor = shiborPart && Object.keys(shiborPart).length;
-      if (!hasOm && !hasShibor) return null;
-
-      const summary = {
-        r7d_amt_yi: omPart?.summary?.r7d_amt_yi ?? null,
-        r14d_amt_yi: omPart?.summary?.r14d_amt_yi ?? null,
-        mlf_amt_yi: omPart?.summary?.mlf_amt_yi ?? null,
-        tcd_amt_yi: omPart?.summary?.tcd_amt_yi ?? null,
-        slf_amt_yi: omPart?.summary?.slf_amt_yi ?? null,
-        slo_amt_yi: omPart?.summary?.slo_amt_yi ?? null,
-        repo_amt_yi: omPart?.summary?.repo_amt_yi ?? null,
-      };
-
-      const order = [
-        '逆回购7D利率(%)',
-        '逆回购14D利率(%)',
-        'MLF利率(%)',
-        '国库定存利率(%)',
-        'SLF利率(%)',
-        'SLO利率(%)',
-        '正回购利率(%)',
-        'SHIBOR 隔夜(%)',
-        'SHIBOR 1周(%)',
-        'SHIBOR 2周(%)',
-        'SHIBOR 3月(%)',
-        'SHIBOR 6月(%)',
-        'SHIBOR 9月(%)',
-        'SHIBOR 1年(%)',
-      ];
-
-      const seriesMap = new Map();
-      const collect = (list) => {
-        (Array.isArray(list) ? list : []).forEach((serie) => {
-          if (!serie || !serie.name) return;
-          seriesMap.set(serie.name, Array.isArray(serie.data) ? serie.data : []);
-        });
-      };
-      collect(omPart?.rateSeries);
-      collect(shiborPart?.series);
-
-      const series = order.map((name) => ({
-        name,
-        data: seriesMap.get(name) || [],
-      }));
-
-      const exportInfo = {
-        source_sheet: '公开市场货币 + Shibor利率',
-        range: 'prevCompletedWeek',
-        diagnostics: {
-          om: Array.isArray(omPart?.diagnostics) ? omPart.diagnostics : [],
-          shibor: Array.isArray(shiborPart?.diagnostics) ? shiborPart.diagnostics : [],
-        },
-        last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
-      };
-
-      if (
-        Array.isArray(omPart?.rangeWindow) &&
-        omPart.rangeWindow.length === 2 &&
-        omPart.rangeWindow.every((item) => typeof item === 'string')
-      ) {
-        exportInfo.range_window = omPart.rangeWindow;
-      }
-
-      return {
-        summary,
-        series,
-        table: Array.isArray(omPart?.table) ? omPart.table : [],
-        export_info: exportInfo,
-      };
-    };
-
-    const convertWorksheet = (sheetName, sheet) => {
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
-      const baseMeta = {
-        timezone: 'Asia/Shanghai',
-        sourceSheet: sheetName,
-        generatedAt: new Date().toISOString(),
-      };
-
-      if (!rows.length) {
-        return {
-          meta: { ...baseMeta, note: '空工作表' },
-          summary: {},
-          series: [],
-          note: '该工作表为空。',
-        };
-      }
-
-      const profile = PROFILES[sheetName];
-      if (sheetName === '国能上市公司') {
-        return convertGroupListed(rows, profile || {});
-      }
-      if (sheetName === '人民币汇率') {
-        return convertCnyFx(rows, profile || {});
-      }
-      if (profile) {
-        return buildByProfile(rows, profile, sheetName);
-      }
-
-      const headerIndex = rows.findIndex((row) => {
-        if (!row) return false;
-        const normalized = row.map((cell) => String(cell || '').trim().toLowerCase());
-        const hasDate = KEYWORDS.date.some((key) => normalized.includes(key.toLowerCase()));
-        const hasValue = KEYWORDS.value.some((key) => normalized.includes(key.toLowerCase()));
-        return hasDate && hasValue;
-      });
-
-      let summaryRows = [];
-      let dataRows = [];
-      let headerRow = [];
-
-      if (headerIndex >= 0) {
-        summaryRows = rows.slice(0, headerIndex).filter((row) => row.length >= 2);
-        headerRow = rows[headerIndex];
-        dataRows = rows
-          .slice(headerIndex + 1)
-          .filter((row) => row && row.some((cell) => cell !== undefined && cell !== null && cell !== ''));
-      } else {
-        summaryRows = rows.filter((row) => row.length >= 2);
-      }
-
-      const summary = extractSummaryRows(summaryRows);
-      const { series, note } = headerRow.length
-        ? parseSeriesRows(dataRows, headerRow)
-        : { series: [], note: '未找到包含日期/数值的表头，请确认格式。' };
-
-      const unitEntry = Object.entries(summary).find(([key]) => /单位|unit/i.test(key));
-      const meta = {
-        ...baseMeta,
-        unit: unitEntry ? String(unitEntry[1]) : '',
-        sourceSheets: [sheetName],
-      };
-
-      const exportInfo = {
-        rows: dataRows.length,
-        last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
-      };
-      const rangePair = deriveRange(series);
-      if (rangePair) {
-        exportInfo.range = rangePair;
-      }
-
-      return { summary, series, meta, note, export_info: exportInfo };
-    };
-
-  const createResultCard = ({ title, fileName, data, diagnostics }) => {
-      const container = document.createElement('article');
-      container.className = 'result-item';
-
-      const header = document.createElement('div');
-      header.className = 'result-item__header';
-      const displayTitle = title || fileName;
-      const seriesCount = Array.isArray(data?.series) ? data.series.length : 0;
-      const summaryCount = data?.summary ? Object.keys(data.summary).length : 0;
-      const sources = Array.isArray(data?.meta?.sourceSheets)
-        ? data.meta.sourceSheets.join('、')
-        : data?.meta?.sourceSheet || '';
-      const metaItems = [
-        `输出文件：<code>${fileName}</code>`,
-        `系列数量：${seriesCount}`,
-        `摘要指标：${summaryCount}`,
-      ];
-      if (sources) {
-        metaItems.push(`来源表：${sources}`);
-      }
-      header.innerHTML = `
-        <div>
-          <h3 style="margin:0;">${displayTitle}</h3>
-          <div class="result-item__meta">
-            ${metaItems.map((item) => `<span>${item}</span>`).join('')}
-          </div>
-        </div>
-      `;
-
-      const actionGroup = document.createElement('div');
-      const previewButton = document.createElement('button');
-      previewButton.className = 'btn btn-secondary';
-      previewButton.type = 'button';
-      previewButton.innerHTML = '<i class="bi bi-eye"></i>预览 JSON';
-
-      const downloadButton = document.createElement('button');
-      downloadButton.className = 'btn';
-      downloadButton.type = 'button';
-      downloadButton.innerHTML = '<i class="bi bi-download"></i>下载 JSON';
-
-      actionGroup.append(previewButton, downloadButton);
-      header.append(actionGroup);
-      container.append(header);
-
-      if (data && data.note) {
-        const note = document.createElement('div');
-        note.className = 'alert';
-        note.textContent = data.note;
-        container.append(note);
-      }
-
-      if (Array.isArray(diagnostics) && diagnostics.length) {
-        const totalIssues = diagnostics.reduce((sum, diag) => {
-          if (!diag || !Array.isArray(diag.items)) return sum;
-          return (
-            sum
-            + diag.items.filter((item) => item && item.matched === false).length
-          );
-        }, 0);
-        const totalEntries = diagnostics.reduce((sum, diag) => {
-          if (!diag || !Array.isArray(diag.items)) return sum;
-          return sum + diag.items.length;
-        }, 0);
-
-        const panel = document.createElement('details');
-        panel.className = 'diagnostics-panel';
-        panel.open = totalIssues > 0 && totalIssues <= 6;
-
-        const summary = document.createElement('summary');
-        summary.textContent = totalIssues
-          ? `诊断提醒：${totalIssues} 项待确认`
-          : `诊断记录：${totalEntries} 项`;
-        panel.append(summary);
-
-        const list = document.createElement('div');
-        list.className = 'diagnostics-list';
-
-        diagnostics.forEach((diag) => {
-          if (!diag || !Array.isArray(diag.items) || !diag.items.length) return;
-
-          const sheetBlock = document.createElement('div');
-          sheetBlock.className = 'diagnostics-sheet';
-
-          const sheetHeader = document.createElement('div');
-          sheetHeader.className = 'diagnostics-entry';
-          sheetHeader.innerHTML = `<strong>${diag.sheet || '未命名工作表'}</strong>`;
-          sheetBlock.append(sheetHeader);
-
-          diag.items.slice(0, 6).forEach((item) => {
-            if (!item) return;
-            const row = document.createElement('div');
-            row.className = 'diagnostics-entry';
-
-            const status = document.createElement('span');
-            const statusClass = item.matched ? 'diagnostics-chip' : 'diagnostics-chip warn';
-            status.className = statusClass;
-            status.textContent = item.matched ? '已匹配' : '待确认';
-            row.append(status);
-
-            const label = document.createElement('span');
-            label.textContent = item.label || item.category || '未命名字段';
-            row.append(label);
-
-            if (item.column) {
-              const column = document.createElement('span');
-              column.innerHTML = `列：<code>${item.column}</code>`;
-              row.append(column);
-            } else if (typeof item.index === 'number' && item.index >= 0) {
-              const column = document.createElement('span');
-              column.textContent = `第 ${item.index + 1} 列`;
-              row.append(column);
-            }
-
-            if (item.note) {
-              const note = document.createElement('span');
-              note.textContent = item.note;
-              row.append(note);
-            }
-
-            sheetBlock.append(row);
-          });
-
-          if (diag.items.length > 6) {
-            const more = document.createElement('div');
-            more.className = 'diagnostics-entry diagnostics-more';
-            more.textContent = `……还有 ${diag.items.length - 6} 条记录`;
-            sheetBlock.append(more);
-          }
-
-          list.append(sheetBlock);
-        });
-
-        panel.append(list);
-        container.append(panel);
-      }
-
-      const preview = document.createElement('textarea');
-      preview.className = 'preview';
-      preview.setAttribute('readonly', 'readonly');
-      preview.style.display = 'none';
-  preview.value = JSON.stringify(data ?? {}, null, 2);
-      container.append(preview);
-
-      previewButton.addEventListener('click', () => {
-        const visible = preview.style.display === 'block';
-        preview.style.display = visible ? 'none' : 'block';
-        previewButton.innerHTML = visible
-          ? '<i class="bi bi-eye"></i>预览 JSON'
-          : '<i class="bi bi-eye-slash"></i>收起预览';
-      });
-
-      downloadButton.addEventListener('click', () => {
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = fileName;
-        link.click();
-        URL.revokeObjectURL(link.href);
-      });
-
-      return container;
-    };
-
-    const renderResults = (results) => {
-      const resultArea = document.getElementById('result-area');
-      resultArea.innerHTML = '';
-
-      if (!results.length) {
-        const empty = document.createElement('div');
-        empty.className = 'alert';
-        empty.textContent = '未找到可解析的工作表，请确认 Excel 文件的 Sheet 名称。';
-        resultArea.append(empty);
-        return;
-      }
-
-      results.forEach((item) => {
-        const card = createResultCard(item);
-        resultArea.append(card);
-      });
-    };
-
-    const handleFile = async (event) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheetEntries = workbook.SheetNames.map((sheetName) => {
-        const worksheet = workbook.Sheets?.[sheetName];
-        if (!worksheet) return [sheetName, []];
-        const rows = XLSX.utils.sheet_to_json(worksheet, {
-          header: 1,
-          raw: true,
-          defval: null,
-        });
-        return [sheetName, rows];
-      });
-
-      const coreResult = convertSheets(sheetEntries, {
-        anchor: ANCHOR,
-        profiles: SHEET_PROFILES,
-      });
-
-      const outputsByFile = coreResult.files instanceof Map
-        ? coreResult.files
-        : new Map(Object.entries(coreResult.files || {}));
-
-      const diagnosticsByFile = new Map();
-      const diagMap = new Map();
-
-      (Array.isArray(coreResult.diagnostics) ? coreResult.diagnostics : []).forEach((diag) => {
-        if (!diag || !Array.isArray(diag.items)) return;
-        const key = String(diag.sheet || '').trim();
-        if (!key) return;
-        if (!diagMap.has(key)) {
-          diagMap.set(key, {
-            ...diag,
-            items: diag.items.map((item) => (
-              item && typeof item === 'object'
-                ? { ...item, closest: Array.isArray(item.closest) ? [...item.closest] : item.closest }
-                : item
-            )),
-          });
-        } else {
-          const existing = diagMap.get(key);
-          existing.items = existing.items.concat(
-            diag.items.map((item) => (
-              item && typeof item === 'object'
-                ? { ...item, closest: Array.isArray(item.closest) ? [...item.closest] : item.closest }
-                : item
-            )),
-          );
-        }
-      });
-
-      (Array.isArray(coreResult.details) ? coreResult.details : []).forEach((detail) => {
-        if (!detail || !detail.outputFile) return;
-        const candidates = [
-          detail.normalizedSheetName,
-          detail.sheetName,
-        ]
-          .map((name) => (name == null ? '' : String(name)))
-          .filter(Boolean);
-        if (!candidates.length) return;
-        const bucket = diagnosticsByFile.get(detail.outputFile) || [];
-        let appended = false;
-        candidates.forEach((name) => {
-          const diag = diagMap.get(name);
-          if (diag && !bucket.includes(diag)) {
-            bucket.push(diag);
-            appended = true;
-          }
-        });
-        if (appended) {
-          diagnosticsByFile.set(detail.outputFile, bucket);
-        }
-      });
-
-      diagMap.forEach((diag, sheetName) => {
-        let fileName = getOutputFile(sheetName);
-        if (!fileName && /公开市场/.test(sheetName)) {
-          fileName = 'open_market.json';
-        }
-        if (!fileName) return;
-        const bucket = diagnosticsByFile.get(fileName) || [];
-        if (!bucket.includes(diag)) {
-          bucket.push(diag);
-          diagnosticsByFile.set(fileName, bucket);
-        }
-      });
-
-      const aggregated = Array.from(outputsByFile.entries()).map(([fileName, data]) => {
-        const sources = Array.isArray(data?.meta?.sourceSheets) ? data.meta.sourceSheets : [];
-        const title = sources.length ? sources.join(' + ') : data?.meta?.sourceSheet || fileName;
-        const diagnostics = diagnosticsByFile.get(fileName) || [];
-        return { title, fileName, data, diagnostics };
-      });
-
-      aggregated.sort((a, b) => a.fileName.localeCompare(b.fileName));
-
-      renderResults(aggregated);
-    };
-
-    document.getElementById('xlsx-input').addEventListener('change', handleFile);
-  </script>
+  <footer>
+    <p>提示：若遇到未知工作表，可在 <code>js/xlsx2json/core.js</code> 和 <code>js/sheet-profiles.js</code> 中补充映射配置，再次上传即可。</p>
+  </footer>
+
+  <script type="module" src="./xlsx-to-json-main.js"></script>
 </body>
 </html>

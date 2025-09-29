@@ -1,30 +1,30 @@
 const MISSING_STRINGS = new Set([
-  "-",
-  "--",
-  "---",
-  "—",
-  "——",
-  "— —",
-  "–",
-  "N/A",
-  "NA",
-  "NaN",
-  "NULL",
-  "null",
-  "无",
+  '-',
+  '--',
+  '---',
+  '—',
+  '——',
+  '— —',
+  '–',
+  'N/A',
+  'NA',
+  'NaN',
+  'NULL',
+  'null',
+  '无',
 ]);
 
 export function normalizeHeaderLabel(input) {
-  const s = String(input ?? "").trim();
-  let t = s.replace(/\s+/g, "");
-  t = t.replace(/[（(][^）)]*[）)]\s*$/, "");
+  const s = String(input ?? '').trim();
+  let t = s.replace(/\s+/g, '');
+  t = t.replace(/[（(][^）)]*[）)]\s*$/, '');
   return t;
 }
 
 export function buildHeaderIndex(header) {
   if (
     header &&
-    typeof header === "object" &&
+    typeof header === 'object' &&
     Array.isArray(header.raw) &&
     Array.isArray(header.norm) &&
     header.map instanceof Map
@@ -62,7 +62,7 @@ export function findColIndex(header, matcher) {
     });
   }
 
-  const key = matcher != null ? String(matcher) : "";
+  const key = matcher != null ? String(matcher) : '';
   if (map.has(key)) return map.get(key);
   const normalizedKey = normalizeHeaderLabel(key);
   if (map.has(normalizedKey)) return map.get(normalizedKey);
@@ -70,14 +70,14 @@ export function findColIndex(header, matcher) {
 }
 
 export function toDateSafe(value) {
-  if (value == null || value === "") return null;
+  if (value == null || value === '') return null;
   if (value instanceof Date) {
     const cloned = new Date(value.getTime());
     if (Number.isNaN(cloned.getTime())) return null;
     cloned.setHours(0, 0, 0, 0);
     return cloned;
   }
-  if (typeof value === "number" && !Number.isNaN(value)) {
+  if (typeof value === 'number' && !Number.isNaN(value)) {
     const XLSXLib = globalThis?.XLSX;
     if (XLSXLib?.SSF?.parse_date_code) {
       const parsed = XLSXLib.SSF.parse_date_code(value);
@@ -105,7 +105,7 @@ export function toDateSafe(value) {
   }
   const text = String(value).trim();
   if (!text) return null;
-  const normalized = text.includes("/") ? text : text.replace(/-/g, "/");
+  const normalized = text.includes('/') ? text : text.replace(/-/g, '/');
   const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return null;
   date.setHours(0, 0, 0, 0);
@@ -154,12 +154,12 @@ export function prevCompletedWeekRange(now = new Date()) {
 
 export function isMissingRaw(value) {
   if (value === null || value === undefined) return true;
-  if (typeof value === "number") return Number.isNaN(value);
+  if (typeof value === 'number') return Number.isNaN(value);
   const s = String(value).trim();
   if (!s) return true;
-  const plain = s.replace(/\u200B/g, "");
+  const plain = s.replace(/\u200B/g, '');
   if (MISSING_STRINGS.has(plain)) return true;
-  const stripped = plain.endsWith("%") ? plain.slice(0, -1).trim() : plain;
+  const stripped = plain.endsWith('%') ? plain.slice(0, -1).trim() : plain;
   if (!stripped) return true;
   return MISSING_STRINGS.has(stripped);
 }
@@ -172,8 +172,8 @@ export function toNumberOrNull(value) {
   const normalized = missingToNull(value);
   if (normalized === null) return null;
   let text = String(normalized).trim();
-  if (text.endsWith("%")) text = text.slice(0, -1).trim();
-  const num = Number(text.replace(/,/g, ""));
+  if (text.endsWith('%')) text = text.slice(0, -1).trim();
+  const num = Number(text.replace(/,/g, ''));
   return Number.isNaN(num) ? null : num;
 }
 
@@ -181,7 +181,7 @@ export function toPctString4OrNull(value) {
   const normalized = missingToNull(value);
   if (normalized === null) return null;
   let text = String(normalized).trim();
-  if (text.endsWith("%")) text = text.slice(0, -1).trim();
+  if (text.endsWith('%')) text = text.slice(0, -1).trim();
   const num = Number(text);
   return Number.isNaN(num) ? null : `${num.toFixed(4)}%`;
 }
@@ -202,7 +202,7 @@ const utils = {
   toPctString4OrNull,
 };
 
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   window.xlsx2jsonUtils = {
     ...(window.xlsx2jsonUtils || {}),
     ...utils,

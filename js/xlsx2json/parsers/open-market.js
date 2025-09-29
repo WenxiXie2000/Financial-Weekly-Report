@@ -1,18 +1,18 @@
-import { toNumberOrNull, prevCompletedWeekRange } from "../utils.js";
+import { toNumberOrNull, prevCompletedWeekRange } from '../utils.js';
 import {
   computePrevWeekWorkdays,
   fmtISO,
   parseNumberLike,
   createSheetDiagnostics,
   trackColumn,
-} from "./common.js";
+} from './common.js';
 
 /**
  * @typedef {import("../types.js").OpenMarketMonetaryFragment} OpenMarketMonetaryFragment
  * @typedef {import("../types.js").OpenMarketJson} OpenMarketJson
  */
 
-const DEFAULT_MONETARY_SHEET = "公开市场货币";
+const DEFAULT_MONETARY_SHEET = '公开市场货币';
 
 /**
  * 解析公开市场货币工作表，抽取最新一周的摘要与利率序列。
@@ -27,20 +27,18 @@ export function parseOpenMarketMonetary(
   profile = {},
   { anchor = new Date(), sheetName = DEFAULT_MONETARY_SHEET } = {}
 ) {
-  const headerRowIndex = Number.isInteger(profile.headerRow)
-    ? Math.max(0, profile.headerRow)
-    : 0;
+  const headerRowIndex = Number.isInteger(profile.headerRow) ? Math.max(0, profile.headerRow) : 0;
   const header = rows[headerRowIndex] || [];
   const body = rows.slice(headerRowIndex + 1);
 
   const diagnostics = createSheetDiagnostics(sheetName);
-  diagnostics.range = "prevCompletedWeek";
+  diagnostics.range = 'prevCompletedWeek';
 
-  const dateIdx = trackColumn(diagnostics, header, profile.dateCol ?? "", {
-    category: "date",
-    label: "日期列",
+  const dateIdx = trackColumn(diagnostics, header, profile.dateCol ?? '', {
+    category: 'date',
+    label: '日期列',
     allowMissing: true,
-    note: profile.dateCol == null ? "未配置匹配规则" : undefined,
+    note: profile.dateCol == null ? '未配置匹配规则' : undefined,
   });
 
   const summary = {
@@ -57,20 +55,20 @@ export function parseOpenMarketMonetary(
   let rangeWindow = [];
 
   const summaryKeyMap = {
-    rr7d: "r7d_amt_yi",
-    rr14d: "r14d_amt_yi",
-    mlf: "mlf_amt_yi",
-    tcd: "tcd_amt_yi",
-    slf: "slf_amt_yi",
-    slo: "slo_amt_yi",
-    repo: "repo_amt_yi",
+    rr7d: 'r7d_amt_yi',
+    rr14d: 'r14d_amt_yi',
+    mlf: 'mlf_amt_yi',
+    tcd: 'tcd_amt_yi',
+    slf: 'slf_amt_yi',
+    slo: 'slo_amt_yi',
+    repo: 'repo_amt_yi',
   };
 
   diagnostics.dateCol = dateIdx >= 0 ? header[dateIdx] || null : null;
   const dateEntry = diagnostics.items[diagnostics.items.length - 1] || null;
   if (dateIdx < 0) {
     if (dateEntry) {
-      dateEntry.note = dateEntry.note || "未找到日期列";
+      dateEntry.note = dateEntry.note || '未找到日期列';
     }
     return {
       summary,
@@ -107,14 +105,11 @@ export function parseOpenMarketMonetary(
   }
 
   const latestRow = latestEntry.row;
-  const iso = latestEntry.date instanceof Date ? fmtISO(latestEntry.date) : "";
+  const iso = latestEntry.date instanceof Date ? fmtISO(latestEntry.date) : '';
 
   table = [
     header.reduce((acc, cell, idx) => {
-      const key =
-        cell != null && String(cell).trim()
-          ? String(cell).trim()
-          : `COL_${idx + 1}`;
+      const key = cell != null && String(cell).trim() ? String(cell).trim() : `COL_${idx + 1}`;
       acc[key] = latestRow[idx] ?? null;
       return acc;
     }, {}),
@@ -127,13 +122,12 @@ export function parseOpenMarketMonetary(
     const baseLabel = item.label || item.key;
 
     if (summaryKey && item.cols?.inj) {
-      const amountIdx = trackColumn(diagnostics, header, item.cols.inj ?? "", {
-        category: "summary",
+      const amountIdx = trackColumn(diagnostics, header, item.cols.inj ?? '', {
+        category: 'summary',
         label: `${baseLabel} 投放量(亿)`,
         extra: { field: summaryKey },
       });
-      const amountVal =
-        amountIdx >= 0 ? parseNumberLike(latestRow[amountIdx]) : null;
+      const amountVal = amountIdx >= 0 ? parseNumberLike(latestRow[amountIdx]) : null;
       if (amountVal != null) {
         summary[summaryKey] = amountVal;
       }
@@ -148,8 +142,8 @@ export function parseOpenMarketMonetary(
     }
 
     if (item.cols?.rate) {
-      const rateIdx = trackColumn(diagnostics, header, item.cols.rate ?? "", {
-        category: "rate",
+      const rateIdx = trackColumn(diagnostics, header, item.cols.rate ?? '', {
+        category: 'rate',
         label: `${baseLabel} 利率(%)`,
         extra: { field: `rate:${item.key}` },
       });
@@ -210,20 +204,20 @@ export function buildOpenMarketDataset(omPart, shiborPart) {
   };
 
   const order = [
-    "逆回购7D利率(%)",
-    "逆回购14D利率(%)",
-    "MLF利率(%)",
-    "国库定存利率(%)",
-    "SLF利率(%)",
-    "SLO利率(%)",
-    "正回购利率(%)",
-    "SHIBOR 隔夜(%)",
-    "SHIBOR 1周(%)",
-    "SHIBOR 2周(%)",
-    "SHIBOR 3月(%)",
-    "SHIBOR 6月(%)",
-    "SHIBOR 9月(%)",
-    "SHIBOR 1年(%)",
+    '逆回购7D利率(%)',
+    '逆回购14D利率(%)',
+    'MLF利率(%)',
+    '国库定存利率(%)',
+    'SLF利率(%)',
+    'SLO利率(%)',
+    '正回购利率(%)',
+    'SHIBOR 隔夜(%)',
+    'SHIBOR 1周(%)',
+    'SHIBOR 2周(%)',
+    'SHIBOR 3月(%)',
+    'SHIBOR 6月(%)',
+    'SHIBOR 9月(%)',
+    'SHIBOR 1年(%)',
   ];
 
   const seriesMap = new Map();
@@ -242,10 +236,10 @@ export function buildOpenMarketDataset(omPart, shiborPart) {
   }));
 
   const exportInfo = {
-    source_sheet: "公开市场货币 + Shibor利率",
-    range: "prevCompletedWeek",
-    diagnostics: createSheetDiagnostics("公开市场组合"),
-    last_updated: new Date().toISOString().slice(0, 19).replace("T", " "),
+    source_sheet: '公开市场货币 + Shibor利率',
+    range: 'prevCompletedWeek',
+    diagnostics: createSheetDiagnostics('公开市场组合'),
+    last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
   };
 
   const combinedDiagnostics = exportInfo.diagnostics;
@@ -271,13 +265,13 @@ export function buildOpenMarketDataset(omPart, shiborPart) {
     });
   };
 
-  mergeDiagnostics("open_market_monetary", omPart?.diagnostics);
-  mergeDiagnostics("shibor", shiborPart?.export_info?.diagnostics);
+  mergeDiagnostics('open_market_monetary', omPart?.diagnostics);
+  mergeDiagnostics('shibor', shiborPart?.export_info?.diagnostics);
 
   if (
     Array.isArray(omPart?.rangeWindow) &&
     omPart.rangeWindow.length === 2 &&
-    omPart.rangeWindow.every((item) => typeof item === "string")
+    omPart.rangeWindow.every((item) => typeof item === 'string')
   ) {
     exportInfo.range_window = omPart.rangeWindow;
   }

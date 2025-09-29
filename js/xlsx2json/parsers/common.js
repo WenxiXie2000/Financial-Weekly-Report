@@ -4,15 +4,13 @@ import {
   toDateSafe,
   isWeekday,
   prevCompletedWeekRange,
-} from "../utils.js";
+} from '../utils.js';
 
-export const pad2 = (value) => String(value).padStart(2, "0");
+export const pad2 = (value) => String(value).padStart(2, '0');
 
 export const formatDate = (date) => {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
-    date.getDate()
-  )}`;
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 };
 
 export const fmtISO = (date) => formatDate(date);
@@ -23,7 +21,7 @@ export const toDate = (value) => {
     cloned.setHours(0, 0, 0, 0);
     return cloned;
   }
-  if (typeof value === "number" && !Number.isNaN(value)) {
+  if (typeof value === 'number' && !Number.isNaN(value)) {
     if (globalThis?.XLSX?.SSF?.parse_date_code) {
       const parsed = globalThis.XLSX.SSF.parse_date_code(value);
       if (parsed) {
@@ -48,12 +46,10 @@ export const toDate = (value) => {
     date.setHours(0, 0, 0, 0);
     return date;
   }
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     const trimmed = value.trim();
     if (!trimmed) return null;
-    const normalized = trimmed.includes("/")
-      ? trimmed
-      : trimmed.replace(/-/g, "/");
+    const normalized = trimmed.includes('/') ? trimmed : trimmed.replace(/-/g, '/');
     const date = new Date(normalized);
     if (Number.isNaN(date.getTime())) return null;
     date.setHours(0, 0, 0, 0);
@@ -74,9 +70,9 @@ export const toISODateSafe = (value) => {
       : `${year}-${month}-${day}`;
   }
 
-  const text = String(value ?? "").trim();
-  if (!text) return "";
-  const normalized = text.replace(/\//g, "-");
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  const normalized = text.replace(/\//g, '-');
   const parsed = new Date(normalized);
   if (!Number.isNaN(parsed.getTime())) {
     const year = parsed.getFullYear();
@@ -84,9 +80,7 @@ export const toISODateSafe = (value) => {
     const day = pad2(parsed.getDate());
     const hour = pad2(parsed.getHours());
     const minute = pad2(parsed.getMinutes());
-    return /:/.test(text)
-      ? `${year}-${month}-${day} ${hour}:${minute}`
-      : `${year}-${month}-${day}`;
+    return /:/.test(text) ? `${year}-${month}-${day} ${hour}:${minute}` : `${year}-${month}-${day}`;
   }
   return text;
 };
@@ -96,23 +90,21 @@ export const normalizeDateValue = (value) => {
   if (date) {
     return { date, display: formatDate(date) };
   }
-  const display = value == null ? "" : String(value).trim();
+  const display = value == null ? '' : String(value).trim();
   return { date: null, display };
 };
 
 export const describeMatcher = (matcher) => {
   if (matcher instanceof RegExp) return matcher.toString();
   if (Array.isArray(matcher)) {
-    return matcher.map((item) => describeMatcher(item)).join(" / ");
+    return matcher.map((item) => describeMatcher(item)).join(' / ');
   }
-  return String(matcher ?? "");
+  return String(matcher ?? '');
 };
 
 export const closestHeaders = (header, pattern, topK = 3) => {
   const target = normalizeHeaderLabel(
-    pattern instanceof RegExp
-      ? String(pattern).replace(/^\/|\/[a-z]*$/gi, "")
-      : pattern
+    pattern instanceof RegExp ? String(pattern).replace(/^\/|\/[a-z]*$/gi, '') : pattern
   );
   if (!target) return [];
 
@@ -135,7 +127,7 @@ export const closestHeaders = (header, pattern, topK = 3) => {
   };
 
   return (header || [])
-    .map((col) => [String(col ?? ""), score(col)])
+    .map((col) => [String(col ?? ''), score(col)])
     .sort((a, b) => b[1] - a[1])
     .slice(0, topK)
     .map(([col]) => col)
@@ -143,47 +135,47 @@ export const closestHeaders = (header, pattern, topK = 3) => {
 };
 
 export const parsePercentNumber = (value) => {
-  if (value == null || value === "") return null;
-  if (typeof value === "number") return value;
+  if (value == null || value === '') return null;
+  if (typeof value === 'number') return value;
   const text = String(value).trim();
   if (!text) return null;
-  const normalized = text.endsWith("%") ? text.slice(0, -1) : text;
-  const num = Number(normalized.replace(/,/g, ""));
+  const normalized = text.endsWith('%') ? text.slice(0, -1) : text;
+  const num = Number(normalized.replace(/,/g, ''));
   return Number.isNaN(num) ? null : num;
 };
 
 export const parseNumberLike = (value) => {
-  if (value == null || value === "") return null;
-  if (typeof value === "number") return value;
-  const num = Number(String(value).trim().replace(/,/g, ""));
+  if (value == null || value === '') return null;
+  if (typeof value === 'number') return value;
+  const num = Number(String(value).trim().replace(/,/g, ''));
   return Number.isNaN(num) ? null : num;
 };
 
 export const formatNumber4 = (value) => {
-  if (value == null || value === "") return null;
-  if (typeof value === "number") {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number') {
     if (Number.isNaN(value)) return null;
     return value.toFixed(4);
   }
   const text = String(value).trim();
   if (!text) return null;
-  const num = Number(text.replace(/,/g, ""));
+  const num = Number(text.replace(/,/g, ''));
   return Number.isNaN(num) ? null : num.toFixed(4);
 };
 
 export const formatPercent4 = (value) => {
-  if (value == null || value === "") return null;
-  if (typeof value === "number") {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number') {
     if (Number.isNaN(value)) return null;
     return `${value.toFixed(4)}%`;
   }
   const text = String(value).trim();
   if (!text) return null;
-  if (text.endsWith("%")) {
-    const num = Number(text.slice(0, -1).replace(/,/g, ""));
+  if (text.endsWith('%')) {
+    const num = Number(text.slice(0, -1).replace(/,/g, ''));
     return Number.isNaN(num) ? `${text}` : `${num.toFixed(4)}%`;
   }
-  const num = Number(text.replace(/,/g, ""));
+  const num = Number(text.replace(/,/g, ''));
   return Number.isNaN(num) ? `${text}` : `${num.toFixed(4)}%`;
 };
 
@@ -212,17 +204,11 @@ export const deriveRange = (series = []) => {
 };
 
 export const computePrevWeekWorkdays = (rows, dateIdx, now = new Date()) => {
-  if (!Array.isArray(rows) || typeof dateIdx !== "number" || dateIdx < 0)
-    return [];
+  if (!Array.isArray(rows) || typeof dateIdx !== 'number' || dateIdx < 0) return [];
 
   const enriched = rows
     .map((row) => ({ row, date: toDateSafe(row?.[dateIdx]) }))
-    .filter(
-      (item) =>
-        item.row &&
-        item.date instanceof Date &&
-        !Number.isNaN(item.date.getTime())
-    );
+    .filter((item) => item.row && item.date instanceof Date && !Number.isNaN(item.date.getTime()));
 
   if (!enriched.length) return [];
 
@@ -242,21 +228,16 @@ export const computePrevWeekWorkdays = (rows, dateIdx, now = new Date()) => {
     return [];
   }
 
-  return enriched.filter(
-    ({ date }) => date >= mon && date <= fri && isWeekday(date)
-  );
+  return enriched.filter(({ date }) => date >= mon && date <= fri && isWeekday(date));
 };
 
 export const pickLatestWeekRow = (rows, dateIdx, now = new Date()) => {
-  if (!Array.isArray(rows) || typeof dateIdx !== "number" || dateIdx < 0)
-    return null;
+  if (!Array.isArray(rows) || typeof dateIdx !== 'number' || dateIdx < 0) return null;
 
   const weekRows = computePrevWeekWorkdays(rows, dateIdx, now);
   if (!weekRows.length) return null;
 
-  const latest = weekRows.reduce((prev, cur) =>
-    cur.date > prev.date ? cur : prev
-  );
+  const latest = weekRows.reduce((prev, cur) => (cur.date > prev.date ? cur : prev));
   if (!latest || !latest.row) return null;
 
   return {
@@ -267,11 +248,7 @@ export const pickLatestWeekRow = (rows, dateIdx, now = new Date()) => {
 
 export const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
-export const requireColumn = (
-  header,
-  matcher,
-  { allowMissing = false } = {}
-) => {
+export const requireColumn = (header, matcher, { allowMissing = false } = {}) => {
   const idx = findColIndex(header, matcher);
   if (idx < 0 && !allowMissing) {
     const label = describeMatcher(matcher);
@@ -281,7 +258,7 @@ export const requireColumn = (
 };
 
 export const createSheetDiagnostics = (sheet) => ({
-  sheet: String(sheet ?? ""),
+  sheet: String(sheet ?? ''),
   items: [],
   dateCol: null,
   range: null,
@@ -291,14 +268,14 @@ export const trackColumn = (
   diagnostics,
   header,
   matcher,
-  { category = "column", label, note, allowMissing = true, extra } = {}
+  { category = 'column', label, note, allowMissing = true, extra } = {}
 ) => {
   if (!diagnostics || !Array.isArray(diagnostics.items)) {
-    throw new Error("diagnostics 对象无效");
+    throw new Error('diagnostics 对象无效');
   }
   const idx = findColIndex(header, matcher);
   const matched = idx >= 0;
-  const column = matched ? String(header[idx] ?? "") : null;
+  const column = matched ? String(header[idx] ?? '') : null;
   const entry = {
     category,
     label: label || describeMatcher(matcher),
@@ -313,7 +290,7 @@ export const trackColumn = (
   diagnostics.items.push(entry);
   if (!allowMissing && !matched) {
     const error = new Error(`列未找到：${entry.label}`);
-    error.code = "COL_NOT_FOUND";
+    error.code = 'COL_NOT_FOUND';
     throw error;
   }
   return idx;

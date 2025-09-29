@@ -1,14 +1,15 @@
-import { SHEET_PROFILES } from "./profiles.js";
-import parseByProfile from "./parsers/profile-based.js";
-import parseGroupListed from "./parsers/group-listed.js";
-import parseCnyFx from "./parsers/cny-fx.js";
-import parseShibor from "./parsers/shibor.js";
-import {
-  parseOpenMarketMonetary,
-  buildOpenMarketDataset,
-} from "./parsers/open-market.js";
-import parseBondYield from "./parsers/bond-yield.js";
-import parseMidPaper from "./parsers/mid-paper.js";
+import { SHEET_PROFILES } from './profiles.js';
+import parseByProfile from './parsers/profile-based.js';
+import parseGroupListed from './parsers/group-listed.js';
+import parseCnyFx from './parsers/cny-fx.js';
+import parseShibor from './parsers/shibor.js';
+import { parseOpenMarketMonetary, buildOpenMarketDataset } from './parsers/open-market.js';
+import parseBondYield from './parsers/bond-yield.js';
+import parseMidPaper from './parsers/mid-paper.js';
+import { SHEET_TO_FILE, normalizeSheetName, getOutputFile } from './core.mappings.js';
+import { cloneDataset, ensureArray, cloneDiagnostics, mergeSeries } from './core.utils.js';
+
+export { SHEET_TO_FILE, normalizeSheetName, getOutputFile } from './core.mappings.js';
 
 /**
  * @typedef {import("./types.js").CnyFxJson} CnyFxJson
@@ -22,135 +23,6 @@ import parseMidPaper from "./parsers/mid-paper.js";
  * @typedef {import("./types.js").SheetParseDetail} SheetParseDetail
  * @typedef {import("./types.js").RunArrayBufferResult} RunArrayBufferResult
  */
-
-const SHEET_ALIASES = {
-  集团上市公司: "国能上市公司",
-  公开市场: "公开市场货币",
-};
-
-export const SHEET_TO_FILE = {
-  国内股市: "equity_cn.json",
-  全球股市: "equity_global.json",
-  人民币汇率: "cny_fx.json",
-  公开市场: "open_market.json",
-  公开市场货币: "open_market.json",
-  Shibor利率: "open_market.json",
-  债券利率: "bond_yield.json",
-  集团上市公司: "group_listed.json",
-  国能上市公司: "group_listed.json",
-  中票利率: "bond_yield.json",
-  财经资讯: "news.json",
-};
-
-/**
- * 将原始工作表名称统一为内部标准名称。
- *
- * @param {unknown} sheetName 原始工作表名称。
- * @returns {string}
- */
-export function normalizeSheetName(sheetName) {
-  const name = String(sheetName ?? "").trim();
-  if (!name) return "";
-  return SHEET_ALIASES[name] || name;
-}
-
-/**
- * 根据工作表名称推断输出文件名。
- *
- * @param {unknown} sheetName 原始工作表名称。
- * @returns {string|null}
- */
-export function getOutputFile(sheetName) {
-  const normalized = normalizeSheetName(sheetName);
-  return SHEET_TO_FILE[normalized] || null;
-}
-
-function cloneDataset(data) {
-  return data == null ? null : JSON.parse(JSON.stringify(data));
-}
-
-function ensureArray(value) {
-  return Array.isArray(value) ? value : [];
-}
-
-function cloneDiagnostics(diag, fallbackSheet) {
-  if (!diag || !Array.isArray(diag.items)) return null;
-  const sheetName =
-    diag.sheet || (fallbackSheet != null ? String(fallbackSheet) : "");
-  const cloned = {
-    sheet: sheetName,
-    items: diag.items.map((item) => {
-      if (!item || typeof item !== "object") {
-        return item;
-      }
-      const clonedEntry = { ...item };
-      if (Array.isArray(item.closest)) {
-        clonedEntry.closest = [...item.closest];
-      }
-      if (item.extra && typeof item.extra === "object") {
-        clonedEntry.extra = { ...item.extra };
-      }
-      return clonedEntry;
-    }),
-  };
-  if (Object.prototype.hasOwnProperty.call(diag, "dateCol")) {
-    cloned.dateCol = diag.dateCol ?? null;
-  }
-  if (Object.prototype.hasOwnProperty.call(diag, "range")) {
-    cloned.range = diag.range ?? null;
-  }
-  return cloned;
-}
-
-function dedupeSortedPairs(pairs) {
-  const result = [];
-  for (const point of pairs) {
-    if (!Array.isArray(point) || point.length === 0) continue;
-    const key = point[0];
-    if (result.length && result[result.length - 1][0] === key) {
-      result[result.length - 1] = point;
-    } else {
-      result.push(point);
-    }
-  }
-  return result;
-}
-
-function mergeSeries(targetList = [], incomingList = []) {
-  const map = new Map();
-  targetList.forEach((serie) => {
-    if (!serie || !serie.name) return;
-    const clone = {
-      ...serie,
-      data: ensureArray(serie.data).map((item) =>
-        Array.isArray(item) ? [...item] : item
-      ),
-    };
-    map.set(serie.name, clone);
-  });
-
-  incomingList.forEach((serie) => {
-    if (!serie || !serie.name) return;
-    const existing = map.get(serie.name);
-    const incomingData = ensureArray(serie.data).map((item) =>
-      Array.isArray(item) ? [...item] : item
-    );
-    if (existing) {
-      const merged = ensureArray(existing.data)
-        .concat(incomingData)
-        .filter((item) => Array.isArray(item) && item.length >= 2)
-        .sort((a, b) => new Date(a[0]) - new Date(b[0]));
-      existing.data = dedupeSortedPairs(merged);
-    } else {
-      map.set(serie.name, {
-        ...serie,
-        data: incomingData,
-      });
-    }
-  });
-
-  return Array.from(map.values());
-}
 
 /**
  * 合并两个数据集，优先保留已有字段并补充新增数据。
@@ -191,10 +63,7 @@ export function mergeDatasets(target, incoming) {
     ...(addition.summary || {}),
   };
 
-  merged.series = mergeSeries(
-    ensureArray(merged.series),
-    ensureArray(addition.series)
-  );
+  merged.series = mergeSeries(ensureArray(merged.series), ensureArray(addition.series));
 
   if (addition.changeSeries) {
     merged.changeSeries = mergeSeries(
@@ -215,9 +84,7 @@ export function mergeDatasets(target, incoming) {
   }
 
   if (addition.table) {
-    merged.table = ensureArray(merged.table).concat(
-      ensureArray(addition.table)
-    );
+    merged.table = ensureArray(merged.table).concat(ensureArray(addition.table));
   }
 
   merged.export_info = merged.export_info || {};
@@ -245,7 +112,7 @@ export function mergeDatasets(target, incoming) {
 
     const normalizeTime = (value) => {
       if (!value) return null;
-      const formatted = value.includes("T") ? value : value.replace(" ", "T");
+      const formatted = value.includes('T') ? value : value.replace(' ', 'T');
       const parsed = new Date(formatted);
       return Number.isNaN(parsed.getTime()) ? null : parsed;
     };
@@ -256,11 +123,8 @@ export function mergeDatasets(target, incoming) {
       merged.export_info.last_updated = nextInfo.last_updated;
     }
 
-    if (typeof nextInfo.rows === "number") {
-      const prevRows =
-        typeof merged.export_info.rows === "number"
-          ? merged.export_info.rows
-          : 0;
+    if (typeof nextInfo.rows === 'number') {
+      const prevRows = typeof merged.export_info.rows === 'number' ? merged.export_info.rows : 0;
       merged.export_info.rows = prevRows + nextInfo.rows;
     }
 
@@ -304,68 +168,68 @@ export function parseSheet(
   const profile = profiles?.[normalized];
   const context = { anchor, sheetName: normalized };
 
-  if (normalized === "人民币汇率") {
+  if (normalized === '人民币汇率') {
     const payload = parseCnyFx(rows, profile || {}, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
       outputFile: getOutputFile(normalized),
-      kind: "cny_fx",
+      kind: 'cny_fx',
       payload,
     };
   }
 
-  if (normalized === "国能上市公司") {
+  if (normalized === '国能上市公司') {
     const payload = parseGroupListed(rows, profile || {}, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
       outputFile: getOutputFile(normalized),
-      kind: "group_listed",
+      kind: 'group_listed',
       payload,
     };
   }
 
-  if (normalized === "公开市场货币") {
+  if (normalized === '公开市场货币') {
     const payload = parseOpenMarketMonetary(rows, profile || {}, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
       outputFile: getOutputFile(normalized),
-      kind: "open_market_monetary",
+      kind: 'open_market_monetary',
       payload,
     };
   }
 
-  if (normalized === "Shibor利率") {
+  if (normalized === 'Shibor利率') {
     const payload = parseShibor(rows, profile || {}, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
       outputFile: getOutputFile(normalized),
-      kind: "open_market_shibor",
+      kind: 'open_market_shibor',
       payload,
     };
   }
 
-  if (normalized === "债券利率") {
+  if (normalized === '债券利率') {
     const payload = parseBondYield(rows, profile || {}, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
       outputFile: getOutputFile(normalized),
-      kind: "bond_yield",
+      kind: 'bond_yield',
       payload,
     };
   }
 
-  if (normalized === "中票利率") {
+  if (normalized === '中票利率') {
     const payload = parseMidPaper(rows, profile || {}, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
       outputFile: getOutputFile(normalized),
-      kind: "mid_paper",
+      kind: 'mid_paper',
       payload,
     };
   }
@@ -376,7 +240,7 @@ export function parseSheet(
       sheetName,
       normalizedSheetName: normalized,
       outputFile: getOutputFile(normalized),
-      kind: "profile",
+      kind: 'profile',
       payload,
     };
   }
@@ -385,7 +249,7 @@ export function parseSheet(
     sheetName,
     normalizedSheetName: normalized,
     outputFile: getOutputFile(normalized),
-    kind: "unknown",
+    kind: 'unknown',
     payload: null,
   };
 }
@@ -412,8 +276,8 @@ export function convertSheets(sheetEntries, options = {}) {
   const iterator = Array.isArray(sheetEntries)
     ? sheetEntries
     : sheetEntries instanceof Map
-    ? Array.from(sheetEntries.entries())
-    : Object.entries(sheetEntries || {});
+      ? Array.from(sheetEntries.entries())
+      : Object.entries(sheetEntries || {});
 
   iterator.forEach(([sheetName, rows]) => {
     const result = parseSheet(rows, sheetName, { anchor, profiles });
@@ -430,7 +294,7 @@ export function convertSheets(sheetEntries, options = {}) {
     };
     if (
       payload &&
-      typeof payload === "object" &&
+      typeof payload === 'object' &&
       payload.export_info &&
       payload.export_info.diagnostics &&
       Array.isArray(payload.export_info.diagnostics.items)
@@ -438,7 +302,7 @@ export function convertSheets(sheetEntries, options = {}) {
       pushDiagnostics(payload.export_info.diagnostics);
     } else if (
       payload &&
-      typeof payload === "object" &&
+      typeof payload === 'object' &&
       payload.diagnostics &&
       !Array.isArray(payload.diagnostics) &&
       Array.isArray(payload.diagnostics.items)
@@ -446,11 +310,11 @@ export function convertSheets(sheetEntries, options = {}) {
       pushDiagnostics(payload.diagnostics);
     }
 
-    if (result.kind === "open_market_monetary") {
+    if (result.kind === 'open_market_monetary') {
       openMarketState.monetary = result.payload;
       return;
     }
-    if (result.kind === "open_market_shibor") {
+    if (result.kind === 'open_market_shibor') {
       openMarketState.shibor = result.payload;
       return;
     }
@@ -464,10 +328,7 @@ export function convertSheets(sheetEntries, options = {}) {
   });
 
   if (openMarketState.monetary || openMarketState.shibor) {
-    const dataset = buildOpenMarketDataset(
-      openMarketState.monetary,
-      openMarketState.shibor
-    );
+    const dataset = buildOpenMarketDataset(openMarketState.monetary, openMarketState.shibor);
     if (dataset) {
       if (
         dataset.export_info &&
@@ -476,15 +337,15 @@ export function convertSheets(sheetEntries, options = {}) {
       ) {
         const cloned = cloneDiagnostics(
           dataset.export_info.diagnostics,
-          dataset.export_info.diagnostics.sheet || "公开市场组合"
+          dataset.export_info.diagnostics.sheet || '公开市场组合'
         );
         if (cloned) {
           diagnosticsList.push(cloned);
         }
       }
-      const prev = outputs.get("open_market.json") || null;
+      const prev = outputs.get('open_market.json') || null;
       const merged = mergeDatasets(prev, dataset);
-      outputs.set("open_market.json", merged);
+      outputs.set('open_market.json', merged);
     }
   }
 
@@ -502,12 +363,12 @@ export async function runArrayBuffer(source, options = {}) {
   const { anchor = new Date(), profiles = SHEET_PROFILES } = options;
   const XLSXLib = options.XLSX || globalThis?.XLSX;
 
-  if (!XLSXLib || typeof XLSXLib.read !== "function") {
-    throw new Error("runArrayBuffer 需要提供 SheetJS XLSX 库");
+  if (!XLSXLib || typeof XLSXLib.read !== 'function') {
+    throw new Error('runArrayBuffer 需要提供 SheetJS XLSX 库');
   }
 
   let arrayBuffer = source;
-  if (typeof Blob !== "undefined" && source instanceof Blob) {
+  if (typeof Blob !== 'undefined' && source instanceof Blob) {
     arrayBuffer = await source.arrayBuffer();
   }
 
@@ -515,18 +376,12 @@ export async function runArrayBuffer(source, options = {}) {
   if (arrayBuffer instanceof ArrayBuffer) {
     uint8 = new Uint8Array(arrayBuffer);
   } else if (ArrayBuffer.isView(arrayBuffer)) {
-    uint8 = new Uint8Array(
-      arrayBuffer.buffer,
-      arrayBuffer.byteOffset,
-      arrayBuffer.byteLength
-    );
+    uint8 = new Uint8Array(arrayBuffer.buffer, arrayBuffer.byteOffset, arrayBuffer.byteLength);
   } else {
-    throw new TypeError(
-      "runArrayBuffer 接收 ArrayBuffer、ArrayBufferView 或 Blob 类型"
-    );
+    throw new TypeError('runArrayBuffer 接收 ArrayBuffer、ArrayBufferView 或 Blob 类型');
   }
 
-  const workbook = XLSXLib.read(uint8, { type: "array" });
+  const workbook = XLSXLib.read(uint8, { type: 'array' });
   const rows = workbook.SheetNames.map((sheetName) => {
     const worksheet = workbook.Sheets?.[sheetName];
     if (!worksheet) {
@@ -566,46 +421,37 @@ export async function runArrayBuffer(source, options = {}) {
  *   ): { filename: string, json: OpenMarketJson|null }|null
  * }}
  */
-export function createMinimalParsers(
-  target = typeof window !== "undefined" ? window : null
-) {
+// #dev
+export function createMinimalParsers(target = typeof window !== 'undefined' ? window : null) {
   const minimal = {
     __parseCnyFxMinimal(rows, anchor = new Date()) {
-      const parsed = parseSheet(rows, "人民币汇率", { anchor });
+      const parsed = parseSheet(rows, '人民币汇率', { anchor });
       return {
-        filename: "cny_fx.json",
+        filename: 'cny_fx.json',
         json: parsed.payload,
       };
     },
     __parseOpenMarketShiborMinimal(omRows, shiborRows, anchor = new Date()) {
-      const om = parseSheet(omRows, "公开市场货币", { anchor });
-      const shibor = parseSheet(shiborRows, "Shibor利率", { anchor });
+      const om = parseSheet(omRows, '公开市场货币', { anchor });
+      const shibor = parseSheet(shiborRows, 'Shibor利率', { anchor });
       const json = buildOpenMarketDataset(om.payload, shibor.payload);
       if (!json) return null;
       return {
-        filename: "open_market.json",
+        filename: 'open_market.json',
         json,
       };
     },
   };
 
-  if (target && typeof target === "object") {
+  if (target && typeof target === 'object') {
     Object.assign(target, minimal);
   }
 
   return minimal;
 }
 
-/**
- * 将核心解析 API 附着到全局对象，便于调试与工具调用。
- *
- * @param {Record<string, unknown>|null} [target]
- * @returns {Record<string, unknown>|null}
- */
-export function registerGlobalCore(
-  target = typeof window !== "undefined" ? window : null
-) {
-  if (!target || typeof target !== "object") {
+export function registerGlobalCore(target = typeof window !== 'undefined' ? window : null) {
+  if (!target || typeof target !== 'object') {
     return null;
   }
 
@@ -632,10 +478,7 @@ export function registerGlobalCore(
       const anchor = ctx.anchor || ctx.now || new Date();
       const result = parseSheet(rows, sheetName, { anchor });
       if (!result || !result.payload) return null;
-      if (
-        result.kind === "open_market_monetary" ||
-        result.kind === "open_market_shibor"
-      ) {
+      if (result.kind === 'open_market_monetary' || result.kind === 'open_market_shibor') {
         return {
           filename: result.outputFile,
           json: result.payload,
@@ -653,9 +496,10 @@ export function registerGlobalCore(
   return target.xlsx2jsonCore;
 }
 
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   registerGlobalCore(window);
 }
+// #enddev
 
 export default {
   SHEET_TO_FILE,
