@@ -129,7 +129,7 @@
 
   <script type="module">
     import { SHEET_PROFILES } from '../js/sheet-profiles.js';
-    import { prevCompletedWeekRange, mondayOf, fridayOf } from '../js/utils.js';
+  import { prevCompletedWeekRange } from '../js/utils.js';
 
     function getAnchorFromUrl() {
       try {
@@ -427,34 +427,27 @@
       baseNow.setHours(0, 0, 0, 0);
 
       const { mon, fri } = prevCompletedWeekRange(baseNow);
-
-      const clamp = (items, start, end) =>
-        items.filter(({ date }) => date >= start && date <= end && isWeekday(date));
-
-      const withinCompleted = clamp(enriched, mon, fri);
-      if (withinCompleted.length) {
-        return withinCompleted;
+      if (
+        !(mon instanceof Date) ||
+        Number.isNaN(mon.getTime()) ||
+        !(fri instanceof Date) ||
+        Number.isNaN(fri.getTime())
+      ) {
+        return [];
       }
 
-      const latest = enriched.reduce((prev, cur) => (cur.date > prev.date ? cur : prev));
-      if (!latest || !latest.date) return [];
-      const fallbackMon = mondayOf(latest.date);
-      const fallbackFri = fridayOf(latest.date);
-      if (!fallbackMon || !fallbackFri) return [];
-      return clamp(enriched, fallbackMon, fallbackFri);
+      return enriched.filter(
+        ({ date }) => date >= mon && date <= fri && isWeekday(date)
+      );
     };
 
     const pickLatestWeekRow = (rows, dateIdx) => {
       if (!Array.isArray(rows) || typeof dateIdx !== 'number' || dateIdx < 0) return null;
 
-      const enriched = rows
-        .map((row) => ({ row, date: toDateSafe(row?.[dateIdx]) }))
-        .filter((item) => item.row && item.date instanceof Date && !Number.isNaN(item.date.getTime()));
-      if (!enriched.length) return null;
+      const weekRows = computePrevWeekWorkdays(rows, dateIdx, ANCHOR);
+      if (!weekRows.length) return null;
 
-  const weekRows = computePrevWeekWorkdays(rows, dateIdx, ANCHOR);
-      const pool = weekRows.length ? weekRows : enriched;
-      const latest = pool.reduce((prev, cur) => (cur.date > prev.date ? cur : prev));
+      const latest = weekRows.reduce((prev, cur) => (cur.date > prev.date ? cur : prev));
       if (!latest || !latest.row) return null;
 
       return {
@@ -2502,24 +2495,23 @@
             });
           } else {
             const weekRows = computePrevWeekWorkdays(body, dateIdx, ANCHOR);
-            const picked = pickLatestWeekRow(body, dateIdx);
+            const latestEntry = weekRows.length
+              ? weekRows.reduce((prev, cur) => (cur.date > prev.date ? cur : prev))
+              : null;
 
             const { mon, fri } = prevCompletedWeekRange(ANCHOR);
-            let windowStart = mon;
-            let windowEnd = fri;
-
-            if (!weekRows.length && picked && picked.date) {
-              windowStart = mondayOf(picked.date);
-              windowEnd = fridayOf(picked.date);
+            if (
+              mon instanceof Date &&
+              !Number.isNaN(mon.getTime()) &&
+              fri instanceof Date &&
+              !Number.isNaN(fri.getTime())
+            ) {
+              rangeWindow = [fmtISO(mon), fmtISO(fri)];
             }
 
-            if (windowStart && windowEnd) {
-              rangeWindow = [fmtISO(windowStart), fmtISO(windowEnd)];
-            }
-
-            if (picked && picked.row) {
-              const latestRow = picked.row;
-              const iso = picked.date instanceof Date ? fmtISO(picked.date) : '';
+            if (latestEntry && latestEntry.row) {
+              const latestRow = latestEntry.row;
+              const iso = latestEntry.date instanceof Date ? fmtISO(latestEntry.date) : '';
 
               table = [
                 header.reduce((acc, cell, idx) => {

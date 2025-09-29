@@ -4,7 +4,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 import { fmtISO, SHEET_PROFILES } from "../../js/sheet-profiles.js";
-import { prevCompletedWeekRange, mondayOf, fridayOf } from "../../js/utils.js";
+import { prevCompletedWeekRange } from "../../js/utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -191,23 +191,18 @@ function computePrevWeekWorkdays(rows, dateIdx, now = new Date()) {
   if (!Array.isArray(rows) || typeof dateIdx !== "number") return [];
   const enriched = rows
     .map((row) => ({ row, date: toDateSafe(row?.[dateIdx]) }))
-    .filter((item) => item.row && item.date);
+    .filter((item) => item.row && item.date && isWeekday(item.date));
   if (!enriched.length) return [];
   const { mon, fri } = prevCompletedWeekRange(now);
-  const clamp = (items, start, end) =>
-    items.filter(({ date }) => date >= start && date <= end && isWeekday(date));
-  const withinCompleted = clamp(enriched, mon, fri);
-  if (withinCompleted.length) {
-    return withinCompleted;
+  if (
+    !(mon instanceof Date) ||
+    Number.isNaN(mon.getTime()) ||
+    !(fri instanceof Date) ||
+    Number.isNaN(fri.getTime())
+  ) {
+    return [];
   }
-  const latestEntry = enriched.reduce((prev, cur) =>
-    cur.date > prev.date ? cur : prev
-  );
-  if (!latestEntry || !latestEntry.date) return [];
-  const fallbackMon = mondayOf(latestEntry.date);
-  const fallbackFri = fridayOf(latestEntry.date);
-  if (!fallbackMon || !fallbackFri) return [];
-  return clamp(enriched, fallbackMon, fallbackFri);
+  return enriched.filter(({ date }) => date >= mon && date <= fri);
 }
 
 const htmlPath = path.resolve(__dirname, "../xlsx-to-json.html");

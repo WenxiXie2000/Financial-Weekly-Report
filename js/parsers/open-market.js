@@ -1,59 +1,21 @@
-import { prevCompletedWeekRange, mondayOf, fridayOf } from "../utils.js";
-import { toDateSafe, isWeekday } from "../sheet-profiles.js";
+import {
+  prevCompletedWeekRange,
+  toDateSafe,
+  isWeekday,
+  normalizeHeaderLabel,
+  buildHeaderIndex,
+  findColIndex,
+  missingToNull,
+  toNumberOrNull,
+} from "../xlsx2json/utils.js";
 
-export function normalizeHeaderLabel(input) {
-  const s = String(input ?? "").trim();
-  let t = s.replace(/\s+/g, "");
-  t = t.replace(/[（(][^）)]*[）)]\s*$/, "");
-  return t;
-}
-
-export function findColIndex(header, matcher) {
-  let idx = header.findIndex((h) =>
-    matcher instanceof RegExp ? matcher.test(String(h)) : String(h) === matcher
-  );
-  if (idx >= 0) return idx;
-  const norm = header.map(normalizeHeaderLabel);
-  if (matcher instanceof RegExp) return norm.findIndex((h) => matcher.test(h));
-  const want = normalizeHeaderLabel(matcher);
-  return norm.findIndex((h) => h === want);
-}
-
-export function missingToNull(value) {
-  if (value === null || value === undefined) return null;
-  if (typeof value === "number") return Number.isNaN(value) ? null : value;
-  const s = String(value).trim();
-  if (!s) return null;
-  const set = new Set([
-    "-",
-    "--",
-    "---",
-    "—",
-    "——",
-    "— —",
-    "–",
-    "N/A",
-    "NA",
-    "NaN",
-    "NULL",
-    "null",
-    "无",
-  ]);
-  if (set.has(s)) return null;
-  const t = s.endsWith("%") ? s.slice(0, -1).trim() : s;
-  if (!t) return null;
-  if (set.has(t)) return null;
-  return value;
-}
-
-export function toNumberOrNull(value) {
-  const normalized = missingToNull(value);
-  if (normalized === null) return null;
-  let text = String(normalized).trim();
-  if (text.endsWith("%")) text = text.slice(0, -1).trim();
-  const num = Number(text);
-  return Number.isNaN(num) ? null : num;
-}
+export {
+  normalizeHeaderLabel,
+  buildHeaderIndex,
+  findColIndex,
+  missingToNull,
+  toNumberOrNull,
+} from "../xlsx2json/utils.js";
 
 const RATE_DEFS = [
   { label: "逆回购7D利率(%)", matcher: /逆回购7D利率$/ },
@@ -102,10 +64,11 @@ const SHIBOR_BLOCKS = [
 ];
 
 export function parseOpenMarketMinimal(rows, { now = new Date() } = {}) {
-  const header = rows?.[0] || [];
+  const headerIndex = buildHeaderIndex(rows?.[0] || []);
+  const header = headerIndex.raw;
   const body = Array.isArray(rows) ? rows.slice(1) : [];
 
-  const dateIdx = findColIndex(header, /^日期$/);
+  const dateIdx = findColIndex(headerIndex, /^日期$/);
   if (dateIdx < 0) {
     throw new Error("公开市场货币：未找到 日期 列");
   }
@@ -117,25 +80,10 @@ export function parseOpenMarketMinimal(rows, { now = new Date() } = {}) {
     );
 
   const { mon, fri } = prevCompletedWeekRange(now);
-  let windowStart = mon;
-  let windowEnd = fri;
 
-  let inWeek = enriched
+  const inWeek = enriched
     .filter((item) => item.date >= mon && item.date <= fri)
     .sort((a, b) => a.date - b.date);
-
-  if (!inWeek.length && enriched.length) {
-    const latest = enriched.reduce((prev, cur) =>
-      cur.date > prev.date ? cur : prev
-    );
-    if (latest?.date) {
-      windowStart = mondayOf(latest.date);
-      windowEnd = fridayOf(latest.date);
-      inWeek = enriched
-        .filter((item) => item.date >= windowStart && item.date <= windowEnd)
-        .sort((a, b) => a.date - b.date);
-    }
-  }
 
   if (!inWeek.length) {
     return {
@@ -146,7 +94,7 @@ export function parseOpenMarketMinimal(rows, { now = new Date() } = {}) {
     };
   }
 
-  const hit = (pattern) => findColIndex(header, pattern);
+  const hit = (pattern) => findColIndex(headerIndex, pattern);
 
   const series = [];
   const diag = [];
@@ -187,21 +135,25 @@ export function parseOpenMarketMinimal(rows, { now = new Date() } = {}) {
     summary,
     table: [tableRow],
     diag,
-    range_window: [
-      windowStart.toISOString().slice(0, 10),
-      windowEnd.toISOString().slice(0, 10),
-    ],
+    range_window:
+      mon instanceof Date &&
+      !Number.isNaN(mon.getTime()) &&
+      fri instanceof Date &&
+      !Number.isNaN(fri.getTime())
+        ? [mon.toISOString().slice(0, 10), fri.toISOString().slice(0, 10)]
+        : [],
   };
 }
 
 export function parseShiborMinimal(rows, { now = new Date() } = {}) {
-  const header = rows?.[0] || [];
+  const headerIndex = buildHeaderIndex(rows?.[0] || []);
+  const header = headerIndex.raw;
   const body = Array.isArray(rows) ? rows.slice(1) : [];
   const series = [];
   const diag = [];
 
   for (const block of SHIBOR_BLOCKS) {
-    const dateIdx = findColIndex(header, block.dateCol);
+    const dateIdx = findColIndex(headerIndex, block.dateCol);
     if (dateIdx < 0) {
       diag.push({ dateCol: String(block.dateCol), hit: false });
       continue;
@@ -220,7 +172,7 @@ export function parseShiborMinimal(rows, { now = new Date() } = {}) {
       .sort((a, b) => a.date - b.date);
 
     for (const item of block.items) {
-      const colIdx = findColIndex(header, item.matcher);
+      const colIdx = findColIndex(headerIndex, item.matcher);
       diag.push({
         item: item.label,
         col: colIdx >= 0 ? header[colIdx] ?? null : null,

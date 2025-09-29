@@ -401,6 +401,113 @@ a:hover {
   }
 
   .sidebar-menu:not(.is-collapsed) {
-    max-height: 360px;
+      max-height: 360px;
+    }
   }
-}
+
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .card-content {
+    padding: 18px 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .conversion-panel {
+    max-width: 960px;
+    margin: 32px auto 48px;
+    padding: 0;
+  }
+
+  .conversion-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: var(--primary);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+
+  .btn:hover,
+  .btn:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.18);
+    outline: none;
+  }
+
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--primary);
+    border-color: var(--primary);
+  }
+
+  .btn-secondary:hover,
+  .btn-secondary:focus-visible {
+    background: var(--primary-soft);
+  }
+
+  .conversion-log {
+    min-height: 120px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 13px;
+    overflow-y: auto;
+    max-height: 240px;
+  }
+
+  @media (max-width: 720px) {
+    .conversion-panel {
+      margin: 24px 16px 40px;
+    }
+
+    .card-content {
+      padding: 16px;
+    }
+
+    .action-buttons {
+      width: 100%;
+    }
+
+    .action-buttons .btn {
+      flex: 1 1 auto;
+      justify-content: center;
+    }
+  }

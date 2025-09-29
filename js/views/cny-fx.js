@@ -1,5 +1,5 @@
 import { loadSheet } from "../data-adapter.js";
-import { percentAxisLabel } from "../utils.js";
+import { percentAxisLabel, prevCompletedWeekRange } from "../utils.js";
 
 const CURRENCIES = [
   { id: "USDCNY", label: "美元", keyword: "人民币兑美元" },
@@ -76,20 +76,53 @@ function buildSeriesFromTable(data, currencyKw, metricKey) {
   return { name: `${currencyKw}${metricKw}`, points };
 }
 
-function sliceLastWeekdays(points, maxDays = 7) {
-  const arr = (points || [])
+function slicePrevWeekdays(points, rangeWindow) {
+  let start = null;
+  let end = null;
+
+  if (Array.isArray(rangeWindow) && rangeWindow.length === 2) {
+    const [from, to] = rangeWindow;
+    const parsedStart = new Date(`${from}T00:00:00`);
+    const parsedEnd = new Date(`${to}T23:59:59`);
+    if (
+      parsedStart instanceof Date &&
+      !Number.isNaN(parsedStart.getTime()) &&
+      parsedEnd instanceof Date &&
+      !Number.isNaN(parsedEnd.getTime())
+    ) {
+      start = parsedStart;
+      end = parsedEnd;
+    }
+  }
+
+  if (!start || !end) {
+    const { mon, fri } = prevCompletedWeekRange();
+    start = mon;
+    end = fri;
+  }
+
+  if (
+    !(start instanceof Date) ||
+    Number.isNaN(start.getTime()) ||
+    !(end instanceof Date) ||
+    Number.isNaN(end.getTime())
+  ) {
+    return [];
+  }
+
+  const beginTs = start.getTime();
+  const endTs = end.getTime();
+
+  return (points || [])
     .filter(([t]) => t)
     .map(([t, v]) => [new Date(String(t).replace(/-/g, "/")).getTime(), v])
     .filter(([ts]) => !Number.isNaN(ts))
+    .filter(([ts]) => ts >= beginTs && ts <= endTs)
+    .filter(([ts]) => {
+      const w = new Date(ts).getDay();
+      return w >= 1 && w <= 5;
+    })
     .sort((a, b) => a[0] - b[0]);
-  if (!arr.length) return [];
-  const endTs = arr[arr.length - 1][0];
-  const beginTs = endTs - maxDays * 86400000;
-  return arr.filter(([ts]) => {
-    if (ts < beginTs) return false;
-    const w = new Date(ts).getDay();
-    return w >= 1 && w <= 5;
-  });
 }
 
 function renderKpiChips(container, metricKey, points) {
@@ -221,7 +254,10 @@ export async function renderCnyFx(mount) {
         const ser =
           pickSeries(data, cfg.keyword, "mid") ||
           buildSeriesFromTable(data, cfg.keyword, "mid");
-        const week = sliceLastWeekdays(ser?.points || [], 7);
+        const week = slicePrevWeekdays(
+          ser?.points || [],
+          data?.export_info?.range_window
+        );
         renderKpiChips(body, "mid", week);
       })();
 
@@ -237,7 +273,10 @@ export async function renderCnyFx(mount) {
         const ser =
           pickSeries(data, cfg.keyword, "mid_chg") ||
           buildSeriesFromTable(data, cfg.keyword, "mid_chg");
-        const week = sliceLastWeekdays(ser?.points || [], 7);
+        const week = slicePrevWeekdays(
+          ser?.points || [],
+          data?.export_info?.range_window
+        );
         renderKpiChips(body, "mid_chg", week);
       })();
     }

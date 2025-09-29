@@ -5,226 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>金融市场周报</title>
   <meta name="description" content="提供专业、清晰、可交互的金融市场周报数据展示。" />
-
+  <link
+    rel="stylesheet"
+    href="https://cdn.staticfile.org/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css"
+    onerror="this.onerror=null;this.href='https://cdn.baomitu.com/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css';"
+  />
+  <link rel="stylesheet" href="./css/style.css" />
   <script>
     (() => {
       try {
         const saved = localStorage.getItem('theme');
         if (saved) {
-          document.documentElement.setAttribute('data-theme', saved);
+          document.documentElement.dataset.theme = saved;
         }
       } catch (err) {
-        console.warn('无法读取主题配置', err);
+        console.warn('[theme] 读取主题失败', err);
       }
     })();
   </script>
-
-  <!-- Bootstrap Icons -->
-  <link rel="stylesheet"
-        href="https://cdn.staticfile.org/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css"
-        onerror="this.onerror=null;this.href='https://cdn.baomitu.com/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css'" />
-
-  <!-- ECharts -->
-  <script src="https://cdn.staticfile.org/echarts/5.4.3/echarts.min.js"
-          onerror="this.onerror=null;this.src='https://cdn.baomitu.com/echarts/5.4.3/echarts.min.js'"></script>
-
-  <!-- 全局样式 -->
-  <link rel="stylesheet" href="./css/style.css" />
-</head>
-<!-- ① 可见的入口控件 -->
-<div style="position:fixed; right:16px; bottom:16px; z-index:9999; display:flex; gap:8px; align-items:center; background:var(--el-bg-color,#fff); padding:8px 10px; border:1px solid #ddd; border-radius:10px; box-shadow:0 2px 12px rgba(0,0,0,.08)">
-  <input id="xlsxFile" type="file" accept=".xlsx,.xls" />
-  <button id="btn-open-market-test">生成 open_market.json</button>
-</div>
-
-<!-- ② 必要库（先引 XLSX，再引 JSZip；走国内 CDN） -->
-<script src="https://cdn.staticfile.org/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.staticfile.org/jszip/3.10.1/jszip.min.js"></script>
-
-<!-- ③ 最小解析与下载（方法B的“独立测试”简化版） -->
-<script>
-(function(){
-  const normHdr = s => String(s??'').trim().replace(/\s+/g,'').replace(/[（(][^）)]*[）)]\s*$/,'');
-  const findCol = (hdr, pat) => {
-    let i = hdr.findIndex(h => pat instanceof RegExp ? pat.test(String(h)) : String(h)===pat);
-    if (i>=0) return i;
-    const n = hdr.map(normHdr);
-    if (pat instanceof RegExp) return n.findIndex(h => pat.test(h));
-    const w = normHdr(pat); return n.findIndex(h => h===w);
-  };
-  const toDate = v => { if (!v) return null; const d=new Date(typeof v==='number'?(v-25569)*86400000:String(v).replace(/-/g,'/')); return isNaN(d)?null:d; };
-  const toNum  = v => { if (v==null) return null; let s=String(v).trim(); if(!s || ['-','--','—','——','N/A','NaN','NULL','无'].includes(s)) return null; if(s.endsWith('%')) s=s.slice(0,-1).trim(); const n=Number(s); return Number.isNaN(n)?null:n; };
-  const lastFridayFromToday=(now=new Date())=>{ const d=new Date(now); d.setHours(0,0,0,0); const w=d.getDay(); const off=(w>=5)?(w-5):(w+2); d.setDate(d.getDate()-off); return d; };
-  const mondayOf = date => { const t=new Date(date); const w=t.getDay()||7; t.setDate(t.getDate()-(w-1)); t.setHours(0,0,0,0); return t; };
-  const fridayOf = date => { const m=mondayOf(date); const f=new Date(m); f.setDate(m.getDate()+4); f.setHours(23,59,59,999); return f; };
-  const prevCompletedWeekRange = (now=new Date()) => { const fri=lastFridayFromToday(now); return { mon:mondayOf(fri), fri:fridayOf(fri) }; };
-
-  async function runOpenMarketOnce(file){
-    if (!window.XLSX) { alert('XLSX 未加载'); return; }
-    if (!window.JSZip){ alert('JSZip 未加载'); return; }
-    const buf = await file.arrayBuffer();
-    const wb  = XLSX.read(buf, { type:'array' });
-    const toRows = ws => XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null });
-
-    const out = { series:[], summary:{}, table:[], export_info:null, diag:{} };
-
-    // —— 公开市场货币 —— 
-    const omName = wb.SheetNames.find(n=>n==='公开市场货币');
-    if (omName) {
-      const rows = toRows(wb.Sheets[omName]);
-      const hdr  = rows[0]||[], body=rows.slice(1);
-      const dateIdx = findCol(hdr, /^日期$/);
-      if (dateIdx>=0) {
-        const enr = body.map(r=>({row:r, date:toDate(r[dateIdx])})).filter(x=>x.date);
-        const {mon,fri} = prevCompletedWeekRange(new Date());
-        const week = enr.filter(x=>x.date>=mon && x.date<=fri).sort((a,b)=>a.date-b.date);
-
-        const defs = [
-          { name:'逆回购7D利率(%)', re:/逆回购7D利率$/ },
-          { name:'逆回购14D利率(%)', re:/逆回购14D利率$/ },
-          { name:'MLF利率(%)', re:/MLF利率$/ },
-          { name:'国库定存利率(%)', re:/国库定存利率$/ },
-          { name:'SLF利率(%)', re:/SLF利率$/ },
-          { name:'SLO利率(%)', re:/SLO利率$/ },
-          { name:'正回购利率(%)', re:/正回购利率$/ },
-        ];
-        for (const d of defs) {
-          const ci = findCol(hdr, d.re);
-          const data = week.map(({row,date})=>[date.toISOString().slice(0,10), ci>=0 ? Number(row[ci]) : null]);
-          out.series.push({ name:d.name, data });
-        }
-        const lastRow = week.at(-1)?.row ?? [];
-        const SUM = re => { const i=findCol(hdr,re); return i>=0 ? toNum(lastRow[i]) : null; };
-        out.summary = {
-          r7d_amt_yi:  SUM(/逆回购7D投放量$/),
-          r14d_amt_yi: SUM(/逆回购14D投放量$/),
-          mlf_amt_yi:  SUM(/MLF投放量$/),
-          tcd_amt_yi:  SUM(/国库定存投放量$/),
-          slf_amt_yi:  SUM(/SLF投放量$/),
-          slo_amt_yi:  SUM(/SLO投放量$/),
-          repo_amt_yi: SUM(/正回购投放量$/),
-        };
-        const obj={}; hdr.forEach((h,i)=>obj[h]=lastRow[i]??null); out.table=[obj];
-      }
-    }
-
-    // —— Shibor —— 
-    const sbName = wb.SheetNames.find(n=>n==='Shibor利率');
-    if (sbName) {
-      const rows = toRows(wb.Sheets[sbName]);
-      const hdr  = rows[0]||[], body=rows.slice(1);
-      const blocks = [
-        { date:/^SHIBOR隔夜日期（90）$/, days:90,  items:[ ['SHIBOR 隔夜(%)',/^SHIBOR隔夜利率$/], ['SHIBOR 1周(%)',/^SHIBOR1周利率$/], ['SHIBOR 2周(%)',/^SHIBOR2周利率$/] ] },
-        { date:/^SHIBOR3月日期（180）$/, days:180, items:[ ['SHIBOR 3月(%)',/^SHIBOR3月利率$/], ['SHIBOR 6月(%)',/^SHIBOR6月利率$/], ['SHIBOR 9月(%)',/^SHIBOR9月利率$/] ] },
-        { date:/^SHIBOR1年日期（365）$/, days:365, items:[ ['SHIBOR 1年(%)',/^SHIBOR一年利率$/] ] },
-      ];
-      const now = new Date(); now.setHours(0,0,0,0);
-      for (const b of blocks) {
-        const di = findCol(hdr, b.date);
-        if (di<0) continue;
-        const start = now.getTime() - b.days*86400000;
-        const enr = body.map(r=>({row:r, date:toDate(r[di])})).filter(x=>x.date && x.date.getTime()>=start).sort((a,b)=>a.date-b.date);
-        for (const [name, re] of b.items) {
-          const ci = findCol(hdr, re);
-          const data = enr.map(({row,date})=>[date.toISOString().slice(0,10), ci>=0 ? Number(row[ci]) : null]);
-          out.series.push({ name, data });
-        }
-      }
-    }
-
-    out.export_info = { source_sheet:'公开市场货币 + Shibor利率', range:'prevCompletedWeek' };
-
-    // 下载单文件（也可以改成打包ZIP）
-    const blob = new Blob([JSON.stringify(out, null, 2)], { type:'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'open_market.json';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
-  document.getElementById('btn-open-market-test')?.addEventListener('click', async ()=>{
-    const file = document.getElementById('xlsxFile')?.files?.[0];
-    if (!file) { alert('请先选择 Excel 文件'); return; }
-    try { await runOpenMarketOnce(file); alert('已下载 open_market.json'); }
-    catch(e){ console.error(e); alert('转换失败，请看控制台'); }
-  });
-})();
-</script>
-
-<!-- ④ 你原有的脚本（如果有），保留在最后；路径按你的项目为准 -->
-<script src="./tools/conversion-patch.js"></script>
-<script type="module" src="./js/app.js"></script>
-<body>
-  <noscript>
-    <div class="noscript">当前页面需要启用 JavaScript 才能正常访问。</div>
-  </noscript>
-
-  <div id="header-container" data-component="header"></div>
-
-  <div class="layout">
-    <aside id="sidebar-container" class="sidebar-host" data-component="sidebar"></aside>
-    <main id="main-content" class="main-content" aria-live="polite"></main>
-  </div>
-
-  <div id="footer-container" data-component="footer"></div>
-
-  <section id="smoke-tools" style="padding: 16px; text-align: center;">
-    <h2 style="font-size: 16px; margin-bottom: 12px;">数据转换烟雾测试</h2>
-    <div style="display: inline-flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center;">
-      <input id="xlsxFile" type="file" accept=".xlsx,.xls" />
-      <button id="btn-smoke" type="button" class="btn">转换烟雾测试</button>
-      <button id="btn-convert" type="button" class="btn btn-secondary">开始转换（人民币汇率）</button>
-    </div>
-  </section>
-
-  <script src="https://cdn.staticfile.org/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdn.staticfile.org/jszip/3.10.1/jszip.min.js"></script>
-  <script>
-    (function () {
-      const btn = document.querySelector('#btn-smoke');
-      const inp = document.querySelector('#xlsxFile');
-      if (!btn || !inp) {
-        console.error('[smoke] 缺少 #btn-smoke 或 #xlsxFile');
-        return;
-      }
-
-      btn.addEventListener('click', async () => {
-        try {
-          if (!window.XLSX) {
-            alert('XLSX 未加载');
-            return;
-          }
-          const f = inp.files?.[0];
-          if (!f) {
-            alert('请选择 Excel 文件');
-            return;
-          }
-
-          const buf = await f.arrayBuffer();
-          const wb = XLSX.read(buf, { type: 'array' });
-          console.log('[smoke] sheetNames:', wb.SheetNames);
-
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
-          const sample = { sheet: wb.SheetNames[0], head5: rows.slice(0, 5) };
-
-          const blob = new Blob([JSON.stringify(sample, null, 2)], { type: 'application/json' });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = 'smoke.json';
-          a.click();
-          URL.revokeObjectURL(a.href);
-          alert('已下载 smoke.json（请查看文件内容）');
-        } catch (e) {
-          console.error('[smoke] 失败：', e);
-          alert('烟雾测试失败，请看控制台日志');
-        }
-      });
-    })();
-  </script>
+  <script
+    src="https://cdn.staticfile.org/jszip/3.10.1/jszip.min.js"
+    defer
+    onerror="this.onerror=null;this.src='https://cdn.baomitu.com/jszip/3.10.1/jszip.min.js';"
+  ></script>
+  <script
+    src="https://cdn.staticfile.org/xlsx/0.18.5/xlsx.full.min.js"
+    defer
+    onerror="this.onerror=null;this.src='https://cdn.baomitu.com/xlsx/0.18.5/xlsx.full.min.js';"
+  ></script>
   <script type="module">
-    import { fridayOf, mondayOf, prevCompletedWeekRange } from './js/utils.js';
+    import {
+      registerGlobalCore,
+      createMinimalParsers,
+    } from './js/xlsx2json/core.js';
 
     function getAnchorFromUrl() {
       try {
@@ -247,455 +60,114 @@
 
     window.__conversionAnchor = anchor;
 
-    // ===== 最小 parser：人民币汇率 → cny_fx.json =====
-    (function () {
-      function normHdr(x) {
-        const s = String(x ?? '').trim().replace(/\s+/g, '');
-        return s.replace(/[（(][^）)]*[）)]\s*$/, '');
+    registerGlobalCore(window);
+    const minimalParsers = createMinimalParsers(window);
+
+    const ensureLibraries = () => {
+      if (!window.XLSX) {
+        throw new Error('XLSX 未加载');
       }
-      function findCol(header, pat) {
-        let i = header.findIndex((h) =>
-          pat instanceof RegExp ? pat.test(String(h)) : String(h) === pat
-        );
-        if (i >= 0) return i;
-        const norm = header.map(normHdr);
-        if (pat instanceof RegExp) return norm.findIndex((h) => pat.test(h));
-        const want = normHdr(pat);
-        return norm.findIndex((h) => h === want);
+      if (!window.JSZip) {
+        throw new Error('JSZip 未加载');
       }
-      function toDate(x) {
-        if (!x) return null;
-        const d = new Date(
-          typeof x === 'number' ? (x - 25569) * 86400000 : String(x).replace(/-/g, '/')
-        );
-        return Number.isNaN(d) ? null : d;
-      }
-      function isWk(d) {
-        const w = d.getDay();
-        return w >= 1 && w <= 5;
-      }
-      function miss(v) {
-        if (v == null) return true;
-        const s = String(v).trim();
-        if (!s) return true;
-        const set = new Set(['-', '--', '—', '——', 'N/A', 'NaN', 'NULL', '无']);
-        if (set.has(s)) return true;
-        const t = s.endsWith('%') ? s.slice(0, -1).trim() : s;
-        return !t || set.has(t);
-      }
-      function num(v) {
-        if (miss(v)) return null;
-        let s = String(v).trim();
-        if (s.endsWith('%')) s = s.slice(0, -1).trim();
-        const n = Number(s);
-        return Number.isNaN(n) ? null : n;
+    };
+
+    async function runOpenMarketOnce(file) {
+      ensureLibraries();
+      const buf = await file.arrayBuffer();
+      const workbook = XLSX.read(buf, { type: 'array' });
+      const toRows = (sheet) =>
+        XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+
+      const omSheet = workbook.Sheets['公开市场货币'];
+      const shiborSheet = workbook.Sheets['Shibor利率'];
+      if (!omSheet || !shiborSheet) {
+        alert('未找到公开市场货币或 Shibor利率工作表');
+        return;
       }
 
-      window.__parseCnyFxMinimal = function (rows, now = anchor) {
-        const baseNow = now instanceof Date ? new Date(now.getTime()) : new Date(now || anchor);
-        baseNow.setHours(0, 0, 0, 0);
-        const header = rows[0] || [];
-        const body = rows.slice(1);
-
-        const dateIdx = findCol(header, /^日期$/);
-        if (dateIdx < 0) throw new Error('人民币汇率：未找到 日期 列');
-
-        const enriched = body
-          .map((r) => ({ row: r, date: toDate(r[dateIdx]) }))
-          .filter((x) => x.date && isWk(x.date));
-        if (!enriched.length) {
-          return {
-            filename: 'cny_fx.json',
-            json: {
-              series: [],
-              kpis: {},
-              table: [],
-              export_info: {
-                source_sheet: '人民币汇率',
-                range: 'prevWeekWorkdays',
-                diagnostics: { note: 'no rows' },
-              },
-            },
-          };
-        }
-
-  const { mon, fri } = prevCompletedWeekRange(baseNow);
-        const inWeek = enriched
-          .filter((x) => x.date >= mon && x.date <= fri)
-          .sort((a, b) => a.date - b.date);
-
-        if (!inWeek.length) {
-          const latest = enriched.reduce((a, b) => (a.date > b.date ? a : b));
-          const fallbackMon = mondayOf(latest.date);
-          const fallbackFri = fridayOf(latest.date);
-          inWeek.push(
-            ...enriched
-              .filter((x) => x.date >= fallbackMon && x.date <= fallbackFri)
-              .sort((a, b) => a.date - b.date)
-          );
-        }
-
-        const pairs = [
-          ['人民币兑美元', /人民币兑美元汇率$/, /人民币兑美元涨跌幅$/],
-          ['离岸人民币兑美元', /离岸人民币兑美元汇率$/, /离岸人民币兑美元涨跌幅$/],
-          ['人民币兑欧元', /人民币兑欧元汇率$/, /人民币兑欧元涨跌幅$/],
-          ['人民币兑100日元', /人民币兑100日元汇率$/, /人民币兑100日元涨跌幅$/],
-          ['人民币兑澳元', /人民币兑澳元汇率$/, /人民币兑澳元涨跌幅$/],
-        ];
-
-        const series = [];
-        const diag = [];
-
-        for (const [label, closeRe, chgRe] of pairs) {
-          const ciClose = findCol(header, closeRe);
-          const ciChg = findCol(header, chgRe);
-          diag.push({ label, closeHit: ciClose >= 0, chgHit: ciChg >= 0 });
-          if (ciClose >= 0) {
-            series.push({
-              name: `${label} 汇率`,
-              data: inWeek.map(({ row, date }) => [date.toISOString().slice(0, 10), num(row[ciClose])]),
-            });
-          }
-          if (ciChg >= 0) {
-            series.push({
-              name: `${label} 涨跌幅(%)`,
-              data: inWeek.map(({ row, date }) => [date.toISOString().slice(0, 10), num(row[ciChg])]),
-            });
-          }
-        }
-
-        const table = inWeek.map(({ row }) => {
-          const o = {};
-          header.forEach((h, i) => {
-            o[h] = row[i] ?? null;
-          });
-          return o;
-        });
-
-        return {
-          filename: 'cny_fx.json',
-          json: {
-            series,
-            kpis: {},
-            table,
-            export_info: {
-              source_sheet: '人民币汇率',
-              range: 'prevWeekWorkdays',
-              diagnostics: { items: diag },
-            },
-          },
-        };
-      };
-
-      function pctNum(v) {
-        const parsed = num(v);
-        if (parsed == null) return null;
-        const fixed = Number(parsed.toFixed(4));
-        return Number.isNaN(fixed) ? null : fixed;
-      }
-
-      function toISODate(date) {
-        if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-      }
-
-      const OM_ITEMS = [
-        {
-          summaryKey: 'r7d_amt_yi',
-          summaryLabel: '逆回购7D 投放量(亿)',
-          amountMatcher: /^逆回购7D投放量$/,
-          rateName: '逆回购7D利率(%)',
-          rateMatcher: /^逆回购7D利率$/,
-        },
-        {
-          summaryKey: 'r14d_amt_yi',
-          summaryLabel: '逆回购14D 投放量(亿)',
-          amountMatcher: /^逆回购14D投放量$/,
-          rateName: '逆回购14D利率(%)',
-          rateMatcher: /^逆回购14D利率$/,
-        },
-        {
-          summaryKey: 'mlf_amt_yi',
-          summaryLabel: 'MLF 投放量(亿)',
-          amountMatcher: /^MLF投放量$/,
-          rateName: 'MLF利率(%)',
-          rateMatcher: /^MLF利率$/,
-        },
-        {
-          summaryKey: 'tcd_amt_yi',
-          summaryLabel: '国库定存 投放量(亿)',
-          amountMatcher: /^国库定存投放量$/,
-          rateName: '国库定存利率(%)',
-          rateMatcher: /^国库定存利率$/,
-        },
-        {
-          summaryKey: 'slf_amt_yi',
-          summaryLabel: 'SLF 投放量(亿)',
-          amountMatcher: /^SLF投放量$/,
-          rateName: 'SLF利率(%)',
-          rateMatcher: /^SLF利率$/,
-        },
-        {
-          summaryKey: 'slo_amt_yi',
-          summaryLabel: 'SLO 投放量(亿)',
-          amountMatcher: /^SLO投放量$/,
-          rateName: 'SLO利率(%)',
-          rateMatcher: /^SLO利率$/,
-        },
-        {
-          summaryKey: 'repo_amt_yi',
-          summaryLabel: '正回购 投放量(亿)',
-          amountMatcher: /^正回购投放量$/,
-          rateName: '正回购利率(%)',
-          rateMatcher: /^正回购利率$/,
-        },
-      ];
-
-      const SHIBOR_GROUPS = [
-        {
-          days: 90,
-          dateMatcher: /^SHIBOR隔夜日期（?90）?$/,
-          items: [
-            { key: 'shibor_on', label: 'SHIBOR 隔夜(%)', matcher: /^SHIBOR隔夜利率$/ },
-            { key: 'shibor_1w', label: 'SHIBOR 1周(%)', matcher: /^SHIBOR1周利率$/ },
-            { key: 'shibor_2w', label: 'SHIBOR 2周(%)', matcher: /^SHIBOR2周利率$/ },
-          ],
-        },
-        {
-          days: 180,
-          dateMatcher: /^SHIBOR3月日期（?180）?$/,
-          items: [
-            { key: 'shibor_3m', label: 'SHIBOR 3月(%)', matcher: /^SHIBOR3月利率$/ },
-            { key: 'shibor_6m', label: 'SHIBOR 6月(%)', matcher: /^SHIBOR6月利率$/ },
-            { key: 'shibor_9m', label: 'SHIBOR 9月(%)', matcher: /^SHIBOR9月利率$/ },
-          ],
-        },
-        {
-          days: 365,
-          dateMatcher: /^SHIBOR1年日期（?365）?$/,
-          items: [
-            { key: 'shibor_1y', label: 'SHIBOR 1年(%)', matcher: /^SHIBOR一年利率$/ },
-          ],
-        },
-      ];
-
-      window.__parseOpenMarketShiborMinimal = function (
-        openRows,
+      const omRows = toRows(omSheet);
+      const shiborRows = toRows(shiborSheet);
+      const pack = minimalParsers.__parseOpenMarketShiborMinimal(
+        omRows,
         shiborRows,
-        now = anchor
-      ) {
-        const summary = {
-          r7d_amt_yi: null,
-          r14d_amt_yi: null,
-          mlf_amt_yi: null,
-          tcd_amt_yi: null,
-          slf_amt_yi: null,
-          slo_amt_yi: null,
-          repo_amt_yi: null,
-        };
-        const seriesOrder = [
-          '逆回购7D利率(%)',
-          '逆回购14D利率(%)',
-          'MLF利率(%)',
-          '国库定存利率(%)',
-          'SLF利率(%)',
-          'SLO利率(%)',
-          '正回购利率(%)',
-          'SHIBOR 隔夜(%)',
-          'SHIBOR 1周(%)',
-          'SHIBOR 2周(%)',
-          'SHIBOR 3月(%)',
-          'SHIBOR 6月(%)',
-          'SHIBOR 9月(%)',
-          'SHIBOR 1年(%)',
-        ];
-        const rateData = new Map();
-        const diagnosticsOm = [];
-        const diagnosticsShibor = [];
-        let table = [];
-        let rangeWindow = [];
+        anchor
+      );
+      if (!pack || !pack.json) {
+        alert('公开市场解析失败');
+        return;
+      }
 
-        const baseNow = now instanceof Date ? new Date(now.getTime()) : new Date(now || anchor);
-        baseNow.setHours(0, 0, 0, 0);
+      const blob = new Blob([JSON.stringify(pack.json, null, 2)], {
+        type: 'application/json',
+      });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = pack.filename;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      alert(`已下载 ${pack.filename}`);
+    }
 
-        if (Array.isArray(openRows) && openRows.length) {
-          const header = openRows[0] || [];
-          const body = openRows.slice(1);
-          const dateIdx = findCol(header, /^日期$/);
+    const openMarketButton = document.getElementById('btn-open-market-test');
+    const openMarketInput = document.querySelector('#xlsxFile');
 
-          if (dateIdx >= 0) {
-            const enriched = body
-              .map((row) => ({ row, date: toDate(row?.[dateIdx]) }))
-              .filter((item) => item.date && isWk(item.date))
-              .sort((a, b) => a.date - b.date);
-
-            if (enriched.length) {
-              const { mon, fri } = prevCompletedWeekRange(baseNow);
-              const inWeek = enriched.filter(
-                (item) => item.date >= mon && item.date <= fri
-              );
-
-              const pool = inWeek.length ? inWeek : enriched;
-              const latest = pool.reduce((prev, cur) => (cur.date > prev.date ? cur : prev));
-
-              if (latest && latest.row) {
-                let winStart = mon;
-                let winEnd = fri;
-                if (!inWeek.length && latest.date) {
-                  winStart = mondayOf(latest.date);
-                  winEnd = fridayOf(latest.date);
-                }
-                if (winStart && winEnd) {
-                  rangeWindow = [toISODate(winStart), toISODate(winEnd)];
-                }
-                const iso = toISODate(latest.date);
-
-                table = [
-                  header.reduce((acc, cell, idx) => {
-                    const key = cell != null && String(cell).trim()
-                      ? String(cell).trim()
-                      : `COL_${idx + 1}`;
-                    acc[key] = latest.row[idx] ?? null;
-                    return acc;
-                  }, {}),
-                ];
-
-                OM_ITEMS.forEach((item) => {
-                  const amountIdx = findCol(header, item.amountMatcher);
-                  const amountValue = amountIdx >= 0 ? num(latest.row[amountIdx]) : null;
-                  if (amountIdx >= 0) {
-                    summary[item.summaryKey] = amountValue;
-                  }
-                  diagnosticsOm.push({
-                    field: item.summaryKey,
-                    label: item.summaryLabel,
-                    column: amountIdx >= 0 ? header[amountIdx] ?? null : null,
-                    hit: amountIdx >= 0,
-                    value: amountValue,
-                  });
-
-                  const rateIdx = findCol(header, item.rateMatcher);
-                  const rateValue = rateIdx >= 0 ? pctNum(latest.row[rateIdx]) : null;
-                  if (rateIdx >= 0 && iso && rateValue != null) {
-                    rateData.set(item.rateName, [[iso, rateValue]]);
-                  }
-                  diagnosticsOm.push({
-                    field: `rate:${item.rateName}`,
-                    label: item.rateName,
-                    column: rateIdx >= 0 ? header[rateIdx] ?? null : null,
-                    hit: rateIdx >= 0,
-                    value: rateValue,
-                  });
-                });
-              }
-            }
-          } else {
-            diagnosticsOm.push({
-              field: 'date',
-              label: '日期',
-              column: null,
-              hit: false,
-              note: '未找到日期列',
-            });
-          }
-        }
-
-        if (Array.isArray(shiborRows) && shiborRows.length) {
-          const header = shiborRows[0] || [];
-          const body = shiborRows
-            .slice(1)
-            .filter((row) => Array.isArray(row) && row.some((cell) => cell != null && String(cell).trim() !== ''));
-
-          SHIBOR_GROUPS.forEach((group) => {
-            const dateIdx = findCol(header, group.dateMatcher);
-            const datedRows =
-              dateIdx >= 0
-                ? body
-                    .map((row) => {
-                      const date = toDate(row?.[dateIdx]);
-                      return date ? { row, date, iso: toISODate(date) } : null;
-                    })
-                    .filter(Boolean)
-                    .sort((a, b) => a.date - b.date)
-                : [];
-
-            const cutoff = (() => {
-              if (!datedRows.length || !group.days) return null;
-              const latest = datedRows[datedRows.length - 1].date;
-              const point = new Date(latest.getTime());
-              point.setDate(point.getDate() - (group.days - 1));
-              point.setHours(0, 0, 0, 0);
-              return point;
-            })();
-
-            group.items.forEach((item) => {
-              const colIdx = findCol(header, item.matcher);
-              const diagEntry = {
-                key: item.key,
-                label: item.label,
-                column: colIdx >= 0 ? header[colIdx] ?? null : null,
-                hit: colIdx >= 0,
-                points: 0,
-                range: [],
-              };
-
-              if (colIdx >= 0 && datedRows.length) {
-                const data = [];
-                datedRows.forEach(({ row, date, iso }) => {
-                  if (cutoff && date < cutoff) return;
-                  const raw = row[colIdx];
-                  const value = pctNum(raw);
-                  if (value == null) return;
-                  data.push([iso, value]);
-                });
-
-                if (data.length) {
-                  diagEntry.points = data.length;
-                  diagEntry.range = [data[0][0], data[data.length - 1][0]];
-                  rateData.set(item.label, data);
-                }
-              }
-
-              diagnosticsShibor.push(diagEntry);
-            });
-          });
-        }
-
-        const combinedSeries = seriesOrder.map((name) => ({
-          name,
-          data: rateData.get(name) || [],
-        }));
-
-        const exportInfo = {
-          source_sheet: '公开市场货币 + Shibor利率',
-          range: 'prevCompletedWeek',
-          diagnostics: {
-            om: diagnosticsOm,
-            shibor: diagnosticsShibor,
-          },
-        };
-
-        if (Array.isArray(rangeWindow) && rangeWindow.length === 2) {
-          exportInfo.range_window = rangeWindow;
-        }
-
-        exportInfo.last_updated = new Date().toISOString().slice(0, 19).replace('T', ' ');
-
-        return {
-          filename: 'open_market.json',
-          json: {
-            summary,
-            series: combinedSeries,
-            table,
-            export_info: exportInfo,
-          },
-        };
-      };
-    })();
+    openMarketButton?.addEventListener('click', async () => {
+      const file = openMarketInput?.files?.[0];
+      if (!file) {
+        alert('请先选择 Excel 文件');
+        return;
+      }
+      try {
+        await runOpenMarketOnce(file);
+      } catch (err) {
+        console.error('[open-market-test] 失败', err);
+        alert('转换失败，请查看控制台日志');
+      }
+    });
   </script>
+</head>
+<body>
+  <noscript class="noscript">
+    您的浏览器未启用 JavaScript，页面功能将无法使用。请开启 JavaScript 后刷新页面。
+  </noscript>
+
+  <div class="app-shell">
+    <div id="header-container"></div>
+    <div class="layout">
+      <aside id="sidebar-container" class="sidebar-host" aria-label="侧边导航容器"></aside>
+      <main id="main-content" class="main-content" role="main" aria-live="polite">
+        <div class="empty-state">正在加载模块…</div>
+      </main>
+    </div>
+    <div id="footer-container"></div>
+  </div>
+
+  <section class="card conversion-panel" aria-labelledby="conversion-title">
+    <div class="card-header" id="conversion-title">Excel 转换工具</div>
+    <div class="card-content">
+      <p class="muted">
+        选择周报 Excel 文件后，可快速生成对应 JSON 数据。建议先在副本上测试，确认输出结构正确后再覆盖线上数据。
+      </p>
+      <div class="conversion-actions">
+        <label class="btn" for="xlsxFile">
+          <i class="bi bi-upload"></i>
+          选择 Excel 文件
+        </label>
+        <input id="xlsxFile" type="file" accept=".xlsx,.xls" hidden />
+        <div class="action-buttons">
+          <button type="button" id="btn-convert" class="btn btn-primary">
+            批量导出 JSON
+          </button>
+          <button type="button" id="btn-open-market-test" class="btn btn-secondary">
+            测试公开市场
+          </button>
+        </div>
+      </div>
+      <div id="convertLog" class="conversion-log" role="log" aria-live="polite"></div>
+    </div>
+  </section>
+
   <script src="./tools/conversion-patch.js"></script>
   <script type="module" src="./js/app.js"></script>
 </body>

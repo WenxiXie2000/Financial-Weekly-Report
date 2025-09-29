@@ -51,93 +51,22 @@ if (!btnConvert || !inpFile) {
 }
 
 // ===== 2) 通用小工具（缺失值、表头标准化、时间等）=====
-function normalizeHeaderLabel(input) {
-  const s = String(input ?? "").trim();
-  let t = s.replace(/\s+/g, "");
-  t = t.replace(/[（(][^）)]*[）)]\s*$/, "");
-  return t;
-}
-function findColIndex(header, matcher) {
-  let idx = header.findIndex((h) =>
-    matcher instanceof RegExp ? matcher.test(String(h)) : String(h) === matcher
-  );
-  if (idx >= 0) return idx;
-  const norm = header.map(normalizeHeaderLabel);
-  if (matcher instanceof RegExp) return norm.findIndex((h) => matcher.test(h));
-  const want = normalizeHeaderLabel(matcher);
-  return norm.findIndex((h) => h === want);
-}
-function toDateSafe(x) {
-  if (!x) return null;
-  const d = new Date(
-    typeof x === "number"
-      ? (x - 25569) * 86400000
-      : String(x).replace(/-/g, "/")
-  );
-  return Number.isNaN(d) ? null : d;
-}
-function isWeekday(d) {
-  const w = d.getDay();
-  return w >= 1 && w <= 5;
-}
-function mondayOf(d) {
-  const t = new Date(d);
-  const w = t.getDay() || 7;
-  t.setDate(t.getDate() - (w - 1));
-  t.setHours(0, 0, 0, 0);
-  return t;
-}
-function fridayOf(d) {
-  const m = mondayOf(d);
-  const f = new Date(m);
-  f.setDate(m.getDate() + 4);
-  f.setHours(23, 59, 59, 999);
-  return f;
-}
-function isMissingRaw(v) {
-  if (v === null || v === undefined) return true;
-  if (typeof v === "number") return Number.isNaN(v);
-  const s = String(v).trim();
-  if (!s) return true;
-  const set = new Set([
-    "-",
-    "--",
-    "---",
-    "—",
-    "——",
-    "— —",
-    "–",
-    "N/A",
-    "NA",
-    "NaN",
-    "NULL",
-    "null",
-    "无",
-  ]);
-  if (set.has(s)) return true;
-  const t = s.endsWith("%") ? s.slice(0, -1).trim() : s;
-  if (!t) return true;
-  if (set.has(t)) return true;
-  return false;
-}
-function missingToNull(v) {
-  return isMissingRaw(v) ? null : v;
-}
-function toNumberOrNull(v) {
-  v = missingToNull(v);
-  if (v === null) return null;
-  let s = String(v).trim();
-  if (s.endsWith("%")) s = s.slice(0, -1).trim();
-  const n = Number(s);
-  return Number.isNaN(n) ? null : n;
-}
-function toPctString4OrNull(v) {
-  v = missingToNull(v);
-  if (v === null) return null;
-  let s = String(v).trim();
-  if (s.endsWith("%")) s = s.slice(0, -1).trim();
-  const n = Number(s);
-  return Number.isNaN(n) ? null : `${n.toFixed(4)}%`;
+const utils = window.xlsx2jsonUtils || {};
+const {
+  normalizeHeaderLabel,
+  findColIndex,
+  toDateSafe,
+  isWeekday,
+  missingToNull,
+  toNumberOrNull,
+  toPctString4OrNull,
+} = utils;
+
+if (
+  typeof normalizeHeaderLabel !== "function" ||
+  typeof findColIndex !== "function"
+) {
+  console.error("[convert] xlsx2json utils 未加载，无法继续");
 }
 
 // ===== 3) 确保全局有 SHEET_PROFILES 和 window.parsers =====
