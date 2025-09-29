@@ -157,7 +157,7 @@
  * @property {string} sheetName
  * @property {string} normalizedSheetName
  * @property {string|null} outputFile
- * @property {"cny_fx"|"group_listed"|"open_market_monetary"|"open_market_shibor"|"profile"|"unknown"} kind
+ * @property {"cny_fx"|"group_listed"|"open_market_monetary"|"open_market_shibor"|"bond_yield"|"mid_paper"|"profile"|"unknown"} kind
  * @property {unknown} payload
  */
 

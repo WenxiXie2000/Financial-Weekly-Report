@@ -7,6 +7,8 @@ import {
   parseOpenMarketMonetary,
   buildOpenMarketDataset,
 } from "./parsers/open-market.js";
+import parseBondYield from "./parsers/bond-yield.js";
+import parseMidPaper from "./parsers/mid-paper.js";
 
 /**
  * @typedef {import("./types.js").CnyFxJson} CnyFxJson
@@ -313,6 +315,28 @@ export function parseSheet(
       normalizedSheetName: normalized,
       outputFile: getOutputFile(normalized),
       kind: "open_market_shibor",
+      payload,
+    };
+  }
+
+  if (normalized === "债券利率") {
+    const payload = parseBondYield(rows, profile || {}, context);
+    return {
+      sheetName,
+      normalizedSheetName: normalized,
+      outputFile: getOutputFile(normalized),
+      kind: "bond_yield",
+      payload,
+    };
+  }
+
+  if (normalized === "中票利率") {
+    const payload = parseMidPaper(rows, profile || {}, context);
+    return {
+      sheetName,
+      normalizedSheetName: normalized,
+      outputFile: getOutputFile(normalized),
+      kind: "mid_paper",
       payload,
     };
   }
