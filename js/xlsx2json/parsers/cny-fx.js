@@ -1,14 +1,13 @@
-import { findColIndex } from "../utils.js";
 import {
   computePrevWeekWorkdays,
   fmtISO,
-  describeMatcher,
-  closestHeaders,
   parseNumberLike,
   parsePercentNumber,
   formatNumber4,
   formatPercent4,
   deriveRange,
+  createSheetDiagnostics,
+  trackColumn,
 } from "./common.js";
 
 /**
@@ -17,14 +16,6 @@ import {
 
 const DEFAULT_SHEET_NAME = "人民币汇率";
 
-/**
- * 解析人民币汇率工作表并生成标准化的 JSON 数据集。
- *
- * @param {Array<Array<unknown>>} rows SheetJS 转换后的二维数组。
- * @param {object} profile 解析配置。
- * @param {{ anchor?: Date, sheetName?: string }} [context] 解析上下文。
- * @returns {CnyFxJson}
- */
 export function parseCnyFx(
   rows,
   profile = {},
@@ -45,7 +36,15 @@ export function parseCnyFx(
         )
     );
 
-  const dateIdx = findColIndex(header, profile?.dateCol);
+  const diagnostics = createSheetDiagnostics(sheetName);
+  diagnostics.range = profile?.rangeDefault || "prevWeekWorkdays";
+
+  const dateIdx = trackColumn(diagnostics, header, profile?.dateCol ?? "", {
+    category: "date",
+    label: "日期列",
+    allowMissing: false,
+  });
+
   if (dateIdx < 0) {
     throw new Error(`${sheetName}：未找到日期列`);
   }
@@ -58,26 +57,18 @@ export function parseCnyFx(
     weekRows = weekRows.filter((item) => profile.rowFilter({ date: item.iso }));
   }
 
-  const diagnostics = {
-    sheet: sheetName,
-    dateCol: header[dateIdx] || null,
-    range: profile?.rangeDefault || "prevWeekWorkdays",
-    items: [],
-  };
-
-  diagnostics.items.push({
-    category: "date",
-    label: "日期列",
-    matcher: describeMatcher(profile?.dateCol),
-    matched: dateIdx >= 0,
-    column: header[dateIdx] || null,
-    closest: dateIdx >= 0 ? [] : closestHeaders(header, profile?.dateCol),
-    points: weekRows.length,
-    dateRange:
-      weekRows.length >= 2
-        ? [weekRows[0].iso, weekRows[weekRows.length - 1].iso]
-        : [],
-  });
+  diagnostics.dateCol = header[dateIdx] || null;
+  const dateEntry = diagnostics.items[diagnostics.items.length - 1] || null;
+  if (dateEntry) {
+    dateEntry.extra = {
+      ...(dateEntry.extra || {}),
+      points: weekRows.length,
+      dateRange:
+        weekRows.length >= 2
+          ? [weekRows[0].iso, weekRows[weekRows.length - 1].iso]
+          : [],
+    };
+  }
 
   const metricDefs = [
     {
@@ -112,6 +103,7 @@ export function parseCnyFx(
 
   const series = [];
   const kpis = {};
+  const metricIndexMap = new Map();
 
   (profile?.currencies || []).forEach((currency) => {
     const keyBase = String(currency?.key || "")
@@ -133,23 +125,26 @@ export function parseCnyFx(
       if (currency?.noMid && metric.key.startsWith("mid")) {
         return;
       }
+
       const matcherFactory = profile?.cols?.[metric.key];
       const matcher =
         typeof matcherFactory === "function" ? matcherFactory(keyword) : null;
 
-      const idx = matcher != null ? findColIndex(header, matcher) : -1;
-      const diagEntry = {
+      const idx = trackColumn(diagnostics, header, matcher ?? "", {
         category: "series",
         label: `${keyword}${metric.label}`,
-        metric: metric.key,
-        matcher: describeMatcher(matcher),
-        matched: idx >= 0,
-        column: idx >= 0 ? header[idx] || null : null,
-        closest: idx >= 0 ? [] : closestHeaders(header, matcher),
-        points: 0,
-        dateRange: [],
-      };
-      diagnostics.items.push(diagEntry);
+        note: matcher == null ? "未配置匹配规则" : undefined,
+        extra: {
+          metric: metric.key,
+          currency: keyword,
+        },
+      });
+
+      if (idx >= 0) {
+        metricIndexMap.set(`${keyBase}:${metric.key}`, idx);
+      }
+
+      const diagEntry = diagnostics.items[diagnostics.items.length - 1] || null;
 
       const data = weekRows.map((item) => {
         const raw = idx >= 0 ? item.row?.[idx] : null;
@@ -163,10 +158,14 @@ export function parseCnyFx(
         return [item.iso, parsed];
       });
 
-      diagEntry.points = data.filter(([, v]) => v != null).length;
-      const range = deriveRange([{ data }]);
-      if (Array.isArray(range) && range.length === 2) {
-        diagEntry.dateRange = range;
+      if (diagEntry) {
+        const points = data.filter(([, v]) => v != null).length;
+        const range = deriveRange([{ data }]);
+        diagEntry.extra = {
+          ...(diagEntry.extra || {}),
+          points,
+          dateRange: Array.isArray(range) ? range : [],
+        };
       }
 
       series.push({ name: `${keyword}${metric.suffix}`, data });
@@ -194,28 +193,16 @@ export function parseCnyFx(
         .toLowerCase();
       if (!keyword || !keyBase || currency?.noMid) return;
 
-      const midMatcherFactory = profile?.cols?.mid;
-      const midMatcher =
-        typeof midMatcherFactory === "function"
-          ? midMatcherFactory(keyword)
-          : null;
-      const midIdx = midMatcher ? findColIndex(header, midMatcher) : -1;
-      if (midIdx >= 0) {
+      const midIdx = metricIndexMap.get(`${keyBase}:mid`);
+      if (typeof midIdx === "number" && midIdx >= 0) {
         const formatted = formatNumber4(last.row?.[midIdx]);
         if (formatted != null) {
           kpis[`${keyBase}_mid`] = formatted;
         }
       }
 
-      const midChgMatcherFactory = profile?.cols?.mid_chg;
-      const midChgMatcher =
-        typeof midChgMatcherFactory === "function"
-          ? midChgMatcherFactory(keyword)
-          : null;
-      const midChgIdx = midChgMatcher
-        ? findColIndex(header, midChgMatcher)
-        : -1;
-      if (midChgIdx >= 0) {
+      const midChgIdx = metricIndexMap.get(`${keyBase}:mid_chg`);
+      if (typeof midChgIdx === "number" && midChgIdx >= 0) {
         const formatted = formatPercent4(last.row?.[midChgIdx]);
         if (formatted != null) {
           kpis[`${keyBase}_mid_chg`] = formatted;
@@ -229,17 +216,21 @@ export function parseCnyFx(
       ? [weekRows[0].iso, weekRows[weekRows.length - 1].iso]
       : [];
 
-  const diagnosticEntries = diagnostics.items.map((item) => ({
-    category: item.category || "series",
-    label: item.label,
-    metric: item.metric || "",
-    matcher: item.matcher,
-    matched: Boolean(item.matched),
-    column: item.column || null,
-    closest: Array.isArray(item.closest) ? item.closest : [],
-    points: typeof item.points === "number" ? item.points : 0,
-    dateRange: Array.isArray(item.dateRange) ? item.dateRange : [],
-  }));
+  const diagnosticEntries = diagnostics.items.map((item) => {
+    const extra = item.extra || {};
+    return {
+      category: item.category || "series",
+      label: item.label,
+      matcher: item.matcher,
+      matched: Boolean(item.matched),
+      column: item.column || null,
+      index: typeof item.index === "number" ? item.index : null,
+      closest: Array.isArray(item.closest) ? item.closest : [],
+      metric: extra.metric || "",
+      points: typeof extra.points === "number" ? extra.points : 0,
+      dateRange: Array.isArray(extra.dateRange) ? extra.dateRange : [],
+    };
+  });
 
   const exportInfo = {
     source_sheet: sheetName,

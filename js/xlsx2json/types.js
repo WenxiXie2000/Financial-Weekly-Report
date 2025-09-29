@@ -22,16 +22,32 @@
  */
 
 /**
- * @typedef {Object} CnyFxDiagnosticEntry
+ * @typedef {Object} ColumnDiagnosticEntry
  * @property {string} category
  * @property {string} label
- * @property {string} metric
  * @property {string} matcher
  * @property {boolean} matched
  * @property {string|null} column
+ * @property {(number|null)} index
  * @property {Array<string>} closest
- * @property {number} points
- * @property {Array<string>} dateRange
+ * @property {string} [note]
+ * @property {Record<string, unknown>} [extra]
+ */
+
+/**
+ * @typedef {Object} SheetDiagnostics
+ * @property {string} sheet
+ * @property {Array<ColumnDiagnosticEntry>} items
+ * @property {string|null} [dateCol]
+ * @property {string|null} [range]
+ */
+
+/**
+ * @typedef {ColumnDiagnosticEntry & {
+ *   metric?: string,
+ *   points?: number,
+ *   dateRange?: Array<string>
+ * }} CnyFxDiagnosticEntry
  */
 
 /**
@@ -69,8 +85,8 @@
  * @property {Record<string, unknown>} summary
  * @property {Array<NamedSeries>} series
  * @property {Array<Record<string, unknown>>} table
- * @property {{ source_sheet: string, range: string, rows: number, range_window: Array<string>, last_updated: string, diagnostics: Record<string, unknown> }} export_info
- * @property {Array<CnyFxDiagnosticEntry>} diagnostics
+ * @property {{ source_sheet: string, range: string, rows: number, range_window: Array<string>, last_updated: string, diagnostics: SheetDiagnostics }} export_info
+ * @property {Array<ColumnDiagnosticEntry>} diagnostics
  */
 
 /**
@@ -88,7 +104,7 @@
  * @typedef {Object} OpenMarketExportInfo
  * @property {string} source_sheet
  * @property {string} range
- * @property {Record<string, unknown>} diagnostics
+ * @property {SheetDiagnostics} diagnostics
  * @property {string} last_updated
  * @property {Array<string>} [range_window]
  */
@@ -104,7 +120,7 @@
 /**
  * @typedef {Object} OpenMarketMonetaryFragment
  * @property {OpenMarketSummary} summary
- * @property {Array<Record<string, unknown>>} diagnostics
+ * @property {SheetDiagnostics} diagnostics
  * @property {Array<NamedSeries>} rateSeries
  * @property {Array<Record<string, unknown>>} table
  * @property {Array<string>} rangeWindow
@@ -149,7 +165,8 @@
  * @property {GenericMeta} meta
  * @property {Record<string, unknown>} summary
  * @property {Array<NamedSeries & { unit?: string }>} series
- * @property {{ source_sheet: string, rows: number, last_updated: string, diagnostics: Record<string, unknown>, range?: Array<string> }} export_info
+ * @property {{ source_sheet: string, rows: number, last_updated: string, diagnostics: SheetDiagnostics, range?: Array<string> }} export_info
+ * @property {Array<ColumnDiagnosticEntry>} [diagnostics]
  */
 
 /**
@@ -165,6 +182,7 @@
  * @typedef {Object} ConvertSheetsResult
  * @property {Map<string, unknown>} files
  * @property {Array<SheetParseDetail>} details
+ * @property {Array<SheetDiagnostics>} diagnostics
  */
 
 /**
@@ -174,6 +192,7 @@
  * @property {Array<string>} sheetNames
  * @property {Array<[string, Array<Array<unknown>>]>} rows
  * @property {unknown} workbook
+ * @property {Array<SheetDiagnostics>} diagnostics
  */
 
 export {};

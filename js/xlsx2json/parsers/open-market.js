@@ -1,9 +1,11 @@
+import { toNumberOrNull, prevCompletedWeekRange } from "../utils.js";
 import {
-  findColIndex,
-  toNumberOrNull,
-  prevCompletedWeekRange,
-} from "../utils.js";
-import { computePrevWeekWorkdays, fmtISO, parseNumberLike } from "./common.js";
+  computePrevWeekWorkdays,
+  fmtISO,
+  parseNumberLike,
+  createSheetDiagnostics,
+  trackColumn,
+} from "./common.js";
 
 /**
  * @typedef {import("../types.js").OpenMarketMonetaryFragment} OpenMarketMonetaryFragment
@@ -30,7 +32,16 @@ export function parseOpenMarketMonetary(
     : 0;
   const header = rows[headerRowIndex] || [];
   const body = rows.slice(headerRowIndex + 1);
-  const dateIdx = findColIndex(header, profile.dateCol);
+
+  const diagnostics = createSheetDiagnostics(sheetName);
+  diagnostics.range = "prevCompletedWeek";
+
+  const dateIdx = trackColumn(diagnostics, header, profile.dateCol ?? "", {
+    category: "date",
+    label: "日期列",
+    allowMissing: true,
+    note: profile.dateCol == null ? "未配置匹配规则" : undefined,
+  });
 
   const summary = {
     r7d_amt_yi: null,
@@ -41,7 +52,6 @@ export function parseOpenMarketMonetary(
     slo_amt_yi: null,
     repo_amt_yi: null,
   };
-  const diagnostics = [];
   const rateSeries = [];
   let table = [];
   let rangeWindow = [];
@@ -56,15 +66,19 @@ export function parseOpenMarketMonetary(
     repo: "repo_amt_yi",
   };
 
+  diagnostics.dateCol = dateIdx >= 0 ? header[dateIdx] || null : null;
+  const dateEntry = diagnostics.items[diagnostics.items.length - 1] || null;
   if (dateIdx < 0) {
-    diagnostics.push({
-      field: "date",
-      label: "日期",
-      column: null,
-      hit: false,
-      note: "未找到日期列",
-    });
-    return { summary, diagnostics, rateSeries, table, rangeWindow };
+    if (dateEntry) {
+      dateEntry.note = dateEntry.note || "未找到日期列";
+    }
+    return {
+      summary,
+      diagnostics,
+      rateSeries,
+      table,
+      rangeWindow,
+    };
   }
 
   const weekRows = computePrevWeekWorkdays(body, dateIdx, anchor);
@@ -83,7 +97,13 @@ export function parseOpenMarketMonetary(
   }
 
   if (!latestEntry || !latestEntry.row) {
-    return { summary, diagnostics, rateSeries, table, rangeWindow };
+    return {
+      summary,
+      diagnostics,
+      rateSeries,
+      table,
+      rangeWindow,
+    };
   }
 
   const latestRow = latestEntry.row;
@@ -107,40 +127,64 @@ export function parseOpenMarketMonetary(
     const baseLabel = item.label || item.key;
 
     if (summaryKey && item.cols?.inj) {
-      const amountIdx = findColIndex(header, item.cols.inj);
+      const amountIdx = trackColumn(diagnostics, header, item.cols.inj ?? "", {
+        category: "summary",
+        label: `${baseLabel} 投放量(亿)`,
+        extra: { field: summaryKey },
+      });
       const amountVal =
         amountIdx >= 0 ? parseNumberLike(latestRow[amountIdx]) : null;
       if (amountVal != null) {
         summary[summaryKey] = amountVal;
       }
-      diagnostics.push({
-        field: summaryKey,
-        label: `${baseLabel} 投放量(亿)`,
-        column: amountIdx >= 0 ? header[amountIdx] ?? null : null,
-        hit: amountIdx >= 0,
-        value: amountVal,
-      });
+      const entry = diagnostics.items[diagnostics.items.length - 1];
+      if (entry) {
+        entry.extra = {
+          ...(entry.extra || {}),
+          field: summaryKey,
+          value: amountVal,
+        };
+      }
     }
 
     if (item.cols?.rate) {
-      const rateIdx = findColIndex(header, item.cols.rate);
+      const rateIdx = trackColumn(diagnostics, header, item.cols.rate ?? "", {
+        category: "rate",
+        label: `${baseLabel} 利率(%)`,
+        extra: { field: `rate:${item.key}` },
+      });
       const rawRate = rateIdx >= 0 ? toNumberOrNull(latestRow[rateIdx]) : null;
       const rateVal = rawRate != null ? Number(rawRate.toFixed(4)) : null;
       const seriesName = `${baseLabel}利率(%)`;
       if (iso && rateVal != null) {
         rateSeries.push({ name: seriesName, data: [[iso, rateVal]] });
       }
-      diagnostics.push({
-        field: `rate:${seriesName}`,
-        label: seriesName,
-        column: rateIdx >= 0 ? header[rateIdx] ?? null : null,
-        hit: rateIdx >= 0,
-        value: rateVal,
-      });
+      const entry = diagnostics.items[diagnostics.items.length - 1];
+      if (entry) {
+        entry.extra = {
+          ...(entry.extra || {}),
+          field: `rate:${seriesName}`,
+          value: rateVal,
+        };
+      }
     }
   });
 
-  return { summary, diagnostics, rateSeries, table, rangeWindow };
+  if (dateEntry) {
+    dateEntry.extra = {
+      ...(dateEntry.extra || {}),
+      points: weekRows.length,
+      latest: iso,
+    };
+  }
+
+  return {
+    summary,
+    diagnostics,
+    rateSeries,
+    table,
+    rangeWindow,
+  };
 }
 
 /**
@@ -200,14 +244,35 @@ export function buildOpenMarketDataset(omPart, shiborPart) {
   const exportInfo = {
     source_sheet: "公开市场货币 + Shibor利率",
     range: "prevCompletedWeek",
-    diagnostics: {
-      om: Array.isArray(omPart?.diagnostics) ? omPart.diagnostics : [],
-      shibor: Array.isArray(shiborPart?.diagnostics)
-        ? shiborPart.diagnostics
-        : [],
-    },
+    diagnostics: createSheetDiagnostics("公开市场组合"),
     last_updated: new Date().toISOString().slice(0, 19).replace("T", " "),
   };
+
+  const combinedDiagnostics = exportInfo.diagnostics;
+
+  const mergeDiagnostics = (source, diag) => {
+    if (!diag || !Array.isArray(diag.items)) return;
+    if (!combinedDiagnostics.dateCol && diag.dateCol) {
+      combinedDiagnostics.dateCol = diag.dateCol;
+    }
+    if (!combinedDiagnostics.range && diag.range) {
+      combinedDiagnostics.range = diag.range;
+    }
+    diag.items.forEach((item) => {
+      if (!item) return;
+      combinedDiagnostics.items.push({
+        ...item,
+        extra: {
+          ...(item.extra || {}),
+          source,
+          sheet: diag.sheet,
+        },
+      });
+    });
+  };
+
+  mergeDiagnostics("open_market_monetary", omPart?.diagnostics);
+  mergeDiagnostics("shibor", shiborPart?.export_info?.diagnostics);
 
   if (
     Array.isArray(omPart?.rangeWindow) &&

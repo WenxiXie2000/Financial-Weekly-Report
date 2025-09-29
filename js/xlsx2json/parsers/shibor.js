@@ -1,10 +1,10 @@
 import { findColIndex, toDateSafe } from "../utils.js";
 import {
   fmtISO,
-  describeMatcher,
-  closestHeaders,
   parsePercentNumber,
   deriveRange,
+  createSheetDiagnostics,
+  trackColumn,
 } from "./common.js";
 
 /**
@@ -42,7 +42,8 @@ export function parseShibor(
     );
 
   const groups = Array.isArray(profile?.groups) ? profile.groups : [];
-  const diagGroups = [];
+  const diagnostics = createSheetDiagnostics(sheetName);
+  diagnostics.range = profile?.rangeLabel || null;
   const series = [];
 
   const normalizeRate = (value) => {
@@ -51,43 +52,20 @@ export function parseShibor(
     return Number(parsed.toFixed(4));
   };
 
-  groups.forEach((group) => {
-    const dateMatcher = group?.dateCol;
-    const dateIdx = findColIndex(header, dateMatcher);
-    const dateDiag = {
-      matcher: describeMatcher(dateMatcher),
-      hit: dateIdx >= 0,
-      column: dateIdx >= 0 ? header[dateIdx] || null : null,
-      candidates: dateIdx >= 0 ? [] : closestHeaders(header, dateMatcher),
-      points: 0,
-      dateRange: [],
-    };
-
-    const itemDefs = (Array.isArray(group?.items) ? group.items : []).map(
-      (item) => {
-        const colIdx = findColIndex(header, item?.col);
-        const diag = {
-          key: item?.key || "",
-          label: item?.label || item?.key || "",
-          matcher: describeMatcher(item?.col),
-          hit: colIdx >= 0,
-          column: colIdx >= 0 ? header[colIdx] || null : null,
-          candidates: colIdx >= 0 ? [] : closestHeaders(header, item?.col),
-          points: 0,
-          dateRange: [],
-        };
-        return { item, colIdx, diag };
-      }
-    );
-
-    const diagGroup = {
-      range: group?.range || null,
-      date: dateDiag,
-      items: itemDefs.map(({ diag }) => diag),
-    };
-    diagGroups.push(diagGroup);
+  groups.forEach((group, groupIndex) => {
+    const groupKey = group?.key || `group_${groupIndex}`;
+    const dateIdx = trackColumn(diagnostics, header, group?.dateCol ?? "", {
+      category: "date",
+      label: `${group?.label || groupKey} 日期列`,
+      allowMissing: true,
+      extra: { group: groupKey, range: group?.range || null },
+    });
+    const dateEntry = diagnostics.items[diagnostics.items.length - 1] || null;
 
     if (dateIdx < 0) {
+      if (dateEntry) {
+        dateEntry.note = dateEntry.note || "未找到日期列";
+      }
       return;
     }
 
@@ -100,14 +78,26 @@ export function parseShibor(
       .filter(Boolean)
       .sort((a, b) => a.date - b.date);
 
-    dateDiag.points = datedRows.length;
+    if (dateEntry) {
+      dateEntry.extra = {
+        ...(dateEntry.extra || {}),
+        points: datedRows.length,
+      };
+    }
     if (datedRows.length === 1) {
-      dateDiag.dateRange = [datedRows[0].iso, datedRows[0].iso];
+      if (dateEntry) {
+        dateEntry.extra = {
+          ...(dateEntry.extra || {}),
+          dateRange: [datedRows[0].iso, datedRows[0].iso],
+        };
+      }
     } else if (datedRows.length >= 2) {
-      dateDiag.dateRange = [
-        datedRows[0].iso,
-        datedRows[datedRows.length - 1].iso,
-      ];
+      if (dateEntry) {
+        dateEntry.extra = {
+          ...(dateEntry.extra || {}),
+          dateRange: [datedRows[0].iso, datedRows[datedRows.length - 1].iso],
+        };
+      }
     }
 
     if (!datedRows.length) {
@@ -128,8 +118,22 @@ export function parseShibor(
       }
     }
 
-    itemDefs.forEach(({ item, colIdx, diag }) => {
-      if (!item || colIdx < 0) {
+    (Array.isArray(group?.items) ? group.items : []).forEach((item) => {
+      if (!item) {
+        return;
+      }
+
+      const colIdx = trackColumn(diagnostics, header, item?.col ?? "", {
+        category: "rate",
+        label: item?.label || item?.key || "",
+        extra: { group: groupKey, key: item?.key || "" },
+      });
+      const itemEntry = diagnostics.items[diagnostics.items.length - 1] || null;
+
+      if (colIdx < 0) {
+        if (itemEntry) {
+          itemEntry.note = itemEntry.note || "未找到数据列";
+        }
         return;
       }
 
@@ -150,10 +154,20 @@ export function parseShibor(
         return;
       }
 
-      diag.points = data.length;
+      if (itemEntry) {
+        itemEntry.extra = {
+          ...(itemEntry.extra || {}),
+          points: data.length,
+        };
+      }
       const range = deriveRange([{ data }]);
       if (Array.isArray(range) && range.length === 2) {
-        diag.dateRange = range;
+        if (itemEntry) {
+          itemEntry.extra = {
+            ...(itemEntry.extra || {}),
+            dateRange: range,
+          };
+        }
       }
 
       series.push({
@@ -182,10 +196,11 @@ export function parseShibor(
     source_sheet: sheetName,
     rows: totalPoints,
     last_updated: new Date().toISOString().slice(0, 19).replace("T", " "),
-    diagnostics: { shibor: diagGroups },
+    diagnostics,
   };
   if (overallRange) {
     exportInfo.range = overallRange;
+    diagnostics.range = diagnostics.range || overallRange.join(" ~ ");
   }
 
   return {
@@ -193,6 +208,7 @@ export function parseShibor(
     summary: {},
     series,
     export_info: exportInfo,
+    diagnostics: diagnostics.items,
   };
 }
 

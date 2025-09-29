@@ -279,3 +279,42 @@ export const requireColumn = (
   }
   return idx;
 };
+
+export const createSheetDiagnostics = (sheet) => ({
+  sheet: String(sheet ?? ""),
+  items: [],
+  dateCol: null,
+  range: null,
+});
+
+export const trackColumn = (
+  diagnostics,
+  header,
+  matcher,
+  { category = "column", label, note, allowMissing = true, extra } = {}
+) => {
+  if (!diagnostics || !Array.isArray(diagnostics.items)) {
+    throw new Error("diagnostics 对象无效");
+  }
+  const idx = findColIndex(header, matcher);
+  const matched = idx >= 0;
+  const column = matched ? String(header[idx] ?? "") : null;
+  const entry = {
+    category,
+    label: label || describeMatcher(matcher),
+    matcher: describeMatcher(matcher),
+    matched,
+    column,
+    index: matched ? idx : null,
+    closest: matched ? [] : closestHeaders(header, matcher),
+  };
+  if (note) entry.note = note;
+  if (extra) entry.extra = extra;
+  diagnostics.items.push(entry);
+  if (!allowMissing && !matched) {
+    const error = new Error(`列未找到：${entry.label}`);
+    error.code = "COL_NOT_FOUND";
+    throw error;
+  }
+  return idx;
+};

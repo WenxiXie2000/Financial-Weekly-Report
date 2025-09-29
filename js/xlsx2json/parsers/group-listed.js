@@ -1,12 +1,11 @@
-import { findColIndex, toDateSafe } from "../utils.js";
 import {
   computePrevWeekWorkdays,
   fmtISO,
-  describeMatcher,
-  closestHeaders,
   parseNumberLike,
   parsePercentNumber,
   deriveRange,
+  createSheetDiagnostics,
+  trackColumn,
 } from "./common.js";
 
 /**
@@ -15,14 +14,6 @@ import {
 
 const DEFAULT_SHEET_NAME = "国能上市公司";
 
-/**
- * 解析集团上市公司工作表，输出包含系列、诊断和 KPI 的数据集。
- *
- * @param {Array<Array<unknown>>} rows SheetJS 转换后的二维数组。
- * @param {object} profile 解析配置。
- * @param {{ anchor?: Date, sheetName?: string }} [context] 解析上下文。
- * @returns {GroupListedJson}
- */
 export function parseGroupListed(
   rows,
   profile = {},
@@ -43,7 +34,15 @@ export function parseGroupListed(
         )
     );
 
-  const dateIdx = findColIndex(header, profile?.dateCol);
+  const diagnostics = createSheetDiagnostics(sheetName);
+  diagnostics.range = "prevWeekWorkdays";
+
+  const dateIdx = trackColumn(diagnostics, header, profile?.dateCol ?? "", {
+    category: "date",
+    label: "日期列",
+    allowMissing: false,
+  });
+
   if (dateIdx < 0) {
     throw new Error(`${sheetName}：未找到日期列`);
   }
@@ -56,26 +55,18 @@ export function parseGroupListed(
     weekRows = weekRows.filter((item) => profile.rowFilter({ date: item.iso }));
   }
 
-  const diagnostics = {
-    sheet: sheetName,
-    dateCol: header[dateIdx] || null,
-    range: "prevWeekWorkdays",
-    items: [],
-  };
-
-  diagnostics.items.push({
-    category: "date",
-    label: "日期列",
-    matcher: describeMatcher(profile?.dateCol),
-    matched: dateIdx >= 0,
-    column: header[dateIdx] || null,
-    closest: dateIdx >= 0 ? [] : closestHeaders(header, profile?.dateCol),
-    points: weekRows.length,
-    dateRange:
-      weekRows.length >= 2
-        ? [weekRows[0].iso, weekRows[weekRows.length - 1].iso]
-        : [],
-  });
+  diagnostics.dateCol = header[dateIdx] || null;
+  const dateEntry = diagnostics.items[diagnostics.items.length - 1] || null;
+  if (dateEntry) {
+    dateEntry.extra = {
+      ...(dateEntry.extra || {}),
+      points: weekRows.length,
+      dateRange:
+        weekRows.length >= 2
+          ? [weekRows[0].iso, weekRows[weekRows.length - 1].iso]
+          : [],
+    };
+  }
 
   const metricDefs = [
     {
@@ -154,19 +145,17 @@ export function parseGroupListed(
       const matcher =
         typeof matcherFactory === "function" ? matcherFactory(name) : null;
 
-      const idx = matcher != null ? findColIndex(header, matcher) : -1;
-      const diagEntry = {
+      const idx = trackColumn(diagnostics, header, matcher ?? "", {
         category: "series",
         label: `${name} ${metric.label}`,
-        metric: metric.key,
-        matcher: describeMatcher(matcher),
-        matched: idx >= 0,
-        column: idx >= 0 ? header[idx] || null : null,
-        closest: idx >= 0 ? [] : closestHeaders(header, matcher),
-        points: 0,
-        dateRange: [],
-      };
-      diagnostics.items.push(diagEntry);
+        note: matcher == null ? "未配置匹配规则" : undefined,
+        extra: {
+          metric: metric.key,
+          stock: name,
+        },
+      });
+
+      const diagEntry = diagnostics.items[diagnostics.items.length - 1] || null;
 
       const data = weekRows.map((item) => {
         const value = idx >= 0 ? item.row?.[idx] : null;
@@ -189,10 +178,14 @@ export function parseGroupListed(
         return [item.iso, parsed];
       });
 
-      diagEntry.points = data.filter(([, v]) => v != null).length;
-      const range = deriveRange([{ data }]);
-      if (Array.isArray(range) && range.length === 2) {
-        diagEntry.dateRange = range;
+      if (diagEntry) {
+        const points = data.filter(([, v]) => v != null).length;
+        const range = deriveRange([{ data }]);
+        diagEntry.extra = {
+          ...(diagEntry.extra || {}),
+          points,
+          dateRange: Array.isArray(range) ? range : [],
+        };
       }
 
       series.push({ name: `${name}${metric.suffix}`, data });
@@ -216,17 +209,21 @@ export function parseGroupListed(
       ? [weekRows[0].iso, weekRows[weekRows.length - 1].iso]
       : [];
 
-  const diagnosticEntries = diagnostics.items.map((item) => ({
-    category: item.category || "series",
-    label: item.label,
-    metric: item.metric || "",
-    matcher: item.matcher,
-    matched: Boolean(item.matched),
-    column: item.column || null,
-    closest: Array.isArray(item.closest) ? item.closest : [],
-    points: typeof item.points === "number" ? item.points : 0,
-    dateRange: Array.isArray(item.dateRange) ? item.dateRange : [],
-  }));
+  const diagnosticEntries = diagnostics.items.map((item) => {
+    const extra = item.extra || {};
+    return {
+      category: item.category || "series",
+      label: item.label,
+      matcher: item.matcher,
+      matched: Boolean(item.matched),
+      column: item.column || null,
+      index: typeof item.index === "number" ? item.index : null,
+      closest: Array.isArray(item.closest) ? item.closest : [],
+      metric: extra.metric || "",
+      points: typeof extra.points === "number" ? extra.points : 0,
+      dateRange: Array.isArray(extra.dateRange) ? extra.dateRange : [],
+    };
+  });
 
   const exportInfo = {
     source_sheet: sheetName,

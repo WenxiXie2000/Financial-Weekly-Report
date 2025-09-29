@@ -73,6 +73,35 @@ function ensureArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function cloneDiagnostics(diag, fallbackSheet) {
+  if (!diag || !Array.isArray(diag.items)) return null;
+  const sheetName =
+    diag.sheet || (fallbackSheet != null ? String(fallbackSheet) : "");
+  const cloned = {
+    sheet: sheetName,
+    items: diag.items.map((item) => {
+      if (!item || typeof item !== "object") {
+        return item;
+      }
+      const clonedEntry = { ...item };
+      if (Array.isArray(item.closest)) {
+        clonedEntry.closest = [...item.closest];
+      }
+      if (item.extra && typeof item.extra === "object") {
+        clonedEntry.extra = { ...item.extra };
+      }
+      return clonedEntry;
+    }),
+  };
+  if (Object.prototype.hasOwnProperty.call(diag, "dateCol")) {
+    cloned.dateCol = diag.dateCol ?? null;
+  }
+  if (Object.prototype.hasOwnProperty.call(diag, "range")) {
+    cloned.range = diag.range ?? null;
+  }
+  return cloned;
+}
+
 function dedupeSortedPairs(pairs) {
   const result = [];
   for (const point of pairs) {
@@ -373,6 +402,7 @@ export function convertSheets(sheetEntries, options = {}) {
   const profiles = options.profiles || SHEET_PROFILES;
   const outputs = new Map();
   const details = [];
+  const diagnosticsList = [];
 
   const openMarketState = {
     monetary: null,
@@ -389,6 +419,32 @@ export function convertSheets(sheetEntries, options = {}) {
     const result = parseSheet(rows, sheetName, { anchor, profiles });
     details.push(result);
     if (!result || !result.payload) return;
+
+    const payload = result.payload;
+    const normalized = result.normalizedSheetName;
+    const pushDiagnostics = (diag) => {
+      const cloned = cloneDiagnostics(diag, normalized);
+      if (cloned) {
+        diagnosticsList.push(cloned);
+      }
+    };
+    if (
+      payload &&
+      typeof payload === "object" &&
+      payload.export_info &&
+      payload.export_info.diagnostics &&
+      Array.isArray(payload.export_info.diagnostics.items)
+    ) {
+      pushDiagnostics(payload.export_info.diagnostics);
+    } else if (
+      payload &&
+      typeof payload === "object" &&
+      payload.diagnostics &&
+      !Array.isArray(payload.diagnostics) &&
+      Array.isArray(payload.diagnostics.items)
+    ) {
+      pushDiagnostics(payload.diagnostics);
+    }
 
     if (result.kind === "open_market_monetary") {
       openMarketState.monetary = result.payload;
@@ -413,13 +469,26 @@ export function convertSheets(sheetEntries, options = {}) {
       openMarketState.shibor
     );
     if (dataset) {
+      if (
+        dataset.export_info &&
+        dataset.export_info.diagnostics &&
+        Array.isArray(dataset.export_info.diagnostics.items)
+      ) {
+        const cloned = cloneDiagnostics(
+          dataset.export_info.diagnostics,
+          dataset.export_info.diagnostics.sheet || "公开市场组合"
+        );
+        if (cloned) {
+          diagnosticsList.push(cloned);
+        }
+      }
       const prev = outputs.get("open_market.json") || null;
       const merged = mergeDatasets(prev, dataset);
       outputs.set("open_market.json", merged);
     }
   }
 
-  return { files: outputs, details };
+  return { files: outputs, details, diagnostics: diagnosticsList };
 }
 
 /**
@@ -477,6 +546,7 @@ export async function runArrayBuffer(source, options = {}) {
   return {
     files: converted.files,
     details: converted.details,
+    diagnostics: converted.diagnostics,
     sheetNames: workbook.SheetNames.slice(),
     rows,
     workbook,

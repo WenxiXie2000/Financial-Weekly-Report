@@ -13,6 +13,8 @@ import {
   normalizeDateValue,
   formatPercent4,
   toISODateSafe,
+  createSheetDiagnostics,
+  trackColumn,
 } from "./common.js";
 
 /**
@@ -48,6 +50,9 @@ export function parseByProfile(
   profile = {},
   { sheetName = "", anchor = new Date() } = {}
 ) {
+  const diagnostics = createSheetDiagnostics(sheetName);
+  diagnostics.range = profile?.rangeLabel || profile?.range || null;
+
   if (!Array.isArray(rows) || rows.length === 0) {
     return {
       meta: {
@@ -58,6 +63,7 @@ export function parseByProfile(
       },
       summary: {},
       series: [],
+      diagnostics: diagnostics.items,
     };
   }
 
@@ -65,15 +71,26 @@ export function parseByProfile(
     ? Math.max(0, profile.headerRow)
     : 0;
   const header = pickHeaderRow(rows, headerRowIndex);
-
+  const track = (matcher, options = {}) => {
+    if (matcher == null) return -1;
+    return trackColumn(diagnostics, header, matcher, options);
+  };
+  const dateIdx = track(profile.dateCol, {
+    category: "date",
+    label: "日期列",
+  });
+  if (dateIdx >= 0 && !diagnostics.dateCol) {
+    diagnostics.dateCol = header[dateIdx] || null;
+  }
   if (Array.isArray(profile.bondGroups) && profile.bondGroups.length) {
     const body = rows.slice(headerRowIndex + 1);
-
     let range = null;
-    if (profile.range === "prevWeekWorkdays") {
+    if (
+      profile.range === "prevWeekOnly" ||
+      profile.range === "prevWeekWorkdays"
+    ) {
       range = getPrevWeekWorkdayRange(anchor);
     }
-
     const inRange = (value) => {
       if (!range) return true;
       if (!value) return false;
@@ -95,11 +112,75 @@ export function parseByProfile(
       const pattern = String(regexTpl || "").replace("{R}", String(rank));
       return new RegExp(pattern);
     };
-
-    const dateIdx = findColIndex(header, profile.dateCol);
     if (dateIdx < 0) {
       throw new Error(`${sheetName || "表"}：未找到日期列`);
     }
+
+    const groupDefs = profile.bondGroups
+      .map((group) => {
+        if (
+          !group ||
+          !Array.isArray(group.rankRange) ||
+          group.rankRange.length < 2
+        ) {
+          return null;
+        }
+        const [rankStart, rankEnd] = group.rankRange;
+        const rankDefs = [];
+        for (let rank = rankStart; rank <= rankEnd; rank += 1) {
+          const issuerIdx = group?.cols?.issuer
+            ? track(expandMatcher(group.cols.issuer, rank), {
+                category: "bond",
+                label: `${group?.label || group.key || "组"} R${rank} 发行人`,
+                extra: { group: group?.key, rank, field: "issuer" },
+              })
+            : -1;
+          const sizeIdx = group?.cols?.size
+            ? track(expandMatcher(group.cols.size, rank), {
+                category: "bond",
+                label: `${group?.label || group.key || "组"} R${rank} 发行规模`,
+                extra: { group: group?.key, rank, field: "size" },
+              })
+            : -1;
+          const termIdx = group?.cols?.term
+            ? track(expandMatcher(group.cols.term, rank), {
+                category: "bond",
+                label: `${group?.label || group.key || "组"} R${rank} 期限`,
+                extra: { group: group?.key, rank, field: "term" },
+              })
+            : -1;
+          const couponIdx = group?.cols?.coupon
+            ? track(expandMatcher(group.cols.coupon, rank), {
+                category: "bond",
+                label: `${group?.label || group.key || "组"} R${rank} 票面利率`,
+                extra: { group: group?.key, rank, field: "coupon" },
+              })
+            : -1;
+
+          if (issuerIdx < 0 && sizeIdx < 0 && termIdx < 0 && couponIdx < 0) {
+            continue;
+          }
+
+          rankDefs.push({
+            rank,
+            issuerIdx,
+            sizeIdx,
+            termIdx,
+            couponIdx,
+          });
+        }
+
+        if (!rankDefs.length) {
+          return null;
+        }
+
+        return {
+          key: group.key,
+          label: group.label || group.key || String(group.key ?? "组"),
+          ranks: rankDefs,
+        };
+      })
+      .filter(Boolean);
 
     const seriesMap = new Map();
     const sumSizeMap = new Map();
@@ -118,38 +199,11 @@ export function parseByProfile(
         continue;
       }
 
-      for (const group of profile.bondGroups) {
-        if (
-          !group ||
-          !Array.isArray(group.rankRange) ||
-          group.rankRange.length < 2
-        )
-          continue;
-        const [rankStart, rankEnd] = group.rankRange;
+      for (const def of groupDefs) {
         const ranks = [];
 
-        for (let rank = rankStart; rank <= rankEnd; rank += 1) {
-          const issuerMatcher = group?.cols?.issuer;
-          const sizeMatcher = group?.cols?.size;
-          const termMatcher = group?.cols?.term;
-          const couponMatcher = group?.cols?.coupon;
-
-          const issuerIdx = issuerMatcher
-            ? findColIndex(header, expandMatcher(issuerMatcher, rank))
-            : -1;
-          const sizeIdx = sizeMatcher
-            ? findColIndex(header, expandMatcher(sizeMatcher, rank))
-            : -1;
-          const termIdx = termMatcher
-            ? findColIndex(header, expandMatcher(termMatcher, rank))
-            : -1;
-          const couponIdx = couponMatcher
-            ? findColIndex(header, expandMatcher(couponMatcher, rank))
-            : -1;
-
-          if (issuerIdx < 0 && sizeIdx < 0 && termIdx < 0 && couponIdx < 0) {
-            continue;
-          }
+        def.ranks.forEach((rankDef) => {
+          const { rank, issuerIdx, sizeIdx, termIdx, couponIdx } = rankDef;
 
           const issuerRaw = issuerIdx >= 0 ? row[issuerIdx] : null;
           const sizeRaw = sizeIdx >= 0 ? row[sizeIdx] : null;
@@ -167,7 +221,7 @@ export function parseByProfile(
             termClean == null &&
             couponNum == null
           ) {
-            continue;
+            return;
           }
 
           ranks.push({
@@ -179,7 +233,7 @@ export function parseByProfile(
             coupon: Number.isFinite(couponNum) ? couponNum : null,
             couponRaw,
           });
-        }
+        });
 
         if (!ranks.length) continue;
 
@@ -187,10 +241,10 @@ export function parseByProfile(
           (acc, item) => acc + (Number.isFinite(item.size) ? item.size : 0),
           0
         );
-        if (!sumSizeMap.has(group.key)) {
-          sumSizeMap.set(group.key, []);
+        if (!sumSizeMap.has(def.key)) {
+          sumSizeMap.set(def.key, []);
         }
-        sumSizeMap.get(group.key).push([isoDate, String(sumSize)]);
+        sumSizeMap.get(def.key).push([isoDate, String(sumSize)]);
 
         const coupons = ranks
           .map((item) => item.coupon)
@@ -198,20 +252,20 @@ export function parseByProfile(
         if (coupons.length) {
           const avg =
             coupons.reduce((acc, val) => acc + val, 0) / coupons.length;
-          if (!seriesMap.has(group.key)) {
-            seriesMap.set(group.key, { label: group.label, data: [] });
+          if (!seriesMap.has(def.key)) {
+            seriesMap.set(def.key, { label: def.label, data: [] });
           }
-          seriesMap.get(group.key).data.push([isoDate, avg.toFixed(4)]);
+          seriesMap.get(def.key).data.push([isoDate, avg.toFixed(4)]);
         }
 
-        const latest = latestBoard[group.key];
+        const latest = latestBoard[def.key];
         const currentDate = new Date(isoDate.replace(/-/g, "/"));
         if (!Number.isNaN(currentDate.getTime())) {
           if (
             !latest ||
             new Date(latest.__date.replace(/-/g, "/")) < currentDate
           ) {
-            latestBoard[group.key] = {
+            latestBoard[def.key] = {
               __date: isoDate,
               rows: ranks.map((item) => {
                 const couponSource = item.couponRaw ?? item.coupon;
@@ -297,12 +351,15 @@ export function parseByProfile(
       sourceSheets: [sheetName],
     };
 
+    exportInfo.diagnostics = diagnostics;
+
     return {
       meta,
       series,
       summary,
       board,
       export_info: exportInfo,
+      diagnostics: diagnostics.items,
     };
   }
 
@@ -312,8 +369,17 @@ export function parseByProfile(
   ) {
     const dateIdxMap = Object.entries(profile.dateCols || {}).reduce(
       (acc, [key, matcher]) => {
-        const idx = findColIndex(header, matcher);
-        if (idx >= 0) acc[key] = idx;
+        const idx = track(matcher, {
+          category: "date",
+          label: `${key} 日期列`,
+          extra: { dateKey: key },
+        });
+        if (idx >= 0) {
+          acc[key] = idx;
+          if (!diagnostics.dateCol) {
+            diagnostics.dateCol = header[idx] || null;
+          }
+        }
         return acc;
       },
       {}
@@ -322,7 +388,13 @@ export function parseByProfile(
     const seriesDefs = profile.seriesByDateKey
       .map((conf) => {
         const dateIdx = conf.dateKey ? dateIdxMap[conf.dateKey] ?? -1 : -1;
-        const valIdx = findColIndex(header, conf.close);
+        const valIdx = track(conf.close, {
+          category: "series",
+          label: `${
+            conf.label || conf.summaryKey || conf.dateKey || "系列"
+          } 收盘`,
+          extra: { key: conf.summaryKey || conf.label || conf.dateKey },
+        });
         if (dateIdx < 0 || valIdx < 0) return null;
         return {
           label: conf.label,
@@ -349,7 +421,9 @@ export function parseByProfile(
         export_info: {
           rows: 0,
           last_updated: new Date().toISOString().slice(0, 19).replace("T", " "),
+          diagnostics,
         },
+        diagnostics: diagnostics.items,
       };
     }
 
@@ -536,6 +610,7 @@ export function parseByProfile(
     if (overallRange) {
       exportInfo.range = overallRange;
     }
+    exportInfo.diagnostics = diagnostics;
 
     const meta = {
       timezone: "Asia/Shanghai",
@@ -560,25 +635,46 @@ export function parseByProfile(
       series,
       summary,
       export_info: exportInfo,
+      diagnostics: diagnostics.items,
     };
   }
-
-  const dateIdx = findColIndex(header, profile.dateCol);
   const allowNullPoints = profile.allowNullPoints !== false;
   const seriesConfigs = Array.isArray(profile.series) ? profile.series : [];
   const seriesCols = seriesConfigs
     .map((conf) => {
       const label = conf?.label || conf?.name || conf?.key;
       if (!label) return null;
-      const closeIdx = conf.close ? findColIndex(header, conf.close) : -1;
+      const baseKey = conf?.key || label;
+      const closeIdx =
+        conf.close != null
+          ? track(conf.close, {
+              category: "series",
+              label: `${label} 收盘`,
+              extra: { key: baseKey, field: "close" },
+            })
+          : -1;
       const chgIdx =
         conf.chgPct != null
-          ? findColIndex(header, conf.chgPct)
+          ? track(conf.chgPct, {
+              category: "series",
+              label: `${label} 涨跌幅(%)`,
+              extra: { key: baseKey, field: "chgPct" },
+            })
           : conf.chg != null
-          ? findColIndex(header, conf.chg)
+          ? track(conf.chg, {
+              category: "series",
+              label: `${label} 涨跌幅`,
+              extra: { key: baseKey, field: "chg" },
+            })
           : -1;
       const dateIdxOverride =
-        conf.dateCol != null ? findColIndex(header, conf.dateCol) : -1;
+        conf.dateCol != null
+          ? track(conf.dateCol, {
+              category: "date",
+              label: `${label} 日期`,
+              extra: { key: baseKey, field: "date" },
+            })
+          : -1;
       return {
         label,
         closeIdx,
@@ -591,7 +687,11 @@ export function parseByProfile(
   const kpiCols = (profile.kpis || [])
     .map((kpi) => ({
       key: kpi.key,
-      idx: findColIndex(header, kpi.col),
+      idx: track(kpi.col, {
+        category: "kpi",
+        label: `KPI ${kpi.key}`,
+        extra: { field: kpi.key },
+      }),
       type: kpi.type || "text",
       allowBlank: Boolean(kpi.allowBlank),
     }))
@@ -601,7 +701,13 @@ export function parseByProfile(
     .map((evt) => ({
       region: evt.region || "default",
       indices: (Array.isArray(evt.cols) ? evt.cols : [])
-        .map((matcher) => findColIndex(header, matcher))
+        .map((matcher, idx) =>
+          track(matcher, {
+            category: "event",
+            label: `${evt.region || "default"} 事件列`,
+            extra: { region: evt.region || "default", index: idx },
+          })
+        )
         .filter((idx) => idx >= 0),
     }))
     .filter((evt) => evt.indices.length);
@@ -941,6 +1047,7 @@ export function parseByProfile(
   if (overallRange) {
     exportInfo.range = overallRange;
   }
+  exportInfo.diagnostics = diagnostics;
   result.export_info = exportInfo;
 
   if (changeSeries.length) {
@@ -949,6 +1056,8 @@ export function parseByProfile(
   if (Object.keys(events).length) {
     result.events = events;
   }
+
+  result.diagnostics = diagnostics.items;
 
   return result;
 }

@@ -95,6 +95,59 @@
       background: rgba(239, 68, 68, 0.1);
       color: #b91c1c;
     }
+    details.diagnostics-panel {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      background: var(--surface);
+      color: var(--text);
+    }
+    details.diagnostics-panel summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--primary);
+      outline: none;
+    }
+    .diagnostics-list {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .diagnostics-sheet {
+      padding-top: 6px;
+      border-top: 1px dashed var(--border);
+    }
+    .diagnostics-sheet:first-of-type {
+      border-top: none;
+      padding-top: 0;
+    }
+    .diagnostics-entry {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .diagnostics-entry strong {
+      color: var(--text);
+    }
+    .diagnostics-chip {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      line-height: 1.4;
+      background: rgba(59, 130, 246, 0.12);
+      color: #2563eb;
+    }
+    .diagnostics-chip.warn {
+      background: rgba(239, 68, 68, 0.12);
+      color: #dc2626;
+    }
+    .diagnostics-more {
+      font-style: italic;
+    }
   </style>
   <script src="https://cdn.staticfile.org/xlsx/0.18.5/xlsx.full.min.js"
           onerror="this.onerror=null;this.src='https://cdn.baomitu.com/xlsx/0.18.5/xlsx.full.min.js'"></script>
@@ -129,7 +182,8 @@
 
   <script type="module">
     import { SHEET_PROFILES } from '../js/sheet-profiles.js';
-  import { prevCompletedWeekRange } from '../js/utils.js';
+    import { prevCompletedWeekRange } from '../js/utils.js';
+    import { convertSheets, getOutputFile } from '../js/xlsx2json/core.js';
 
     function getAnchorFromUrl() {
       try {
@@ -2194,7 +2248,7 @@
       return { summary, series, meta, note, export_info: exportInfo };
     };
 
-    const createResultCard = ({ title, fileName, data }) => {
+  const createResultCard = ({ title, fileName, data, diagnostics }) => {
       const container = document.createElement('article');
       container.className = 'result-item';
 
@@ -2243,6 +2297,91 @@
         note.className = 'alert';
         note.textContent = data.note;
         container.append(note);
+      }
+
+      if (Array.isArray(diagnostics) && diagnostics.length) {
+        const totalIssues = diagnostics.reduce((sum, diag) => {
+          if (!diag || !Array.isArray(diag.items)) return sum;
+          return (
+            sum
+            + diag.items.filter((item) => item && item.matched === false).length
+          );
+        }, 0);
+        const totalEntries = diagnostics.reduce((sum, diag) => {
+          if (!diag || !Array.isArray(diag.items)) return sum;
+          return sum + diag.items.length;
+        }, 0);
+
+        const panel = document.createElement('details');
+        panel.className = 'diagnostics-panel';
+        panel.open = totalIssues > 0 && totalIssues <= 6;
+
+        const summary = document.createElement('summary');
+        summary.textContent = totalIssues
+          ? `诊断提醒：${totalIssues} 项待确认`
+          : `诊断记录：${totalEntries} 项`;
+        panel.append(summary);
+
+        const list = document.createElement('div');
+        list.className = 'diagnostics-list';
+
+        diagnostics.forEach((diag) => {
+          if (!diag || !Array.isArray(diag.items) || !diag.items.length) return;
+
+          const sheetBlock = document.createElement('div');
+          sheetBlock.className = 'diagnostics-sheet';
+
+          const sheetHeader = document.createElement('div');
+          sheetHeader.className = 'diagnostics-entry';
+          sheetHeader.innerHTML = `<strong>${diag.sheet || '未命名工作表'}</strong>`;
+          sheetBlock.append(sheetHeader);
+
+          diag.items.slice(0, 6).forEach((item) => {
+            if (!item) return;
+            const row = document.createElement('div');
+            row.className = 'diagnostics-entry';
+
+            const status = document.createElement('span');
+            const statusClass = item.matched ? 'diagnostics-chip' : 'diagnostics-chip warn';
+            status.className = statusClass;
+            status.textContent = item.matched ? '已匹配' : '待确认';
+            row.append(status);
+
+            const label = document.createElement('span');
+            label.textContent = item.label || item.category || '未命名字段';
+            row.append(label);
+
+            if (item.column) {
+              const column = document.createElement('span');
+              column.innerHTML = `列：<code>${item.column}</code>`;
+              row.append(column);
+            } else if (typeof item.index === 'number' && item.index >= 0) {
+              const column = document.createElement('span');
+              column.textContent = `第 ${item.index + 1} 列`;
+              row.append(column);
+            }
+
+            if (item.note) {
+              const note = document.createElement('span');
+              note.textContent = item.note;
+              row.append(note);
+            }
+
+            sheetBlock.append(row);
+          });
+
+          if (diag.items.length > 6) {
+            const more = document.createElement('div');
+            more.className = 'diagnostics-entry diagnostics-more';
+            more.textContent = `……还有 ${diag.items.length - 6} 条记录`;
+            sheetBlock.append(more);
+          }
+
+          list.append(sheetBlock);
+        });
+
+        panel.append(list);
+        container.append(panel);
       }
 
       const preview = document.createElement('textarea');
@@ -2296,316 +2435,98 @@
 
       const arrayBuffer = await file.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const outputsByFile = new Map();
-  const ctx = {};
+      const sheetEntries = workbook.SheetNames.map((sheetName) => {
+        const worksheet = workbook.Sheets?.[sheetName];
+        if (!worksheet) return [sheetName, []];
+        const rows = XLSX.utils.sheet_to_json(worksheet, {
+          header: 1,
+          raw: true,
+          defval: null,
+        });
+        return [sheetName, rows];
+      });
 
-      const mergeOutput = (fileName, partialJson, sheetName) => {
-        if (!partialJson) return;
-        const cloned = JSON.parse(JSON.stringify(partialJson));
-        cloned.meta = cloned.meta || {};
-        const sourceSet = new Set();
-        if (Array.isArray(cloned.meta.sourceSheets)) {
-          cloned.meta.sourceSheets.forEach((s) => s && sourceSet.add(s));
-        }
-        if (cloned.meta.sourceSheet) {
-          sourceSet.add(cloned.meta.sourceSheet);
-        }
-        if (sheetName) {
-          sourceSet.add(sheetName);
-        }
-        cloned.meta.sourceSheets = Array.from(sourceSet);
-        if (!cloned.export_info) {
-          cloned.export_info = {};
-        }
+      const coreResult = convertSheets(sheetEntries, {
+        anchor: ANCHOR,
+        profiles: SHEET_PROFILES,
+      });
 
-        if (!outputsByFile.has(fileName)) {
-          outputsByFile.set(fileName, cloned);
-          return;
+      const outputsByFile = coreResult.files instanceof Map
+        ? coreResult.files
+        : new Map(Object.entries(coreResult.files || {}));
+
+      const diagnosticsByFile = new Map();
+      const diagMap = new Map();
+
+      (Array.isArray(coreResult.diagnostics) ? coreResult.diagnostics : []).forEach((diag) => {
+        if (!diag || !Array.isArray(diag.items)) return;
+        const key = String(diag.sheet || '').trim();
+        if (!key) return;
+        if (!diagMap.has(key)) {
+          diagMap.set(key, {
+            ...diag,
+            items: diag.items.map((item) => (
+              item && typeof item === 'object'
+                ? { ...item, closest: Array.isArray(item.closest) ? [...item.closest] : item.closest }
+                : item
+            )),
+          });
+        } else {
+          const existing = diagMap.get(key);
+          existing.items = existing.items.concat(
+            diag.items.map((item) => (
+              item && typeof item === 'object'
+                ? { ...item, closest: Array.isArray(item.closest) ? [...item.closest] : item.closest }
+                : item
+            )),
+          );
         }
+      });
 
-        const prev = outputsByFile.get(fileName);
-        prev.meta = prev.meta || {};
-        const prevSources = new Set(Array.isArray(prev.meta.sourceSheets) ? prev.meta.sourceSheets : []);
-        cloned.meta.sourceSheets.forEach((s) => s && prevSources.add(s));
-        prev.meta.sourceSheets = Array.from(prevSources);
-        prev.meta.unit = { ...(cloned.meta.unit || {}), ...(prev.meta.unit || {}) };
-
-        prev.series = Array.isArray(prev.series) ? prev.series : [];
-        const seriesMap = new Map(prev.series.map((serie) => [serie.name, serie]));
-        (cloned.series || []).forEach((serie) => {
-          if (!serie || !serie.name) return;
-          const incoming = Array.isArray(serie.data) ? serie.data : [];
-          if (seriesMap.has(serie.name)) {
-            const target = seriesMap.get(serie.name);
-            const merged = [
-              ...((Array.isArray(target.data) ? target.data : [])),
-              ...incoming,
-            ].sort((a, b) => new Date(a[0]) - new Date(b[0]));
-            const deduped = [];
-            merged.forEach((point) => {
-              if (!Array.isArray(point) || point.length < 2) return;
-              const last = deduped[deduped.length - 1];
-              if (last && last[0] === point[0]) {
-                deduped[deduped.length - 1] = point;
-              } else {
-                deduped.push(point);
-              }
-            });
-            target.data = deduped;
-          } else {
-            const cloneSerie = JSON.parse(JSON.stringify(serie));
-            prev.series.push(cloneSerie);
-            seriesMap.set(cloneSerie.name, cloneSerie);
+      (Array.isArray(coreResult.details) ? coreResult.details : []).forEach((detail) => {
+        if (!detail || !detail.outputFile) return;
+        const candidates = [
+          detail.normalizedSheetName,
+          detail.sheetName,
+        ]
+          .map((name) => (name == null ? '' : String(name)))
+          .filter(Boolean);
+        if (!candidates.length) return;
+        const bucket = diagnosticsByFile.get(detail.outputFile) || [];
+        let appended = false;
+        candidates.forEach((name) => {
+          const diag = diagMap.get(name);
+          if (diag && !bucket.includes(diag)) {
+            bucket.push(diag);
+            appended = true;
           }
         });
-
-        if (Array.isArray(cloned.changeSeries) && cloned.changeSeries.length) {
-          prev.changeSeries = Array.isArray(prev.changeSeries) ? prev.changeSeries : [];
-          const changeMap = new Map(prev.changeSeries.map((serie) => [serie.name, serie]));
-          cloned.changeSeries.forEach((serie) => {
-            if (!serie || !serie.name) return;
-            const incoming = Array.isArray(serie.data) ? serie.data : [];
-            if (changeMap.has(serie.name)) {
-              const target = changeMap.get(serie.name);
-              const merged = [
-                ...((Array.isArray(target.data) ? target.data : [])),
-                ...incoming,
-              ].sort((a, b) => new Date(a[0]) - new Date(b[0]));
-              const deduped = [];
-              merged.forEach((point) => {
-                if (!Array.isArray(point) || point.length < 2) return;
-                const last = deduped[deduped.length - 1];
-                if (last && last[0] === point[0]) {
-                  deduped[deduped.length - 1] = point;
-                } else {
-                  deduped.push(point);
-                }
-              });
-              target.data = deduped;
-            } else {
-              const cloneSerie = JSON.parse(JSON.stringify(serie));
-              prev.changeSeries.push(cloneSerie);
-              changeMap.set(cloneSerie.name, cloneSerie);
-            }
-          });
+        if (appended) {
+          diagnosticsByFile.set(detail.outputFile, bucket);
         }
+      });
 
-        if (cloned.events) {
-          prev.events = prev.events || {};
-          Object.entries(cloned.events).forEach(([region, entries]) => {
-            if (!Array.isArray(entries) || !entries.length) return;
-            if (!Array.isArray(prev.events[region])) {
-              prev.events[region] = [];
-            }
-            prev.events[region] = prev.events[region].concat(entries);
-          });
+      diagMap.forEach((diag, sheetName) => {
+        let fileName = getOutputFile(sheetName);
+        if (!fileName && /公开市场/.test(sheetName)) {
+          fileName = 'open_market.json';
         }
-
-        prev.summary = Object.assign({}, prev.summary || {}, cloned.summary || {});
-
-        prev.export_info = prev.export_info || {};
-        if (cloned.export_info) {
-          const r1 = prev.export_info.range;
-          const r2 = cloned.export_info.range;
-          if (r1 || r2) {
-            const all = [];
-            if (Array.isArray(r1)) {
-              if (r1[0]) all.push(r1[0]);
-              if (r1[1]) all.push(r1[1]);
-            }
-            if (Array.isArray(r2)) {
-              if (r2[0]) all.push(r2[0]);
-              if (r2[1]) all.push(r2[1]);
-            }
-            all.sort((a, b) => new Date(a) - new Date(b));
-            if (all.length) {
-              prev.export_info.range = [all[0], all[all.length - 1]];
-            }
-          }
-
-          if (cloned.export_info.last_updated) {
-            const normalizeTime = (value) => {
-              if (!value) return null;
-              const formatted = value.includes('T') ? value : value.replace(' ', 'T');
-              const parsed = new Date(formatted);
-              return Number.isNaN(parsed.getTime()) ? null : parsed;
-            };
-            const prevTime = normalizeTime(prev.export_info.last_updated);
-            const nextTime = normalizeTime(cloned.export_info.last_updated);
-            if (!prevTime || (nextTime && nextTime > prevTime)) {
-              prev.export_info.last_updated = cloned.export_info.last_updated;
-            }
-          }
-
-          if (typeof cloned.export_info.rows === 'number') {
-            const prevRows = typeof prev.export_info.rows === 'number' ? prev.export_info.rows : 0;
-            prev.export_info.rows = prevRows + cloned.export_info.rows;
-          }
+        if (!fileName) return;
+        const bucket = diagnosticsByFile.get(fileName) || [];
+        if (!bucket.includes(diag)) {
+          bucket.push(diag);
+          diagnosticsByFile.set(fileName, bucket);
         }
-
-        outputsByFile.set(fileName, prev);
-      };
-
-  for (const sheetName of workbook.SheetNames) {
-        const sheet = workbook.Sheets[sheetName];
-        if (!sheet) continue;
-
-        if (sheetName === '公开市场货币') {
-          const profile = PROFILES['公开市场货币'] || {};
-          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
-          const headerRowIndex = Number.isInteger(profile.headerRow)
-            ? Math.max(0, profile.headerRow)
-            : 0;
-          const header = rows[headerRowIndex] || [];
-          const body = rows.slice(headerRowIndex + 1);
-          const dateIdx = findColIndex(header, profile.dateCol);
-
-          const summary = {
-            r7d_amt_yi: null,
-            r14d_amt_yi: null,
-            mlf_amt_yi: null,
-            tcd_amt_yi: null,
-            slf_amt_yi: null,
-            slo_amt_yi: null,
-            repo_amt_yi: null,
-          };
-          const diagnostics = [];
-          const rateSeries = [];
-          let table = [];
-
-          const summaryKeyMap = {
-            rr7d: 'r7d_amt_yi',
-            rr14d: 'r14d_amt_yi',
-            mlf: 'mlf_amt_yi',
-            tcd: 'tcd_amt_yi',
-            slf: 'slf_amt_yi',
-            slo: 'slo_amt_yi',
-            repo: 'repo_amt_yi',
-          };
-
-          let rangeWindow = [];
-
-          if (dateIdx < 0) {
-            diagnostics.push({
-              field: 'date',
-              label: '日期',
-              column: null,
-              hit: false,
-              note: '未找到日期列',
-            });
-          } else {
-            const weekRows = computePrevWeekWorkdays(body, dateIdx, ANCHOR);
-            const latestEntry = weekRows.length
-              ? weekRows.reduce((prev, cur) => (cur.date > prev.date ? cur : prev))
-              : null;
-
-            const { mon, fri } = prevCompletedWeekRange(ANCHOR);
-            if (
-              mon instanceof Date &&
-              !Number.isNaN(mon.getTime()) &&
-              fri instanceof Date &&
-              !Number.isNaN(fri.getTime())
-            ) {
-              rangeWindow = [fmtISO(mon), fmtISO(fri)];
-            }
-
-            if (latestEntry && latestEntry.row) {
-              const latestRow = latestEntry.row;
-              const iso = latestEntry.date instanceof Date ? fmtISO(latestEntry.date) : '';
-
-              table = [
-                header.reduce((acc, cell, idx) => {
-                  const key = cell != null && String(cell).trim()
-                    ? String(cell).trim()
-                    : `COL_${idx + 1}`;
-                  acc[key] = latestRow[idx] ?? null;
-                  return acc;
-                }, {}),
-              ];
-
-              const items = Array.isArray(profile.items) ? profile.items : [];
-              items.forEach((item) => {
-                if (!item || !item.key) return;
-                const summaryKey = summaryKeyMap[item.key];
-                const baseLabel = item.label || item.key;
-
-                if (summaryKey && item.cols?.inj) {
-                  const amountIdx = findColIndex(header, item.cols.inj);
-                  const amountVal = amountIdx >= 0 ? parseNumberLike(latestRow[amountIdx]) : null;
-                  if (amountVal != null) {
-                    summary[summaryKey] = amountVal;
-                  }
-                  diagnostics.push({
-                    field: summaryKey,
-                    label: `${baseLabel} 投放量(亿)`,
-                    column: amountIdx >= 0 ? header[amountIdx] ?? null : null,
-                    hit: amountIdx >= 0,
-                    value: amountVal,
-                  });
-                }
-
-                if (item.cols?.rate) {
-                  const rateIdx = findColIndex(header, item.cols.rate);
-                  const rawRate = rateIdx >= 0 ? toNumberOrNull(latestRow[rateIdx]) : null;
-                  const rateVal = rawRate != null ? Number(rawRate.toFixed(4)) : null;
-                  const seriesName = `${baseLabel}利率(%)`;
-                  if (iso && rateVal != null) {
-                    rateSeries.push({ name: seriesName, data: [[iso, rateVal]] });
-                  }
-                  diagnostics.push({
-                    field: `rate:${seriesName}`,
-                    label: seriesName,
-                    column: rateIdx >= 0 ? header[rateIdx] ?? null : null,
-                    hit: rateIdx >= 0,
-                    value: rateVal,
-                  });
-                }
-              });
-            }
-          }
-
-          ctx.openMarketOm = {
-            summary,
-            diagnostics,
-            rateSeries,
-            table,
-            rangeWindow,
-          };
-          continue;
-        }
-
-        if (sheetName === 'Shibor利率') {
-          const profile = PROFILES['Shibor利率'] || {};
-          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
-          const result = convertShibor(rows, profile);
-
-          ctx.openMarketShibor = {
-            series: Array.isArray(result?.series) ? result.series : [],
-            diagnostics: result?.export_info?.diagnostics?.shibor || [],
-            range: Array.isArray(result?.export_info?.range) ? result.export_info.range : undefined,
-            rows: typeof result?.export_info?.rows === 'number' ? result.export_info.rows : undefined,
-          };
-          continue;
-        }
-
-        const fileName = SHEET_MAPPING[sheetName];
-        if (!fileName) continue;
-        const payload = convertWorksheet(sheetName, sheet);
-        mergeOutput(fileName, payload, sheetName);
-      }
-
-      if (ctx.openMarketOm || ctx.openMarketShibor) {
-        const payload = buildOpenMarketMinimal(ctx.openMarketOm, ctx.openMarketShibor);
-        if (payload) {
-          mergeOutput('open_market.json', payload, null);
-        }
-      }
+      });
 
       const aggregated = Array.from(outputsByFile.entries()).map(([fileName, data]) => {
         const sources = Array.isArray(data?.meta?.sourceSheets) ? data.meta.sourceSheets : [];
         const title = sources.length ? sources.join(' + ') : data?.meta?.sourceSheet || fileName;
-        return { title, fileName, data };
+        const diagnostics = diagnosticsByFile.get(fileName) || [];
+        return { title, fileName, data, diagnostics };
       });
+
+      aggregated.sort((a, b) => a.fileName.localeCompare(b.fileName));
 
       renderResults(aggregated);
     };
