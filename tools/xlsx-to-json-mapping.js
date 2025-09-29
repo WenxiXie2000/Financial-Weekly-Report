@@ -1,5 +1,5 @@
-import { getOutputFile } from "../js/xlsx2json/core.js";
-import { cloneDiagnostics } from "./xlsx-to-json-utils.js";
+import { getOutputFile } from '../js/x2j/core.js';
+import { cloneDiagnostics } from './xlsx-to-json-utils.js';
 
 export const OPEN_MARKET_PATTERN = /公开市场/;
 
@@ -7,14 +7,12 @@ export function buildDiagnosticsMap(coreResult) {
   const diagnosticsBySheet = new Map();
   const buckets = new Map();
 
-  const rawDiagnostics = Array.isArray(coreResult?.diagnostics)
-    ? coreResult.diagnostics
-    : [];
+  const rawDiagnostics = Array.isArray(coreResult?.diagnostics) ? coreResult.diagnostics : [];
 
   rawDiagnostics.forEach((diag) => {
     const cloned = cloneDiagnostics(diag);
     if (!cloned) return;
-    const key = String(cloned.sheet || "").trim();
+    const key = String(cloned.sheet || '').trim();
     if (!key) return;
     if (diagnosticsBySheet.has(key)) {
       diagnosticsBySheet.get(key).items.push(...cloned.items);
@@ -28,7 +26,7 @@ export function buildDiagnosticsMap(coreResult) {
   details.forEach((detail) => {
     if (!detail || !detail.outputFile) return;
     const candidates = [detail.normalizedSheetName, detail.sheetName]
-      .map((name) => (name == null ? "" : String(name).trim()))
+      .map((name) => (name == null ? '' : String(name).trim()))
       .filter(Boolean);
     if (!candidates.length) return;
 
@@ -51,7 +49,7 @@ export function buildDiagnosticsMap(coreResult) {
   diagnosticsBySheet.forEach((diag, sheetName) => {
     let fileName = getOutputFile(sheetName);
     if (!fileName && OPEN_MARKET_PATTERN.test(sheetName)) {
-      fileName = "open_market.json";
+      fileName = 'open_market.json';
     }
     if (!fileName) return;
     const bucket = buckets.get(fileName) || [];

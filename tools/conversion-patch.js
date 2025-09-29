@@ -1,17 +1,17 @@
 // ===== 1) 绑定现有按钮和文件选择（替换成你页面上的真实选择器）=====
-const btnConvert = document.querySelector("#btn-convert"); // 你的“开始转换”按钮
-const inpFile = document.querySelector("#xlsxFile"); // <input type="file" id="xlsxFile" accept=".xlsx,.xls">
-const logEl = document.querySelector("#convertLog"); // 可选：日志容器 <div id="convertLog"></div>
+const btnConvert = document.querySelector('#btn-convert'); // 你的“开始转换”按钮
+const inpFile = document.querySelector('#xlsxFile'); // <input type="file" id="xlsxFile" accept=".xlsx,.xls">
+const logEl = document.querySelector('#convertLog'); // 可选：日志容器 <div id="convertLog"></div>
 
 function getAnchorFromUrl() {
   try {
     const url = new URL(window.location.href);
-    const raw = url.searchParams.get("anchor");
+    const raw = url.searchParams.get('anchor');
     if (!raw) return null;
     const candidate = new Date(`${raw}T00:00:00`);
     return Number.isNaN(candidate.getTime()) ? null : candidate;
   } catch (err) {
-    console.warn("[convert][anchor] 解析失败", err);
+    console.warn('[convert][anchor] 解析失败', err);
     return null;
   }
 }
@@ -28,13 +28,10 @@ const conversionAnchor = (() => {
   return now;
 })();
 
-function logInfo(msg, cls = "") {
-  console[cls === "err" ? "error" : cls === "warn" ? "warn" : "log"](
-    "[convert]",
-    msg
-  );
+function logInfo(msg, cls = '') {
+  console[cls === 'err' ? 'error' : cls === 'warn' ? 'warn' : 'log']('[convert]', msg);
   if (!logEl) return;
-  const d = document.createElement("div");
+  const d = document.createElement('div');
   if (cls) d.className = cls;
   d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
   logEl.appendChild(d);
@@ -47,11 +44,11 @@ function toastErr(msg) {
 }
 
 if (!btnConvert || !inpFile) {
-  logInfo("找不到转换按钮或文件选择器，请检查选择器。", "err");
+  logInfo('找不到转换按钮或文件选择器，请检查选择器。', 'err');
 }
 
 // ===== 2) 通用小工具（缺失值、表头标准化、时间等）=====
-const utils = window.xlsx2jsonUtils || {};
+const utils = window.x2jUtils || window.xlsx2jsonUtils || {};
 const {
   normalizeHeaderLabel,
   findColIndex,
@@ -62,11 +59,8 @@ const {
   toPctString4OrNull,
 } = utils;
 
-if (
-  typeof normalizeHeaderLabel !== "function" ||
-  typeof findColIndex !== "function"
-) {
-  console.error("[convert] xlsx2json utils 未加载，无法继续");
+if (typeof normalizeHeaderLabel !== 'function' || typeof findColIndex !== 'function') {
+  console.error('[convert] x2j utils 未加载，无法继续');
 }
 
 // ===== 3) 确保全局有 SHEET_PROFILES 和 window.parsers =====
@@ -76,56 +70,53 @@ if (
 window.parsers = window.parsers || {};
 // TODO: 如果某些解析函数还没注册，先补上空壳，避免运行期报错：
 const requiredSheets = [
-  "国内股市",
-  "全球股市",
-  "人民币汇率",
-  "公开市场货币",
-  "Shibor利率",
-  "债券利率",
-  "中票利率",
-  "国能上市公司",
-  "财经资讯",
+  '国内股市',
+  '全球股市',
+  '人民币汇率',
+  '公开市场货币',
+  'Shibor利率',
+  '债券利率',
+  '中票利率',
+  '国能上市公司',
+  '财经资讯',
 ];
 for (const sn of requiredSheets) {
   if (!window.parsers[sn]) {
     window.parsers[sn] = (rows, ctx) => {
-      logInfo(
-        `(占位) 未实现解析：${sn}。请补齐 window.parsers['${sn}'] 实现。`,
-        "warn"
-      );
+      logInfo(`(占位) 未实现解析：${sn}。请补齐 window.parsers['${sn}'] 实现。`, 'warn');
       return null;
     };
   }
 }
 
 // ===== 4) 绑定点击：读取→解析→打包下载 =====
-btnConvert?.addEventListener("click", async () => {
+btnConvert?.addEventListener('click', async () => {
   try {
     if (!window.XLSX) {
-      alert("XLSX 未加载");
+      alert('XLSX 未加载');
       return;
     }
-    if (typeof window.__parseCnyFxMinimal !== "function") {
-      alert("人民币汇率解析器未就绪");
+    if (typeof window.__parseCnyFxMinimal !== 'function') {
+      alert('人民币汇率解析器未就绪');
       return;
     }
 
     const f = inpFile?.files?.[0];
     if (!f) {
-      alert("请选择 Excel 文件");
+      alert('请选择 Excel 文件');
       return;
     }
 
     logInfo(`开始读取：${f.name}`);
     const buf = await f.arrayBuffer();
-    const wb = XLSX.read(buf, { type: "array" });
-    logInfo(`读取工作表：${wb.SheetNames.join(", ")}`);
+    const wb = XLSX.read(buf, { type: 'array' });
+    logInfo(`读取工作表：${wb.SheetNames.join(', ')}`);
 
     const results = [];
 
-    const fxSheetName = wb.SheetNames.find((n) => n === "人民币汇率");
+    const fxSheetName = wb.SheetNames.find((n) => n === '人民币汇率');
     if (!fxSheetName) {
-      alert("工作簿中找不到 “人民币汇率” 这张表");
+      alert('工作簿中找不到 “人民币汇率” 这张表');
       return;
     }
 
@@ -138,14 +129,14 @@ btnConvert?.addEventListener("click", async () => {
 
     const resFx = window.__parseCnyFxMinimal(fxRows, conversionAnchor);
     if (!resFx || !resFx.filename || !resFx.json) {
-      alert("人民币汇率解析失败");
+      alert('人民币汇率解析失败');
       return;
     }
     results.push(resFx);
 
-    if (typeof window.__parseOpenMarketShiborMinimal === "function") {
-      const omSheetName = wb.SheetNames.find((n) => n === "公开市场货币");
-      const shiborSheetName = wb.SheetNames.find((n) => n === "Shibor利率");
+    if (typeof window.__parseOpenMarketShiborMinimal === 'function') {
+      const omSheetName = wb.SheetNames.find((n) => n === '公开市场货币');
+      const shiborSheetName = wb.SheetNames.find((n) => n === 'Shibor利率');
       if (omSheetName && shiborSheetName) {
         const omSheet = wb.Sheets[omSheetName];
         const shiborSheet = wb.Sheets[shiborSheetName];
@@ -167,32 +158,32 @@ btnConvert?.addEventListener("click", async () => {
           );
           if (resOpen && resOpen.filename && resOpen.json) {
             results.push(resOpen);
-            logInfo("已解析 公开市场货币 + Shibor", "info");
+            logInfo('已解析 公开市场货币 + Shibor', 'info');
           } else {
-            logInfo("公开市场货币 + Shibor 解析返回空结果", "warn");
+            logInfo('公开市场货币 + Shibor 解析返回空结果', 'warn');
           }
         } catch (err) {
           console.error(err);
-          logInfo("公开市场货币 + Shibor 解析失败", "err");
+          logInfo('公开市场货币 + Shibor 解析失败', 'err');
         }
       } else {
-        logInfo("未找到公开市场货币或 Shibor利率工作表，跳过最小解析", "warn");
+        logInfo('未找到公开市场货币或 Shibor利率工作表，跳过最小解析', 'warn');
       }
     } else {
-      logInfo("最小解析函数 __parseOpenMarketShiborMinimal 不存在", "warn");
+      logInfo('最小解析函数 __parseOpenMarketShiborMinimal 不存在', 'warn');
     }
 
     if (!results.length) {
-      alert("没有可导出的结果");
+      alert('没有可导出的结果');
       return;
     }
 
     if (!window.JSZip) {
       results.forEach((res) => {
         const blob = new Blob([JSON.stringify(res.json, null, 2)], {
-          type: "application/json",
+          type: 'application/json',
         });
-        const aSingle = document.createElement("a");
+        const aSingle = document.createElement('a');
         aSingle.href = URL.createObjectURL(blob);
         aSingle.download = res.filename;
         aSingle.click();
@@ -203,24 +194,20 @@ btnConvert?.addEventListener("click", async () => {
     }
 
     const zip = new JSZip();
-    const folder = zip.folder("data/values-only");
+    const folder = zip.folder('data/values-only');
     results.forEach((res) => {
       folder.file(res.filename, JSON.stringify(res.json, null, 2));
     });
-    const blob = await zip.generateAsync({ type: "blob" });
+    const blob = await zip.generateAsync({ type: 'blob' });
 
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = "values-only.zip";
+    a.download = 'values-only.zip';
     a.click();
     URL.revokeObjectURL(a.href);
-    alert(
-      `已下载 values-only.zip（含 ${results
-        .map((item) => item.filename)
-        .join(", ")}）`
-    );
+    alert(`已下载 values-only.zip（含 ${results.map((item) => item.filename).join(', ')}）`);
   } catch (e) {
     console.error(e);
-    alert("转换失败，请查看控制台日志");
+    alert('转换失败，请查看控制台日志');
   }
 });

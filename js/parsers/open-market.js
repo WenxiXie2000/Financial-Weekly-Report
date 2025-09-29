@@ -7,7 +7,7 @@ import {
   findColIndex,
   missingToNull,
   toNumberOrNull,
-} from "../xlsx2json/utils.js";
+} from '../x2j/utils.js';
 
 export {
   normalizeHeaderLabel,
@@ -15,26 +15,26 @@ export {
   findColIndex,
   missingToNull,
   toNumberOrNull,
-} from "../xlsx2json/utils.js";
+} from '../x2j/utils.js';
 
 const RATE_DEFS = [
-  { label: "逆回购7D利率(%)", matcher: /逆回购7D利率$/ },
-  { label: "逆回购14D利率(%)", matcher: /逆回购14D利率$/ },
-  { label: "MLF利率(%)", matcher: /MLF利率$/ },
-  { label: "国库定存利率(%)", matcher: /国库定存利率$/ },
-  { label: "SLF利率(%)", matcher: /SLF利率$/ },
-  { label: "SLO利率(%)", matcher: /SLO利率$/ },
-  { label: "正回购利率(%)", matcher: /正回购利率$/ },
+  { label: '逆回购7D利率(%)', matcher: /逆回购7D利率$/ },
+  { label: '逆回购14D利率(%)', matcher: /逆回购14D利率$/ },
+  { label: 'MLF利率(%)', matcher: /MLF利率$/ },
+  { label: '国库定存利率(%)', matcher: /国库定存利率$/ },
+  { label: 'SLF利率(%)', matcher: /SLF利率$/ },
+  { label: 'SLO利率(%)', matcher: /SLO利率$/ },
+  { label: '正回购利率(%)', matcher: /正回购利率$/ },
 ];
 
 const SUMMARY_DEFS = [
-  { key: "r7d_amt_yi", matcher: /逆回购7D投放量$/ },
-  { key: "r14d_amt_yi", matcher: /逆回购14D投放量$/ },
-  { key: "mlf_amt_yi", matcher: /MLF投放量$/ },
-  { key: "tcd_amt_yi", matcher: /国库定存投放量$/ },
-  { key: "slf_amt_yi", matcher: /SLF投放量$/ },
-  { key: "slo_amt_yi", matcher: /SLO投放量$/ },
-  { key: "repo_amt_yi", matcher: /正回购投放量$/ },
+  { key: 'r7d_amt_yi', matcher: /逆回购7D投放量$/ },
+  { key: 'r14d_amt_yi', matcher: /逆回购14D投放量$/ },
+  { key: 'mlf_amt_yi', matcher: /MLF投放量$/ },
+  { key: 'tcd_amt_yi', matcher: /国库定存投放量$/ },
+  { key: 'slf_amt_yi', matcher: /SLF投放量$/ },
+  { key: 'slo_amt_yi', matcher: /SLO投放量$/ },
+  { key: 'repo_amt_yi', matcher: /正回购投放量$/ },
 ];
 
 const SHIBOR_BLOCKS = [
@@ -42,24 +42,24 @@ const SHIBOR_BLOCKS = [
     dateCol: /^SHIBOR隔夜日期（?90）?$/,
     days: 90,
     items: [
-      { label: "SHIBOR 隔夜(%)", matcher: /^SHIBOR隔夜利率$/ },
-      { label: "SHIBOR 1周(%)", matcher: /^SHIBOR1周利率$/ },
-      { label: "SHIBOR 2周(%)", matcher: /^SHIBOR2周利率$/ },
+      { label: 'SHIBOR 隔夜(%)', matcher: /^SHIBOR隔夜利率$/ },
+      { label: 'SHIBOR 1周(%)', matcher: /^SHIBOR1周利率$/ },
+      { label: 'SHIBOR 2周(%)', matcher: /^SHIBOR2周利率$/ },
     ],
   },
   {
     dateCol: /^SHIBOR3月日期（?180）?$/,
     days: 180,
     items: [
-      { label: "SHIBOR 3月(%)", matcher: /^SHIBOR3月利率$/ },
-      { label: "SHIBOR 6月(%)", matcher: /^SHIBOR6月利率$/ },
-      { label: "SHIBOR 9月(%)", matcher: /^SHIBOR9月利率$/ },
+      { label: 'SHIBOR 3月(%)', matcher: /^SHIBOR3月利率$/ },
+      { label: 'SHIBOR 6月(%)', matcher: /^SHIBOR6月利率$/ },
+      { label: 'SHIBOR 9月(%)', matcher: /^SHIBOR9月利率$/ },
     ],
   },
   {
     dateCol: /^SHIBOR1年日期（?365）?$/,
     days: 365,
-    items: [{ label: "SHIBOR 1年(%)", matcher: /^SHIBOR一年利率$/ }],
+    items: [{ label: 'SHIBOR 1年(%)', matcher: /^SHIBOR一年利率$/ }],
   },
 ];
 
@@ -70,14 +70,12 @@ export function parseOpenMarketMinimal(rows, { now = new Date() } = {}) {
 
   const dateIdx = findColIndex(headerIndex, /^日期$/);
   if (dateIdx < 0) {
-    throw new Error("公开市场货币：未找到 日期 列");
+    throw new Error('公开市场货币：未找到 日期 列');
   }
 
   const enriched = body
     .map((row) => ({ row, date: toDateSafe(row?.[dateIdx]) }))
-    .filter(
-      (item) => item.date && !Number.isNaN(item.date) && isWeekday(item.date)
-    );
+    .filter((item) => item.date && !Number.isNaN(item.date) && isWeekday(item.date));
 
   const { mon, fri } = prevCompletedWeekRange(now);
 
@@ -90,7 +88,7 @@ export function parseOpenMarketMinimal(rows, { now = new Date() } = {}) {
       series: [],
       summary: {},
       table: [],
-      diag: [{ note: "no rows in week" }],
+      diag: [{ note: 'no rows in week' }],
     };
   }
 
@@ -123,10 +121,7 @@ export function parseOpenMarketMinimal(rows, { now = new Date() } = {}) {
 
   const tableRow = {};
   header.forEach((cell, idx) => {
-    const key =
-      cell != null && String(cell).trim()
-        ? String(cell).trim()
-        : `COL_${idx + 1}`;
+    const key = cell != null && String(cell).trim() ? String(cell).trim() : `COL_${idx + 1}`;
     tableRow[key] = lastRow?.[idx] ?? null;
   });
 
@@ -189,11 +184,7 @@ export function parseShiborMinimal(rows, { now = new Date() } = {}) {
   return { series, diag };
 }
 
-export function buildOpenMarketDataset(
-  openRows,
-  shiborRows,
-  { now = new Date() } = {}
-) {
+export function buildOpenMarketDataset(openRows, shiborRows, { now = new Date() } = {}) {
   const open = parseOpenMarketMinimal(openRows, { now });
   const shibor = parseShiborMinimal(shiborRows, { now });
 
@@ -202,8 +193,8 @@ export function buildOpenMarketDataset(
     summary: open.summary,
     table: open.table,
     export_info: {
-      source_sheet: "公开市场货币 + Shibor利率",
-      range: "prevCompletedWeek",
+      source_sheet: '公开市场货币 + Shibor利率',
+      range: 'prevCompletedWeek',
       diag: {
         om: open.diag,
         shibor: shibor.diag,
@@ -222,19 +213,15 @@ export function buildOpenMarketDataset(
 
 export async function convertOpenMarketWorkbook(
   workbook,
-  {
-    openSheetName = "公开市场货币",
-    shiborSheetName = "Shibor利率",
-    now = new Date(),
-  } = {}
+  { openSheetName = '公开市场货币', shiborSheetName = 'Shibor利率', now = new Date() } = {}
 ) {
   if (!workbook || !Array.isArray(workbook.SheetNames)) {
-    throw new Error("无效的工作簿对象");
+    throw new Error('无效的工作簿对象');
   }
 
   const XLSXLib = globalThis.XLSX;
   if (!XLSXLib || !XLSXLib.utils) {
-    throw new Error("XLSX 未加载");
+    throw new Error('XLSX 未加载');
   }
 
   const sheetToRows = (name) => {
@@ -252,25 +239,23 @@ export async function convertOpenMarketWorkbook(
   const shiborRows = sheetToRows(shiborSheetName);
 
   if (!openRows && !shiborRows) {
-    throw new Error("未找到公开市场货币或 Shibor利率工作表");
+    throw new Error('未找到公开市场货币或 Shibor利率工作表');
   }
 
   return buildOpenMarketDataset(openRows ?? [[]], shiborRows ?? [[]], { now });
 }
 
 export function setupOpenMarketConversion({
-  buttonSelector = "#btn-convert",
-  fileInputSelector = "#xlsxFile",
+  buttonSelector = '#btn-convert',
+  fileInputSelector = '#xlsxFile',
   onBeforeRead,
   onAfterExport,
   now = new Date(),
 } = {}) {
   const button =
-    typeof buttonSelector === "string"
-      ? document.querySelector(buttonSelector)
-      : buttonSelector;
+    typeof buttonSelector === 'string' ? document.querySelector(buttonSelector) : buttonSelector;
   const input =
-    typeof fileInputSelector === "string"
+    typeof fileInputSelector === 'string'
       ? document.querySelector(fileInputSelector)
       : fileInputSelector;
 
@@ -281,55 +266,53 @@ export function setupOpenMarketConversion({
     const JSZipCtor = globalThis.JSZip;
 
     if (!XLSXLib) {
-      alert("XLSX 未加载");
+      alert('XLSX 未加载');
       return;
     }
     if (!JSZipCtor) {
-      alert("JSZip 未加载");
+      alert('JSZip 未加载');
       return;
     }
 
     const file = input.files?.[0];
     if (!file) {
-      alert("请选择 Excel 文件");
+      alert('请选择 Excel 文件');
       return;
     }
 
-    if (typeof onBeforeRead === "function") {
+    if (typeof onBeforeRead === 'function') {
       onBeforeRead(file);
     }
 
     const buffer = await file.arrayBuffer();
-    const workbook = XLSXLib.read(buffer, { type: "array" });
+    const workbook = XLSXLib.read(buffer, { type: 'array' });
     const dataset = await convertOpenMarketWorkbook(workbook, { now });
 
     const zip = new JSZipCtor();
-    const folder = zip.folder("data/values-only");
-    folder.file("open_market.json", JSON.stringify(dataset, null, 2));
-    const blob = await zip.generateAsync({ type: "blob" });
+    const folder = zip.folder('data/values-only');
+    folder.file('open_market.json', JSON.stringify(dataset, null, 2));
+    const blob = await zip.generateAsync({ type: 'blob' });
 
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = "values-only.zip";
+    link.download = 'values-only.zip';
     link.click();
     URL.revokeObjectURL(link.href);
 
-    if (typeof onAfterExport === "function") {
+    if (typeof onAfterExport === 'function') {
       onAfterExport(dataset);
     }
 
-    alert("已下载 values-only.zip（内含 open_market.json）");
+    alert('已下载 values-only.zip（内含 open_market.json）');
   };
 
-  button.addEventListener("click", handler);
-  return () => button.removeEventListener("click", handler);
+  button.addEventListener('click', handler);
+  return () => button.removeEventListener('click', handler);
 }
 
-if (typeof window !== "undefined") {
-  window.__parseOpenMarketMinimal = (rows, now) =>
-    parseOpenMarketMinimal(rows, { now });
-  window.__parseShiborMinimal = (rows, now) =>
-    parseShiborMinimal(rows, { now });
+if (typeof window !== 'undefined') {
+  window.__parseOpenMarketMinimal = (rows, now) => parseOpenMarketMinimal(rows, { now });
+  window.__parseShiborMinimal = (rows, now) => parseShiborMinimal(rows, { now });
   window.__buildOpenMarketDataset = (openRows, shiborRows, now) =>
     buildOpenMarketDataset(openRows, shiborRows, { now });
 }

@@ -7,20 +7,8 @@ import {
   trackColumn,
 } from './common.js';
 
-/**
- * @typedef {import("../types.js").ShiborJson} ShiborJson
- */
-
 const DEFAULT_SHEET_NAME = 'Shibor利率';
 
-/**
- * 解析 Shibor 利率工作表，生成按期限划分的利率序列。
- *
- * @param {Array<Array<unknown>>} rows SheetJS 转换后的二维数组。
- * @param {object} profile 解析配置。
- * @param {{ sheetName?: string }} [context] 解析上下文。
- * @returns {ShiborJson}
- */
 export function parseShibor(rows, profile = {}, { sheetName = DEFAULT_SHEET_NAME } = {}) {
   const headerRowIndex = Number.isInteger(profile?.headerRow) ? Math.max(0, profile.headerRow) : 0;
   const header = rows[headerRowIndex] || [];

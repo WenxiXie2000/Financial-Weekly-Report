@@ -1,4 +1,4 @@
-import { SHEET_PROFILES } from './profiles.js';
+import { SHEET_PROFILES, SHEET_TO_FILE, normalizeSheetName, getOutputFile } from './profiles.js';
 import parseByProfile from './parsers/profile-based.js';
 import parseGroupListed from './parsers/group-listed.js';
 import parseCnyFx from './parsers/cny-fx.js';
@@ -6,32 +6,10 @@ import parseShibor from './parsers/shibor.js';
 import { parseOpenMarketMonetary, buildOpenMarketDataset } from './parsers/open-market.js';
 import parseBondYield from './parsers/bond-yield.js';
 import parseMidPaper from './parsers/mid-paper.js';
-import { SHEET_TO_FILE, normalizeSheetName, getOutputFile } from './core.mappings.js';
-import { cloneDataset, ensureArray, cloneDiagnostics, mergeSeries } from './core.utils.js';
+import { cloneDataset, ensureArray, cloneDiagnostics, mergeSeries } from './utils.js';
 
-export { SHEET_TO_FILE, normalizeSheetName, getOutputFile } from './core.mappings.js';
+export { SHEET_PROFILES, SHEET_TO_FILE, normalizeSheetName, getOutputFile } from './profiles.js';
 
-/**
- * @typedef {import("./types.js").CnyFxJson} CnyFxJson
- * @typedef {import("./types.js").GroupListedJson} GroupListedJson
- * @typedef {import("./types.js").OpenMarketMonetaryFragment} OpenMarketMonetaryFragment
- * @typedef {import("./types.js").OpenMarketJson} OpenMarketJson
- * @typedef {import("./types.js").ShiborJson} ShiborJson
- * @typedef {import("./types.js").BondYieldJson} BondYieldJson
- * @typedef {import("./types.js").ProfileJson} ProfileJson
- * @typedef {import("./types.js").ConvertSheetsResult} ConvertSheetsResult
- * @typedef {import("./types.js").SheetParseDetail} SheetParseDetail
- * @typedef {import("./types.js").RunArrayBufferResult} RunArrayBufferResult
- */
-
-/**
- * 合并两个数据集，优先保留已有字段并补充新增数据。
- *
- * @template {Record<string, unknown>} T
- * @param {T|null|undefined} target 已有数据集。
- * @param {T|null|undefined} incoming 新增数据集。
- * @returns {T|null}
- */
 export function mergeDatasets(target, incoming) {
   if (!incoming) return target;
   if (!target) return cloneDataset(incoming);
@@ -142,23 +120,6 @@ export function mergeDatasets(target, incoming) {
   return merged;
 }
 
-/**
- * 将单个工作表转换为规范化的解析结果。
- *
- * @param {Array<Array<unknown>>} rows SheetJS 转换后的二维数组。
- * @param {string} sheetName 原始工作表名称。
- * @param {{ anchor?: Date, profiles?: typeof SHEET_PROFILES }} [options] 解析选项。
- * @returns {SheetParseDetail & {
- *   payload:
- *     | CnyFxJson
- *     | GroupListedJson
- *     | OpenMarketMonetaryFragment
- *     | ShiborJson
- *     | BondYieldJson
- *     | ProfileJson
- *     | null
- * }}
- */
 export function parseSheet(
   rows,
   sheetName,
@@ -254,13 +215,6 @@ export function parseSheet(
   };
 }
 
-/**
- * 批量解析多个工作表并聚合为文件映射。
- *
- * @param {Array<[string, Array<Array<unknown>>]>|Map<string, Array<Array<unknown>>>|Record<string, Array<Array<unknown>>>} sheetEntries 输入的工作表集合。
- * @param {{ anchor?: Date, profiles?: typeof SHEET_PROFILES }} [options] 解析选项。
- * @returns {ConvertSheetsResult}
- */
 export function convertSheets(sheetEntries, options = {}) {
   const anchor = options.anchor || new Date();
   const profiles = options.profiles || SHEET_PROFILES;
@@ -276,8 +230,8 @@ export function convertSheets(sheetEntries, options = {}) {
   const iterator = Array.isArray(sheetEntries)
     ? sheetEntries
     : sheetEntries instanceof Map
-      ? Array.from(sheetEntries.entries())
-      : Object.entries(sheetEntries || {});
+    ? Array.from(sheetEntries.entries())
+    : Object.entries(sheetEntries || {});
 
   iterator.forEach(([sheetName, rows]) => {
     const result = parseSheet(rows, sheetName, { anchor, profiles });
@@ -352,13 +306,6 @@ export function convertSheets(sheetEntries, options = {}) {
   return { files: outputs, details, diagnostics: diagnosticsList };
 }
 
-/**
- * 读取 Excel 二进制数据并执行批量解析。
- *
- * @param {ArrayBuffer|ArrayBufferView|Blob} source Excel 数组缓冲区或 Blob 对象。
- * @param {{ anchor?: Date, profiles?: typeof SHEET_PROFILES, XLSX?: any }} [options]
- * @returns {Promise<RunArrayBufferResult>}
- */
 export async function runArrayBuffer(source, options = {}) {
   const { anchor = new Date(), profiles = SHEET_PROFILES } = options;
   const XLSXLib = options.XLSX || globalThis?.XLSX;
@@ -408,20 +355,6 @@ export async function runArrayBuffer(source, options = {}) {
   };
 }
 
-/**
- * 在指定目标上注册最小化的解析助手，便于快速验证关键表格。
- *
- * @param {Record<string, unknown>|null} [target]
- * @returns {{
- *   __parseCnyFxMinimal(rows: Array<Array<unknown>>, anchor?: Date): { filename: string, json: CnyFxJson|null },
- *   __parseOpenMarketShiborMinimal(
- *     omRows: Array<Array<unknown>>,
- *     shiborRows: Array<Array<unknown>>,
- *     anchor?: Date
- *   ): { filename: string, json: OpenMarketJson|null }|null
- * }}
- */
-// #dev
 export function createMinimalParsers(target = typeof window !== 'undefined' ? window : null) {
   const minimal = {
     __parseCnyFxMinimal(rows, anchor = new Date()) {
@@ -467,6 +400,11 @@ export function registerGlobalCore(target = typeof window !== 'undefined' ? wind
     runArrayBuffer,
   };
 
+  target.x2jCore = {
+    ...(target.x2jCore || {}),
+    ...core,
+  };
+
   target.xlsx2jsonCore = {
     ...(target.xlsx2jsonCore || {}),
     ...core,
@@ -493,13 +431,12 @@ export function registerGlobalCore(target = typeof window !== 'undefined' ? wind
 
   createMinimalParsers(target);
 
-  return target.xlsx2jsonCore;
+  return target.x2jCore;
 }
 
 if (typeof window !== 'undefined') {
   registerGlobalCore(window);
 }
-// #enddev
 
 export default {
   SHEET_TO_FILE,

@@ -7,21 +7,8 @@ import {
   trackColumn,
 } from './common.js';
 
-/**
- * @typedef {import("../types.js").OpenMarketMonetaryFragment} OpenMarketMonetaryFragment
- * @typedef {import("../types.js").OpenMarketJson} OpenMarketJson
- */
-
 const DEFAULT_MONETARY_SHEET = '公开市场货币';
 
-/**
- * 解析公开市场货币工作表，抽取最新一周的摘要与利率序列。
- *
- * @param {Array<Array<unknown>>} rows SheetJS 转换后的二维数组。
- * @param {object} profile 解析配置。
- * @param {{ anchor?: Date, sheetName?: string }} [context] 解析上下文。
- * @returns {OpenMarketMonetaryFragment}
- */
 export function parseOpenMarketMonetary(
   rows,
   profile = {},
@@ -181,13 +168,6 @@ export function parseOpenMarketMonetary(
   };
 }
 
-/**
- * 合并公开市场货币与 Shibor 解析结果，生成最终的数据集。
- *
- * @param {OpenMarketMonetaryFragment|null|undefined} omPart 公开市场货币解析片段。
- * @param {import("../types.js").ShiborJson|null|undefined} shiborPart Shibor 解析片段。
- * @returns {(OpenMarketJson|null)}
- */
 export function buildOpenMarketDataset(omPart, shiborPart) {
   const hasOm = omPart && Object.keys(omPart).length;
   const hasShibor = shiborPart && Object.keys(shiborPart).length;

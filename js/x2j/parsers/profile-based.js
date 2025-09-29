@@ -17,11 +17,6 @@ import {
   trackColumn,
 } from './common.js';
 
-/**
- * @typedef {import("../types.js").BondYieldJson} BondYieldJson
- * @typedef {import("../types.js").ProfileJson} ProfileJson
- */
-
 function pickHeaderRow(rows, headerRowIndex = 0) {
   const idx = Math.max(0, Number(headerRowIndex) || 0);
   return (rows[idx] || []).map((x) => String(x || '').trim());
@@ -37,14 +32,6 @@ function getPrevWeekWorkdayRange(now = new Date()) {
   return { start: mon, end: fri };
 }
 
-/**
- * 基于配置描述解析通用的指标型工作表。
- *
- * @param {Array<Array<unknown>>} rows SheetJS 转换后的二维数组。
- * @param {object} [profile] 解析配置。
- * @param {{ sheetName?: string, anchor?: Date }} [context] 解析上下文。
- * @returns {BondYieldJson|ProfileJson}
- */
 export function parseByProfile(rows, profile = {}, { sheetName = '', anchor = new Date() } = {}) {
   const diagnostics = createSheetDiagnostics(sheetName);
   diagnostics.range = profile?.rangeLabel || profile?.range || null;
@@ -339,7 +326,7 @@ export function parseByProfile(rows, profile = {}, { sheetName = '', anchor = ne
 
     const seriesDefs = profile.seriesByDateKey
       .map((conf) => {
-        const dateIdx = conf.dateKey ? (dateIdxMap[conf.dateKey] ?? -1) : -1;
+        const dateIdx = conf.dateKey ? dateIdxMap[conf.dateKey] ?? -1 : -1;
         const valIdx = track(conf.close, {
           category: 'series',
           label: `${conf.label || conf.summaryKey || conf.dateKey || '系列'} 收盘`,
@@ -586,12 +573,12 @@ export function parseByProfile(rows, profile = {}, { sheetName = '', anchor = ne
               extra: { key: baseKey, field: 'chgPct' },
             })
           : conf.chg != null
-            ? track(conf.chg, {
-                category: 'series',
-                label: `${label} 涨跌幅`,
-                extra: { key: baseKey, field: 'chg' },
-              })
-            : -1;
+          ? track(conf.chg, {
+              category: 'series',
+              label: `${label} 涨跌幅`,
+              extra: { key: baseKey, field: 'chg' },
+            })
+          : -1;
       const dateIdxOverride =
         conf.dateCol != null
           ? track(conf.dateCol, {

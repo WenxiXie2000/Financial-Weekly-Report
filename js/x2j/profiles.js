@@ -1,5 +1,35 @@
 import { toDateSafe, isWeekday, mondayOf, fridayOf, prevCompletedWeekRange } from './utils.js';
 
+export const SHEET_ALIASES = {
+  集团上市公司: '国能上市公司',
+  公开市场: '公开市场货币',
+};
+
+export const SHEET_TO_FILE = {
+  国内股市: 'equity_cn.json',
+  全球股市: 'equity_global.json',
+  人民币汇率: 'cny_fx.json',
+  公开市场: 'open_market.json',
+  公开市场货币: 'open_market.json',
+  Shibor利率: 'open_market.json',
+  债券利率: 'bond_yield.json',
+  集团上市公司: 'group_listed.json',
+  国能上市公司: 'group_listed.json',
+  中票利率: 'bond_yield.json',
+  财经资讯: 'news.json',
+};
+
+export function normalizeSheetName(sheetName) {
+  const name = String(sheetName ?? '').trim();
+  if (!name) return '';
+  return SHEET_ALIASES[name] || name;
+}
+
+export function getOutputFile(sheetName) {
+  const normalized = normalizeSheetName(sheetName);
+  return SHEET_TO_FILE[normalized] || null;
+}
+
 // === 工具函数区 ===
 export { toDateSafe, isWeekday, mondayOf, fridayOf };
 
@@ -248,66 +278,35 @@ export const SHEET_PROFILES = {
     },
   },
   全球股市: {
-    // 表头在第 2 行（0 基，下标 1）
     headerRow: 1,
-    // 日期列匹配
     dateCol: /^日期$/,
-    // 时间范围：上一周（周一~周五）
     rangeDefault: 'prevWeekWorkdays',
-    // 行过滤：日期存在且为工作日
     rowFilter: (row) => {
       if (!row.date) return false;
       const d = new Date(String(row.date).replace(/-/g, '/'));
       return !Number.isNaN(d.getTime()) && d.getDay() >= 1 && d.getDay() <= 5;
     },
-    // 需要的系列（收盘价 + 涨跌幅）
     series: [
-      {
-        label: '道琼斯工业指数',
-        close: /道琼斯工业指数收盘价/,
-        chgPct: /道琼斯工业指数涨跌幅/,
-      },
-      {
-        label: '纳斯达克指数',
-        close: /纳斯达克指数收盘价/,
-        chgPct: /纳斯达克指数涨跌幅/,
-      },
-      {
-        label: '标普500',
-        close: /标准普尔500指数收盘价/,
-        chgPct: /标准普尔500指数涨跌幅/,
-      },
+      { label: '道琼斯工业指数', close: /道琼斯工业指数收盘价/, chgPct: /道琼斯工业指数涨跌幅/ },
+      { label: '纳斯达克指数', close: /纳斯达克指数收盘价/, chgPct: /纳斯达克指数涨跌幅/ },
+      { label: '标普500', close: /标准普尔500指数收盘价/, chgPct: /标准普尔500指数涨跌幅/ },
       { label: '富时100', close: /富时100收盘价/, chgPct: /富时100涨跌幅/ },
-      {
-        label: '法国CAC40',
-        close: /法国CAC40收盘价/,
-        chgPct: /法国CAC40涨跌幅/,
-      },
+      { label: '法国CAC40', close: /法国CAC40收盘价/, chgPct: /法国CAC40涨跌幅/ },
       { label: '德国DAX', close: /德国DAX收盘价/, chgPct: /德国DAX涨跌幅/ },
-      {
-        label: '泛欧斯托克600',
-        close: /泛欧斯托克600收盘价/,
-        chgPct: /泛欧斯托克600涨跌幅/,
-      },
+      { label: '泛欧斯托克600', close: /泛欧斯托克600收盘价/, chgPct: /泛欧斯托克600涨跌幅/ },
       { label: '恒生指数', close: /恒生指数收盘价/, chgPct: /恒生指数涨跌幅/ },
     ],
-    // 事件列（如后续需要可在此添加）
     events: [
       { region: 'US', cols: [/美股重点事件\d+/] },
       { region: 'EU', cols: [/欧股重点事件\d+/] },
       { region: 'HK', cols: [/港股重点事件\d+/] },
     ],
-    // 单位说明：收盘为指数，涨跌幅为百分比（四位小数）
     unit: { close: 'index', chgPct: '%' },
   },
   债券利率: {
     headerRow: 0,
     dateCol: /^日期$/,
-    // 这是周表：以“上一周工作日”区间聚合；你每周填一行也会命中
     rangeDefault: 'prevWeekWorkdays',
-
-    // —— 债券分组（模板 + 名次范围）——
-    // {R} 为名次占位符，按 rankRange 自动展开 1..N
     bondGroups: [
       {
         key: 'aaa_3y',
@@ -387,25 +386,16 @@ export const SHEET_PROFILES = {
         },
       },
     ],
-
-    // 行过滤：只要日期存在即可（周表允许留空）
     rowFilter: (row) => !!row.date,
-
-    // 单位（前端文案）
     unit: {
       coupon: '%',
       size: '亿',
     },
   },
   中票利率: {
-    // 表头在第一行
     headerRow: 0,
-    // 日期列
     dateCol: /^日期$/,
-    // 时间范围：上一周（周一~周五）
     rangeDefault: 'prevWeekWorkdays',
-
-    // 利率序列（折线图直接画利率）
     series: [
       { label: 'AAA中短票 1年', close: /AAA中短票1年利率$/ },
       { label: 'AAA中短票 3年', close: /AAA中短票3年利率$/ },
@@ -413,8 +403,6 @@ export const SHEET_PROFILES = {
       { label: 'AAA中短票 7年', close: /AAA中短票7年利率$/ },
       { label: 'AAA中短票 10年', close: /AAA中短票10年利率$/ },
     ],
-
-    // 额外 KPI：取“区间内最后一日”的最新利率；按百分比四位显示
     kpis: [
       { key: 'mp_1y_rate', col: /AAA中短票1年利率$/, type: 'pct' },
       { key: 'mp_3y_rate', col: /AAA中短票3年利率$/, type: 'pct' },
@@ -422,17 +410,24 @@ export const SHEET_PROFILES = {
       { key: 'mp_7y_rate', col: /AAA中短票7年利率$/, type: 'pct' },
       { key: 'mp_10y_rate', col: /AAA中短票10年利率$/, type: 'pct' },
     ],
-
-    // 行过滤：日期存在且为工作日
     rowFilter: (row) => {
       if (!row.date) return false;
       const d = new Date(String(row.date).replace(/-/g, '/'));
       const w = d.getDay();
-      return !isNaN(d) && w >= 1 && w <= 5;
+      return !Number.isNaN(d.getTime()) && w >= 1 && w <= 5;
     },
-
-    // 单位提示（供前端文案）
     unit: { rate: '%' },
+  },
+  财经资讯: {
+    headerRow: 0,
+    dateCol: /^日期$/,
+    rangeDefault: 'lastNDays:30',
+    rowFilter: (row) => {
+      if (!row.date) return false;
+      const d = new Date(String(row.date).replace(/-/g, '/'));
+      return !Number.isNaN(d.getTime());
+    },
+    series: [],
   },
 };
 

@@ -1,2 +1,2 @@
-export * from "./xlsx2json/profiles.js";
-export { default } from "./xlsx2json/profiles.js";
+export * from './x2j/profiles.js';
+export { default } from './x2j/profiles.js';

@@ -3,20 +3,14 @@ import {
   fmtISO,
   parseNumberLike,
   parsePercentNumber,
-  formatNumber4,
-  formatPercent4,
   deriveRange,
   createSheetDiagnostics,
   trackColumn,
 } from './common.js';
 
-/**
- * @typedef {import("../types.js").CnyFxJson} CnyFxJson
- */
+const DEFAULT_SHEET_NAME = '国能上市公司';
 
-const DEFAULT_SHEET_NAME = '人民币汇率';
-
-export function parseCnyFx(
+export function parseGroupListed(
   rows,
   profile = {},
   { anchor = new Date(), sheetName = DEFAULT_SHEET_NAME } = {}
@@ -32,7 +26,7 @@ export function parseCnyFx(
     );
 
   const diagnostics = createSheetDiagnostics(sheetName);
-  diagnostics.range = profile?.rangeDefault || 'prevWeekWorkdays';
+  diagnostics.range = 'prevWeekWorkdays';
 
   const dateIdx = trackColumn(diagnostics, header, profile?.dateCol ?? '', {
     category: 'date',
@@ -64,9 +58,9 @@ export function parseCnyFx(
 
   const metricDefs = [
     {
-      key: 'rate',
-      suffix: ' 汇率',
-      label: '汇率',
+      key: 'close',
+      suffix: ' 收盘',
+      label: '收盘',
       parser: parseNumberLike,
       isPct: false,
     },
@@ -78,71 +72,93 @@ export function parseCnyFx(
       isPct: true,
     },
     {
-      key: 'mid',
-      suffix: ' 央行中间价',
-      label: '央行中间价',
+      key: 'amount',
+      suffix: ' 成交金额(亿)',
+      label: '成交金额(亿)',
       parser: parseNumberLike,
       isPct: false,
     },
     {
-      key: 'mid_chg',
-      suffix: ' 央行中间价调整(%)',
-      label: '央行中间价调整(%)',
+      key: 'amount_chg',
+      suffix: ' 成交金额变化(%)',
+      label: '成交金额变化(%)',
       parser: parsePercentNumber,
       isPct: true,
+    },
+    {
+      key: 'mainflow',
+      suffix: ' 主力资金流向(亿)',
+      label: '主力资金流向(亿)',
+      parser: parseNumberLike,
+      isPct: false,
+    },
+    {
+      key: 'pe',
+      suffix: ' 市盈率(倍)',
+      label: '市盈率(倍)',
+      parser: parseNumberLike,
+      isPct: false,
+    },
+    {
+      key: 'pb',
+      suffix: ' 市净率(倍)',
+      label: '市净率(倍)',
+      parser: parseNumberLike,
+      isPct: false,
+    },
+    {
+      key: 'dev',
+      suffix: ' 每日偏离值',
+      label: '每日偏离值',
+      parser: (value) => parsePercentNumber(value) ?? parseNumberLike(value),
+      isPct: false,
+    },
+    {
+      key: 'turn_ratio',
+      suffix: ' 换手率比值',
+      label: '换手率比值',
+      parser: (value) => parsePercentNumber(value) ?? parseNumberLike(value),
+      isPct: false,
     },
   ];
 
   const series = [];
-  const kpis = {};
-  const metricIndexMap = new Map();
 
-  (profile?.currencies || []).forEach((currency) => {
-    const keyBase = String(currency?.key || '')
-      .trim()
-      .toLowerCase();
-    if (!keyBase) return;
-    kpis[`${keyBase}_mid`] = null;
-    kpis[`${keyBase}_mid_chg`] = null;
-  });
-
-  (profile?.currencies || []).forEach((currency) => {
-    const keyword = String(currency?.keyword || '').trim();
-    const keyBase = String(currency?.key || '')
-      .trim()
-      .toLowerCase();
-    if (!keyword || !keyBase) return;
+  (profile?.stocks || []).forEach((stock) => {
+    const name = String(stock || '').trim();
+    if (!name) return;
 
     metricDefs.forEach((metric) => {
-      if (currency?.noMid && metric.key.startsWith('mid')) {
-        return;
-      }
-
       const matcherFactory = profile?.cols?.[metric.key];
-      const matcher = typeof matcherFactory === 'function' ? matcherFactory(keyword) : null;
+      const matcher = typeof matcherFactory === 'function' ? matcherFactory(name) : null;
 
       const idx = trackColumn(diagnostics, header, matcher ?? '', {
         category: 'series',
-        label: `${keyword}${metric.label}`,
+        label: `${name} ${metric.label}`,
         note: matcher == null ? '未配置匹配规则' : undefined,
         extra: {
           metric: metric.key,
-          currency: keyword,
+          stock: name,
         },
       });
-
-      if (idx >= 0) {
-        metricIndexMap.set(`${keyBase}:${metric.key}`, idx);
-      }
 
       const diagEntry = diagnostics.items[diagnostics.items.length - 1] || null;
 
       const data = weekRows.map((item) => {
-        const raw = idx >= 0 ? item.row?.[idx] : null;
-        if (raw === '' || raw == null) {
+        const value = idx >= 0 ? item.row?.[idx] : null;
+        if (value === '' || value == null) {
           return [item.iso, null];
         }
-        const parsed = metric.parser(raw);
+
+        let parsed = metric.parser(value);
+        if (
+          metric.isPct &&
+          typeof value === 'string' &&
+          value.endsWith('%') &&
+          (parsed == null || Number.isNaN(parsed))
+        ) {
+          parsed = parseFloat(value.slice(0, -1));
+        }
         if (parsed == null || Number.isNaN(parsed)) {
           return [item.iso, null];
         }
@@ -159,7 +175,7 @@ export function parseCnyFx(
         };
       }
 
-      series.push({ name: `${keyword}${metric.suffix}`, data });
+      series.push({ name: `${name}${metric.suffix}`, data });
     });
   });
 
@@ -174,33 +190,6 @@ export function parseCnyFx(
     });
     return record;
   });
-
-  if (weekRows.length) {
-    const last = weekRows[weekRows.length - 1];
-    (profile?.currencies || []).forEach((currency) => {
-      const keyword = String(currency?.keyword || '').trim();
-      const keyBase = String(currency?.key || '')
-        .trim()
-        .toLowerCase();
-      if (!keyword || !keyBase || currency?.noMid) return;
-
-      const midIdx = metricIndexMap.get(`${keyBase}:mid`);
-      if (typeof midIdx === 'number' && midIdx >= 0) {
-        const formatted = formatNumber4(last.row?.[midIdx]);
-        if (formatted != null) {
-          kpis[`${keyBase}_mid`] = formatted;
-        }
-      }
-
-      const midChgIdx = metricIndexMap.get(`${keyBase}:mid_chg`);
-      if (typeof midChgIdx === 'number' && midChgIdx >= 0) {
-        const formatted = formatPercent4(last.row?.[midChgIdx]);
-        if (formatted != null) {
-          kpis[`${keyBase}_mid_chg`] = formatted;
-        }
-      }
-    });
-  }
 
   const rangeWindow =
     weekRows.length >= 2 ? [weekRows[0].iso, weekRows[weekRows.length - 1].iso] : [];
@@ -223,7 +212,7 @@ export function parseCnyFx(
 
   const exportInfo = {
     source_sheet: sheetName,
-    range: profile?.rangeDefault || 'prevWeekWorkdays',
+    range: 'prevWeekWorkdays',
     rows: weekRows.length,
     range_window: rangeWindow,
     last_updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
@@ -234,7 +223,7 @@ export function parseCnyFx(
     timezone: 'Asia/Shanghai',
     sourceSheet: sheetName,
     generatedAt: new Date().toISOString(),
-    rangeStrategy: profile?.rangeDefault || 'prevWeekWorkdays',
+    rangeStrategy: 'prevWeekWorkdays',
     sourceSheets: [sheetName],
   };
 
@@ -243,10 +232,9 @@ export function parseCnyFx(
     summary: {},
     series,
     table,
-    kpis,
     export_info: exportInfo,
     diagnostics: diagnosticEntries,
   };
 }
 
-export default parseCnyFx;
+export default parseGroupListed;

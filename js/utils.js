@@ -1,5 +1,5 @@
 export function formatYi(val, digits = 2) {
-  if (val == null || val === "") return "--";
+  if (val == null || val === '') return '--';
   const n = Number(val);
   if (Number.isNaN(n)) return String(val);
   return `${n.toLocaleString(undefined, {
@@ -9,12 +9,12 @@ export function formatYi(val, digits = 2) {
 }
 
 export function asPercent(val) {
-  if (val == null || val === "") return "--";
+  if (val == null || val === '') return '--';
   return String(val);
 }
 
 export function formatRatio(val, digits = 2) {
-  if (val == null || val === "") return "--";
+  if (val == null || val === '') return '--';
   const n = Number(val);
   return Number.isNaN(n) ? String(val) : `${n.toFixed(digits)}x`;
 }
@@ -24,9 +24,4 @@ export function percentAxisLabel(v) {
   return Number.isNaN(n) ? v : `${n.toFixed(2)}%`;
 }
 
-export {
-  lastFridayFromToday,
-  mondayOf,
-  fridayOf,
-  prevCompletedWeekRange,
-} from "./xlsx2json/utils.js";
+export { lastFridayFromToday, mondayOf, fridayOf, prevCompletedWeekRange } from './x2j/utils.js';
