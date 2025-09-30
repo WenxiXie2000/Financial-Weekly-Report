@@ -1,12 +1,16 @@
-<header class="site-header" role="banner">
-  <div class="brand" aria-label="站点信息">
-    <i class="bi bi-graph-up"></i>
-    <span class="site-title">金融市场周报</span>
-  </div>
-  <div class="header-actions">
-    <span id="current-date" class="muted" aria-live="polite"></span>
-    <button id="theme-toggle" class="icon-btn" type="button" aria-label="切换暗色 / 亮色主题" aria-pressed="false">
-      <i class="bi bi-sun"></i>
-    </button>
+<header id="site-header" class="site-header" role="banner">
+  <div class="hdr-inner">
+    <div class="hdr-left" aria-label="站点信息">
+      <i class="bi bi-graph-up"></i>
+      <span class="hdr-title">金融市场周报</span>
+    </div>
+
+    <div class="hdr-right">
+      <span id="current-date" class="hdr-date" aria-live="polite">--</span>
+      <button id="theme-toggle" class="hdr-btn" type="button" aria-label="切换主题">
+        <i class="bi bi-sun hdr-icon" data-mode="light"></i>
+        <i class="bi bi-moon hdr-icon" data-mode="dark"></i>
+      </button>
+    </div>
   </div>
 </header>

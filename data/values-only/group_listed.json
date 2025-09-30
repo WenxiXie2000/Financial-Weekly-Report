@@ -1,7 +1,7 @@
 {
   "series": [
     {
-      "name": "国电电力 收盘",
+      "name": "国电电力 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -73,15 +73,15 @@
       "data": [
         [
           "2025-09-22",
-          45.359304853745
+          45.3593
         ],
         [
           "2025-09-23",
-          50.6918361988485
+          50.6918
         ],
         [
           "2025-09-24",
-          48.3880603187126
+          48.3881
         ]
       ]
     },
@@ -120,7 +120,7 @@
       ]
     },
     {
-      "name": "中国神华 收盘",
+      "name": "中国神华 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -222,7 +222,7 @@
       ]
     },
     {
-      "name": "龙源电力 收盘",
+      "name": "龙源电力 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -324,7 +324,7 @@
       ]
     },
     {
-      "name": "长源电力 收盘",
+      "name": "长源电力 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -426,7 +426,7 @@
       ]
     },
     {
-      "name": "龙源技术 收盘",
+      "name": "龙源技术 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -528,7 +528,7 @@
       ]
     },
     {
-      "name": "英力特 收盘",
+      "name": "英力特 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -637,7 +637,7 @@
       "国电电力涨跌幅": 0,
       "国电电力成交金额": 496834264,
       "国电电力成交金额变化": -1.2395,
-      "国电电力主力资金流向": 45.359304853745,
+      "国电电力主力资金流向": 45.3593,
       "国电电力市盈率": 13.1903,
       "国电电力市净率": 1.5469,
       "中国神华收盘价": 38.51,
@@ -677,7 +677,7 @@
       "国电电力涨跌幅": 0.5964,
       "国电电力成交金额": 513305722,
       "国电电力成交金额变化": 3.3153,
-      "国电电力主力资金流向": 50.6918361988485,
+      "国电电力主力资金流向": 50.6918,
       "国电电力市盈率": 13.269,
       "国电电力市净率": 1.5561,
       "中国神华收盘价": 38.86,
@@ -717,7 +717,7 @@
       "国电电力涨跌幅": -0.5929,
       "国电电力成交金额": 561292717,
       "国电电力成交金额变化": 9.3486,
-      "国电电力主力资金流向": 48.3880603187126,
+      "国电电力主力资金流向": 48.3881,
       "国电电力市盈率": 13.1903,
       "国电电力市净率": 1.5469,
       "中国神华收盘价": 38.95,
@@ -761,68 +761,86 @@
     ],
     "rows": 3,
     "diagnostics": {
-      "columns": [
+      "sheet": "国能上市公司",
+      "window": {
+        "mon": "2025-09-22",
+        "fri": "2025-09-26"
+      },
+      "rows": {
+        "scanned": 39,
+        "kept": 3
+      },
+      "hits": [
         {
-          "label": "日期",
+          "label": "日期列",
           "matcher": "/^日期$/",
-          "column": "日期",
-          "index": 0,
+          "colName": "日期",
+          "colIndex": 0,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "国电电力 收盘",
+          "label": "国电电力.close",
           "matcher": "/^国电电力收盘价$/",
-          "column": "国电电力收盘价",
-          "index": 1,
+          "colName": "国电电力收盘价",
+          "colIndex": 1,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "国电电力 涨跌幅(%)",
+          "label": "国电电力.chg",
           "matcher": "/^国电电力涨跌幅$/",
-          "column": "国电电力涨跌幅",
-          "index": 2,
+          "colName": "国电电力涨跌幅",
+          "colIndex": 2,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "国电电力 成交金额(亿)",
+          "label": "国电电力.amount",
           "matcher": "/^国电电力成交金额/",
-          "column": "国电电力成交金额",
-          "index": 3,
+          "colName": "国电电力成交金额",
+          "colIndex": 3,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "国电电力 成交金额变化(%)",
+          "label": "国电电力.amount_chg",
           "matcher": "/^国电电力成交金额变化$|^国电电力成交变化$/",
-          "column": "国电电力成交金额变化",
-          "index": 4,
+          "colName": "国电电力成交金额变化",
+          "colIndex": 4,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "国电电力 主力资金流向(亿)",
+          "label": "国电电力.mainflow",
           "matcher": "/^国电电力主力资金流向/",
-          "column": "国电电力主力资金流向",
-          "index": 5,
+          "colName": "国电电力主力资金流向",
+          "colIndex": 5,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "国电电力 市盈率(倍)",
+          "label": "国电电力.pe",
           "matcher": "/^国电电力市盈率$/",
-          "column": "国电电力市盈率",
-          "index": 6,
+          "colName": "国电电力市盈率",
+          "colIndex": 6,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "国电电力 市净率(倍)",
+          "label": "国电电力.pb",
           "matcher": "/^国电电力市净率$/",
-          "column": "国电电力市净率",
-          "index": 7,
+          "colName": "国电电力市净率",
+          "colIndex": 7,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "国电电力 每日偏离值",
+          "label": "国电电力.dev",
           "matcher": "/^国电电力每日偏离值$/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "国电电力股价每日偏离值",
             "国电电力股价累计偏离值",
@@ -830,10 +848,11 @@
           ]
         },
         {
-          "label": "国电电力 换手率比值",
+          "label": "国电电力.turn_ratio",
           "matcher": "/^国电电力换手率比值$/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "国电电力股票换手率比值",
             "龙源电力股票换手率比值",
@@ -841,38 +860,43 @@
           ]
         },
         {
-          "label": "中国神华 收盘",
+          "label": "中国神华.close",
           "matcher": "/^中国神华收盘价$/",
-          "column": "中国神华收盘价",
-          "index": 20,
+          "colName": "中国神华收盘价",
+          "colIndex": 20,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "中国神华 涨跌幅(%)",
+          "label": "中国神华.chg",
           "matcher": "/^中国神华涨跌幅$/",
-          "column": "中国神华涨跌幅",
-          "index": 21,
+          "colName": "中国神华涨跌幅",
+          "colIndex": 21,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "中国神华 成交金额(亿)",
+          "label": "中国神华.amount",
           "matcher": "/^中国神华成交金额/",
-          "column": "中国神华成交金额",
-          "index": 22,
+          "colName": "中国神华成交金额",
+          "colIndex": 22,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "中国神华 成交金额变化(%)",
+          "label": "中国神华.amount_chg",
           "matcher": "/^中国神华成交金额变化$|^中国神华成交变化$/",
-          "column": "中国神华成交金额变化",
-          "index": 23,
+          "colName": "中国神华成交金额变化",
+          "colIndex": 23,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "中国神华 主力资金流向(亿)",
+          "label": "中国神华.mainflow",
           "matcher": "/^中国神华主力资金流向/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "中国神华资金流向",
             "国电电力主力资金流向",
@@ -880,24 +904,27 @@
           ]
         },
         {
-          "label": "中国神华 市盈率(倍)",
+          "label": "中国神华.pe",
           "matcher": "/^中国神华市盈率$/",
-          "column": "中国神华市盈率",
-          "index": 25,
+          "colName": "中国神华市盈率",
+          "colIndex": 25,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "中国神华 市净率(倍)",
+          "label": "中国神华.pb",
           "matcher": "/^中国神华市净率$/",
-          "column": "中国神华市净率",
-          "index": 26,
+          "colName": "中国神华市净率",
+          "colIndex": 26,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "中国神华 每日偏离值",
+          "label": "中国神华.dev",
           "matcher": "/^中国神华每日偏离值$/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "中国神华股价每日偏离值",
             "国电电力股价每日偏离值",
@@ -905,10 +932,11 @@
           ]
         },
         {
-          "label": "中国神华 换手率比值",
+          "label": "中国神华.turn_ratio",
           "matcher": "/^中国神华换手率比值$/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "中国神华股票换手率比值",
             "国电电力股票换手率比值",
@@ -916,38 +944,43 @@
           ]
         },
         {
-          "label": "龙源电力 收盘",
+          "label": "龙源电力.close",
           "matcher": "/^龙源电力收盘价$/",
-          "column": "龙源电力收盘价",
-          "index": 38,
+          "colName": "龙源电力收盘价",
+          "colIndex": 38,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "龙源电力 涨跌幅(%)",
+          "label": "龙源电力.chg",
           "matcher": "/^龙源电力涨跌幅$/",
-          "column": "龙源电力涨跌幅",
-          "index": 39,
+          "colName": "龙源电力涨跌幅",
+          "colIndex": 39,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "龙源电力 成交金额(亿)",
+          "label": "龙源电力.amount",
           "matcher": "/^龙源电力成交金额/",
-          "column": "龙源电力成交金额",
-          "index": 40,
+          "colName": "龙源电力成交金额",
+          "colIndex": 40,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "龙源电力 成交金额变化(%)",
+          "label": "龙源电力.amount_chg",
           "matcher": "/^龙源电力成交金额变化$|^龙源电力成交变化$/",
-          "column": "龙源电力成交金额变化",
-          "index": 41,
+          "colName": "龙源电力成交金额变化",
+          "colIndex": 41,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "龙源电力 主力资金流向(亿)",
+          "label": "龙源电力.mainflow",
           "matcher": "/^龙源电力主力资金流向/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "国电电力主力资金流向",
             "龙源电力资金流向",
@@ -955,24 +988,27 @@
           ]
         },
         {
-          "label": "龙源电力 市盈率(倍)",
+          "label": "龙源电力.pe",
           "matcher": "/^龙源电力市盈率$/",
-          "column": "龙源电力市盈率",
-          "index": 43,
+          "colName": "龙源电力市盈率",
+          "colIndex": 43,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "龙源电力 市净率(倍)",
+          "label": "龙源电力.pb",
           "matcher": "/^龙源电力市净率$/",
-          "column": "龙源电力市净率",
-          "index": 44,
+          "colName": "龙源电力市净率",
+          "colIndex": 44,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "龙源电力 每日偏离值",
+          "label": "龙源电力.dev",
           "matcher": "/^龙源电力每日偏离值$/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "龙源电力股价每日偏离值",
             "长源电力股价每日偏离值",
@@ -980,10 +1016,11 @@
           ]
         },
         {
-          "label": "龙源电力 换手率比值",
+          "label": "龙源电力.turn_ratio",
           "matcher": "/^龙源电力换手率比值$/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "龙源电力股票换手率比值",
             "长源电力股票换手率比值",
@@ -991,38 +1028,43 @@
           ]
         },
         {
-          "label": "长源电力 收盘",
+          "label": "长源电力.close",
           "matcher": "/^长源电力收盘价$/",
-          "column": "长源电力收盘价",
-          "index": 48,
+          "colName": "长源电力收盘价",
+          "colIndex": 48,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "长源电力 涨跌幅(%)",
+          "label": "长源电力.chg",
           "matcher": "/^长源电力涨跌幅$/",
-          "column": "长源电力涨跌幅",
-          "index": 49,
+          "colName": "长源电力涨跌幅",
+          "colIndex": 49,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "长源电力 成交金额(亿)",
+          "label": "长源电力.amount",
           "matcher": "/^长源电力成交金额/",
-          "column": "长源电力成交金额",
-          "index": 50,
+          "colName": "长源电力成交金额",
+          "colIndex": 50,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "长源电力 成交金额变化(%)",
+          "label": "长源电力.amount_chg",
           "matcher": "/^长源电力成交金额变化$|^长源电力成交变化$/",
-          "column": "长源电力成交金额变化",
-          "index": 51,
+          "colName": "长源电力成交金额变化",
+          "colIndex": 51,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "长源电力 主力资金流向(亿)",
+          "label": "长源电力.mainflow",
           "matcher": "/^长源电力主力资金流向/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "国电电力主力资金流向",
             "长源电力资金流向",
@@ -1030,24 +1072,27 @@
           ]
         },
         {
-          "label": "长源电力 市盈率(倍)",
+          "label": "长源电力.pe",
           "matcher": "/^长源电力市盈率$/",
-          "column": "长源电力市盈率",
-          "index": 53,
+          "colName": "长源电力市盈率",
+          "colIndex": 53,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "长源电力 市净率(倍)",
+          "label": "长源电力.pb",
           "matcher": "/^长源电力市净率$/",
-          "column": "长源电力市净率",
-          "index": 54,
+          "colName": "长源电力市净率",
+          "colIndex": 54,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "长源电力 每日偏离值",
+          "label": "长源电力.dev",
           "matcher": "/^长源电力每日偏离值$/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "长源电力股价每日偏离值",
             "龙源电力股价每日偏离值",
@@ -1055,10 +1100,11 @@
           ]
         },
         {
-          "label": "长源电力 换手率比值",
+          "label": "长源电力.turn_ratio",
           "matcher": "/^长源电力换手率比值$/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "长源电力股票换手率比值",
             "龙源电力股票换手率比值",
@@ -1066,38 +1112,43 @@
           ]
         },
         {
-          "label": "龙源技术 收盘",
+          "label": "龙源技术.close",
           "matcher": "/^龙源技术收盘价$/",
-          "column": "龙源技术收盘价",
-          "index": 58,
+          "colName": "龙源技术收盘价",
+          "colIndex": 58,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "龙源技术 涨跌幅(%)",
+          "label": "龙源技术.chg",
           "matcher": "/^龙源技术涨跌幅$/",
-          "column": "龙源技术涨跌幅",
-          "index": 59,
+          "colName": "龙源技术涨跌幅",
+          "colIndex": 59,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "龙源技术 成交金额(亿)",
+          "label": "龙源技术.amount",
           "matcher": "/^龙源技术成交金额/",
-          "column": "龙源技术成交金额",
-          "index": 60,
+          "colName": "龙源技术成交金额",
+          "colIndex": 60,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "龙源技术 成交金额变化(%)",
+          "label": "龙源技术.amount_chg",
           "matcher": "/^龙源技术成交金额变化$|^龙源技术成交变化$/",
-          "column": "龙源技术成交金额变化",
-          "index": 61,
+          "colName": "龙源技术成交金额变化",
+          "colIndex": 61,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "龙源技术 主力资金流向(亿)",
+          "label": "龙源技术.mainflow",
           "matcher": "/^龙源技术主力资金流向/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "龙源技术资金流向",
             "龙源电力资金流向",
@@ -1105,24 +1156,27 @@
           ]
         },
         {
-          "label": "龙源技术 市盈率(倍)",
+          "label": "龙源技术.pe",
           "matcher": "/^龙源技术市盈率$/",
-          "column": "龙源技术市盈率",
-          "index": 63,
+          "colName": "龙源技术市盈率",
+          "colIndex": 63,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "龙源技术 市净率(倍)",
+          "label": "龙源技术.pb",
           "matcher": "/^龙源技术市净率$/",
-          "column": "龙源技术市净率",
-          "index": 64,
+          "colName": "龙源技术市净率",
+          "colIndex": 64,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "龙源技术 每日偏离值",
+          "label": "龙源技术.dev",
           "matcher": "/^龙源技术每日偏离值$/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "龙源技术股价每日偏离值",
             "龙源电力股价每日偏离值",
@@ -1130,10 +1184,11 @@
           ]
         },
         {
-          "label": "龙源技术 换手率比值",
+          "label": "龙源技术.turn_ratio",
           "matcher": "/^龙源技术换手率比值$/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "龙源技术股票换手率比值",
             "龙源电力股票换手率比值",
@@ -1141,38 +1196,43 @@
           ]
         },
         {
-          "label": "英力特 收盘",
+          "label": "英力特.close",
           "matcher": "/^英力特收盘价$/",
-          "column": "英力特收盘价",
-          "index": 68,
+          "colName": "英力特收盘价",
+          "colIndex": 68,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "英力特 涨跌幅(%)",
+          "label": "英力特.chg",
           "matcher": "/^英力特涨跌幅$/",
-          "column": "英力特涨跌幅",
-          "index": 69,
+          "colName": "英力特涨跌幅",
+          "colIndex": 69,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "英力特 成交金额(亿)",
+          "label": "英力特.amount",
           "matcher": "/^英力特成交金额/",
-          "column": "英力特成交金额",
-          "index": 70,
+          "colName": "英力特成交金额",
+          "colIndex": 70,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "英力特 成交金额变化(%)",
+          "label": "英力特.amount_chg",
           "matcher": "/^英力特成交金额变化$|^英力特成交变化$/",
-          "column": "英力特成交金额变化",
-          "index": 71,
+          "colName": "英力特成交金额变化",
+          "colIndex": 71,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "英力特 主力资金流向(亿)",
+          "label": "英力特.mainflow",
           "matcher": "/^英力特主力资金流向/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "国电电力主力资金流向",
             "英力特资金流向",
@@ -1180,24 +1240,27 @@
           ]
         },
         {
-          "label": "英力特 市盈率(倍)",
+          "label": "英力特.pe",
           "matcher": "/^英力特市盈率$/",
-          "column": "英力特市盈率",
-          "index": 73,
+          "colName": "英力特市盈率",
+          "colIndex": 73,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "英力特 市净率(倍)",
+          "label": "英力特.pb",
           "matcher": "/^英力特市净率$/",
-          "column": "英力特市净率",
-          "index": 74,
+          "colName": "英力特市净率",
+          "colIndex": 74,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "英力特 每日偏离值",
+          "label": "英力特.dev",
           "matcher": "/^英力特每日偏离值$/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "英力特股价每日偏离值",
             "国电电力股价每日偏离值",
@@ -1205,24 +1268,16 @@
           ]
         },
         {
-          "label": "英力特 换手率比值",
+          "label": "英力特.turn_ratio",
           "matcher": "/^英力特换手率比值$/",
-          "column": null,
-          "index": null,
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "英力特股票换手率比值",
             "国电电力股票换手率比值",
             "龙源电力股票换手率比值"
           ]
-        }
-      ],
-      "stats": [
-        {
-          "rows_total": 39,
-          "rows_kept": 3,
-          "range_start": "2025-09-22",
-          "range_end": "2025-09-26",
-          "date_column": "日期"
         }
       ]
     }

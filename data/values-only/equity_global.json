@@ -1,7 +1,7 @@
 {
   "series": [
     {
-      "name": "道琼斯工业指数 收盘",
+      "name": "道琼斯工业指数 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -35,7 +35,7 @@
       ]
     },
     {
-      "name": "纳斯达克指数 收盘",
+      "name": "纳斯达克指数 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -69,7 +69,41 @@
       ]
     },
     {
-      "name": "富时100 收盘",
+      "name": "标普500 收盘价",
+      "data": [
+        [
+          "2025-09-22",
+          6693.75
+        ],
+        [
+          "2025-09-23",
+          6656.92
+        ],
+        [
+          "2025-09-24",
+          6637.97
+        ]
+      ]
+    },
+    {
+      "name": "标普500 涨跌幅(%)",
+      "data": [
+        [
+          "2025-09-22",
+          0.441
+        ],
+        [
+          "2025-09-23",
+          -0.5502
+        ],
+        [
+          "2025-09-24",
+          -0.2847
+        ]
+      ]
+    },
+    {
+      "name": "富时100 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -103,7 +137,7 @@
       ]
     },
     {
-      "name": "法国CAC40 收盘",
+      "name": "法国CAC40 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -137,7 +171,7 @@
       ]
     },
     {
-      "name": "德国DAX 收盘",
+      "name": "德国DAX 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -171,7 +205,7 @@
       ]
     },
     {
-      "name": "泛欧斯托克600 收盘",
+      "name": "泛欧斯托克600 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -188,7 +222,7 @@
       ]
     },
     {
-      "name": "恒生指数 收盘",
+      "name": "恒生指数 收盘价",
       "data": [
         [
           "2025-09-22",
@@ -229,6 +263,8 @@
       "道琼斯工业指数涨跌幅": 0.1431,
       "纳斯达克指数收盘价": 22788.98,
       "纳斯达克指数涨跌幅": 0.6959,
+      "标准普尔500指数收盘价": 6693.75,
+      "标准普尔500指数涨跌幅": 0.441,
       "富时100收盘价": 9226.68,
       "富时100涨跌幅": 0.1086,
       "法国CAC40收盘价": 7830.11,
@@ -245,6 +281,8 @@
       "道琼斯工业指数涨跌幅": -0.1914,
       "纳斯达克指数收盘价": 22573.47,
       "纳斯达克指数涨跌幅": -0.9457,
+      "标准普尔500指数收盘价": 6656.92,
+      "标准普尔500指数涨跌幅": -0.5502,
       "富时100收盘价": 9223.32,
       "富时100涨跌幅": -0.0364,
       "法国CAC40收盘价": 7872.02,
@@ -261,6 +299,8 @@
       "道琼斯工业指数涨跌幅": -0.3705,
       "纳斯达克指数收盘价": 22497.86,
       "纳斯达克指数涨跌幅": -0.335,
+      "标准普尔500指数收盘价": 6637.97,
+      "标准普尔500指数涨跌幅": -0.2847,
       "富时100收盘价": 9250.43,
       "富时100涨跌幅": 0.2939,
       "法国CAC40收盘价": 7827.45,
@@ -281,118 +321,134 @@
     ],
     "rows": 3,
     "diagnostics": {
-      "columns": [
+      "sheet": "全球股市",
+      "window": {
+        "mon": "2025-09-22",
+        "fri": "2025-09-26"
+      },
+      "rows": {
+        "scanned": 39,
+        "kept": 3
+      },
+      "hits": [
         {
-          "label": "日期",
+          "label": "日期列",
           "matcher": "/^日期$/",
-          "column": "日期",
-          "index": 0,
+          "colName": "日期",
+          "colIndex": 0,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "道琼斯工业指数  收盘",
-          "matcher": "/^道琼斯工业指数收盘价$/",
-          "column": "道琼斯工业指数收盘价",
-          "index": 1,
+          "label": "道琼斯工业指数.close",
+          "matcher": "/道琼斯工业指数收盘价/",
+          "colName": "道琼斯工业指数收盘价",
+          "colIndex": 1,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "道琼斯工业指数  涨跌幅(%)",
-          "matcher": "/^道琼斯工业指数涨跌幅$/",
-          "column": "道琼斯工业指数涨跌幅",
-          "index": 2,
+          "label": "道琼斯工业指数.chgPct",
+          "matcher": "/道琼斯工业指数涨跌幅/",
+          "colName": "道琼斯工业指数涨跌幅",
+          "colIndex": 2,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "纳斯达克指数  收盘",
-          "matcher": "/^纳斯达克指数收盘价$/",
-          "column": "纳斯达克指数收盘价",
-          "index": 3,
+          "label": "纳斯达克指数.close",
+          "matcher": "/纳斯达克指数收盘价/",
+          "colName": "纳斯达克指数收盘价",
+          "colIndex": 3,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "纳斯达克指数  涨跌幅(%)",
-          "matcher": "/^纳斯达克指数涨跌幅$/",
-          "column": "纳斯达克指数涨跌幅",
-          "index": 4,
+          "label": "纳斯达克指数.chgPct",
+          "matcher": "/纳斯达克指数涨跌幅/",
+          "colName": "纳斯达克指数涨跌幅",
+          "colIndex": 4,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "标准普尔500  收盘",
-          "matcher": "/^标准普尔500收盘价$/",
-          "column": null,
-          "index": null,
-          "closest": [
-            "标准普尔500指数收盘价",
-            "标准普尔500指数涨跌幅",
-            "富时100收盘价"
-          ]
-        },
-        {
-          "label": "标准普尔500  涨跌幅(%)",
-          "matcher": "/^标准普尔500涨跌幅$/",
-          "column": null,
-          "index": null,
-          "closest": [
-            "标准普尔500指数涨跌幅",
-            "标准普尔500指数收盘价",
-            "富时100涨跌幅"
-          ]
-        },
-        {
-          "label": "富时100  收盘",
-          "matcher": "/^富时100收盘价$/",
-          "column": "富时100收盘价",
-          "index": 12,
+          "label": "标普500.close",
+          "matcher": "/标准普尔500指数收盘价/",
+          "colName": "标准普尔500指数收盘价",
+          "colIndex": 5,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "富时100  涨跌幅(%)",
-          "matcher": "/^富时100涨跌幅$/",
-          "column": "富时100涨跌幅",
-          "index": 13,
+          "label": "标普500.chgPct",
+          "matcher": "/标准普尔500指数涨跌幅/",
+          "colName": "标准普尔500指数涨跌幅",
+          "colIndex": 6,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "法国CAC40  收盘",
-          "matcher": "/^法国CAC40收盘价$/",
-          "column": "法国CAC40收盘价",
-          "index": 14,
+          "label": "富时100.close",
+          "matcher": "/富时100收盘价/",
+          "colName": "富时100收盘价",
+          "colIndex": 12,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "法国CAC40  涨跌幅(%)",
-          "matcher": "/^法国CAC40涨跌幅$/",
-          "column": "法国CAC40涨跌幅",
-          "index": 15,
+          "label": "富时100.chgPct",
+          "matcher": "/富时100涨跌幅/",
+          "colName": "富时100涨跌幅",
+          "colIndex": 13,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "德国DAX  收盘",
-          "matcher": "/^德国DAX收盘价$/",
-          "column": "德国DAX收盘价",
-          "index": 16,
+          "label": "法国CAC40.close",
+          "matcher": "/法国CAC40收盘价/",
+          "colName": "法国CAC40收盘价",
+          "colIndex": 14,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "德国DAX  涨跌幅(%)",
-          "matcher": "/^德国DAX涨跌幅$/",
-          "column": "德国DAX涨跌幅",
-          "index": 17,
+          "label": "法国CAC40.chgPct",
+          "matcher": "/法国CAC40涨跌幅/",
+          "colName": "法国CAC40涨跌幅",
+          "colIndex": 15,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "泛欧斯托克600  收盘",
-          "matcher": "/^泛欧斯托克600收盘价$/",
-          "column": "泛欧斯托克600收盘价",
-          "index": 18,
+          "label": "德国DAX.close",
+          "matcher": "/德国DAX收盘价/",
+          "colName": "德国DAX收盘价",
+          "colIndex": 16,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "泛欧斯托克600  涨跌幅(%)",
-          "matcher": "/^泛欧斯托克600涨跌幅$/",
-          "column": null,
-          "index": null,
+          "label": "德国DAX.chgPct",
+          "matcher": "/德国DAX涨跌幅/",
+          "colName": "德国DAX涨跌幅",
+          "colIndex": 17,
+          "matched": true,
+          "closest": []
+        },
+        {
+          "label": "泛欧斯托克600.close",
+          "matcher": "/泛欧斯托克600收盘价/",
+          "colName": "泛欧斯托克600收盘价",
+          "colIndex": 18,
+          "matched": true,
+          "closest": []
+        },
+        {
+          "label": "泛欧斯托克600.chgPct",
+          "matcher": "/泛欧斯托克600涨跌幅/",
+          "colName": null,
+          "colIndex": -1,
+          "matched": false,
           "closest": [
             "泛欧斯托克600收盘价",
             "泛欧斯托克涨跌幅",
@@ -400,27 +456,20 @@
           ]
         },
         {
-          "label": "恒生指数  收盘",
-          "matcher": "/^恒生指数收盘价$/",
-          "column": "恒生指数收盘价",
-          "index": 25,
+          "label": "恒生指数.close",
+          "matcher": "/恒生指数收盘价/",
+          "colName": "恒生指数收盘价",
+          "colIndex": 25,
+          "matched": true,
           "closest": []
         },
         {
-          "label": "恒生指数  涨跌幅(%)",
-          "matcher": "/^恒生指数涨跌幅$/",
-          "column": "恒生指数涨跌幅",
-          "index": 26,
+          "label": "恒生指数.chgPct",
+          "matcher": "/恒生指数涨跌幅/",
+          "colName": "恒生指数涨跌幅",
+          "colIndex": 26,
+          "matched": true,
           "closest": []
-        }
-      ],
-      "stats": [
-        {
-          "rows_total": 39,
-          "rows_kept": 3,
-          "range_start": "2025-09-22",
-          "range_end": "2025-09-26",
-          "date_column": "日期"
         }
       ]
     }

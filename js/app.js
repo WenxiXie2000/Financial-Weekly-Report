@@ -19,6 +19,12 @@ const RENDERERS = {
   news: renderNews,
 };
 
+const STORAGE_KEY = 'theme';
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
+
+let dateTimerId = null;
+let themeToggleInitialized = false;
+
 function getMount() {
   const mount = document.getElementById('main-content');
   if (!mount) {
@@ -96,56 +102,90 @@ function handleHashChange() {
   routeTo(viewId, { push: false });
 }
 
-function initHeader() {
-  const dateEl = document.getElementById('current-date');
-  const toggleBtn = document.getElementById('theme-toggle');
-  const root = document.documentElement;
-  const STORAGE_KEY = 'theme';
-  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+export function updateCurrentDate(targetEl = document.getElementById('current-date')) {
+  if (!targetEl) return;
 
-  const updateDate = () => {
-    if (!dateEl) return;
+  const render = () => {
     const now = new Date();
     const dateString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
       2,
       '0'
-    )}-${String(now.getDate()).padStart(2, '0')} 星期${weekdays[now.getDay()]}`;
-    dateEl.textContent = dateString;
+    )}-${String(now.getDate()).padStart(2, '0')} 星期${WEEKDAYS[now.getDay()]}`;
+    targetEl.textContent = dateString;
   };
 
-  updateDate();
-  setInterval(updateDate, 60 * 1000);
+  render();
 
-  const applyTheme = (theme) => {
-    root.setAttribute('data-theme', theme);
-    try {
-      localStorage.setItem(STORAGE_KEY, theme);
-    } catch (err) {
-      console.warn('无法保存主题设置', err);
-    }
-    if (toggleBtn) {
-      const isDark = theme === 'dark';
-      toggleBtn.setAttribute('aria-pressed', String(isDark));
-      toggleBtn.innerHTML = `<i class="bi ${isDark ? 'bi-moon-stars' : 'bi-sun'}"></i>`;
-    }
-  };
+  if (dateTimerId) {
+    clearInterval(dateTimerId);
+  }
 
+  dateTimerId = window.setInterval(render, 60 * 1000);
+}
+
+function readStoredTheme() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      applyTheme(saved);
-    }
+    return localStorage.getItem(STORAGE_KEY);
   } catch (err) {
     console.warn('无法读取主题设置', err);
+    return null;
+  }
+}
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  const normalized = theme === 'dark' ? 'dark' : 'light';
+  const isDark = normalized === 'dark';
+
+  root.setAttribute('data-theme', normalized);
+  document.body.classList.toggle('dark', isDark);
+
+  try {
+    localStorage.setItem(STORAGE_KEY, normalized);
+  } catch (err) {
+    console.warn('无法保存主题设置', err);
   }
 
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', () => {
-      const current = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-      const next = current === 'light' ? 'dark' : 'light';
-      applyTheme(next);
-    });
+  const btn = document.getElementById('theme-toggle');
+  if (btn) {
+    btn.setAttribute('aria-pressed', String(isDark));
+    btn.setAttribute('data-theme', normalized);
   }
+}
+
+function setupThemeToggle() {
+  const btn = document.getElementById('theme-toggle');
+  const stored = readStoredTheme();
+  if (stored) {
+    applyTheme(stored);
+  } else {
+    const hasDark = document.body.classList.contains('dark');
+    const rootTheme = document.documentElement.getAttribute('data-theme');
+    applyTheme(rootTheme === 'dark' || hasDark ? 'dark' : 'light');
+  }
+
+  if (!btn || themeToggleInitialized) return;
+
+  themeToggleInitialized = true;
+
+  btn.addEventListener('click', () => {
+    const nowDark = document.body.classList.contains('dark');
+    applyTheme(nowDark ? 'light' : 'dark');
+  });
+}
+
+function mountHeaderRuntime() {
+  updateCurrentDate(document.getElementById('current-date'));
+
+  const btn = document.getElementById('theme-toggle');
+  if (btn) {
+    const isDark =
+      document.body.classList.contains('dark') ||
+      document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  }
+
+  setupThemeToggle();
 }
 
 async function bootstrap() {
@@ -155,7 +195,7 @@ async function bootstrap() {
     { containerId: 'footer-container', path: './components/footer.html' },
   ]);
 
-  initHeader();
+  mountHeaderRuntime();
   window.addEventListener('hashchange', handleHashChange);
 
   const initial = window.location.hash.replace('#', '') || DEFAULT_VIEW;
