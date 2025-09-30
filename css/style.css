@@ -58,43 +58,6 @@ a:hover {
 
 .noscript {
   margin: 16px;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--accent-down);
-}
-
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(12px);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-weight: 600;
-  font-size: 18px;
-}
-
-.brand .bi {
-  font-size: 20px;
-  color: var(--primary);
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
   gap: 14px;
 }
 
@@ -199,6 +162,7 @@ a:hover {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -248,6 +212,59 @@ a:hover {
   .header-actions {
     gap: 10px;
   }
+}
+
+:root {
+  /* 主题主色与辅助色 */
+  --c-primary:    #409EFF; /* 蓝（收盘/趋势） */
+  --c-success:    #67C23A; /* 涨/正值 */
+  --c-danger:     #F56C6C; /* 跌/负值 */
+  --c-info:       #17A2B8; /* 成交金额 */
+  --c-warning:    #E6A23C; /* 成交金额变化 */
+  --c-violet:     #7C67E5; /* 主力资金流向 */
+  --c-muted:      #8C8C8C; /* 次要文本 */
+
+  /* 图表网格与线 */
+  --grid-line: rgba(0,0,0,.08);
+
+  /* 卡片渐变（可用于柱状填充） */
+  --g-primary-from: rgba(64,158,255,.18);
+  --g-primary-to:   rgba(64,158,255,.02);
+  --g-info-from:    rgba(23,162,184,.20);
+  --g-info-to:      rgba(23,162,184,.03);
+  --g-warning-from: rgba(230,162,60,.20);
+  --g-warning-to:   rgba(230,162,60,.03);
+  --g-violet-from:  rgba(124,103,229,.22);
+  --g-violet-to:    rgba(124,103,229,.05);
+
+  /* 兼容旧变量名（已有代码用到） */
+  --chart-line:     var(--c-primary);
+  --chart-positive: var(--c-success);
+  --chart-negative: var(--c-danger);
+  --text2:          var(--c-muted);
+  --border:         #e6e6e6;
+}
+
+html.dark,
+[data-theme="dark"] {
+  --c-primary:    #7AB8FF;
+  --c-success:    #7AD96F;
+  --c-danger:     #FF8A8A;
+  --c-info:       #5EC7D6;
+  --c-warning:    #F2C073;
+  --c-violet:     #A899FF;
+  --grid-line:    rgba(255,255,255,.12);
+
+  --g-primary-from: rgba(122,184,255,.24);
+  --g-primary-to:   rgba(122,184,255,.06);
+  --g-info-from:    rgba(94,199,214,.24);
+  --g-info-to:      rgba(94,199,214,.06);
+  --g-warning-from: rgba(242,192,115,.26);
+  --g-warning-to:   rgba(242,192,115,.08);
+  --g-violet-from:  rgba(168,153,255,.26);
+  --g-violet-to:    rgba(168,153,255,.08);
+
+  --border:        rgba(255,255,255,.12);
 }
 
 .kpi-grid {
@@ -511,3 +528,66 @@ a:hover {
       justify-content: center;
     }
   }
+
+.ec-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
+  align-items: stretch;
+}
+
+.ec-card {
+  background: var(--bg, #fff);
+  border: 1px solid var(--border, #e6e6e6);
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  padding: 12px 12px 10px;
+}
+
+.ec-card .title {
+  font-weight: 600;
+  margin: 0 0 6px 2px;
+}
+
+.ec-card .chart {
+  height: 200px;
+}
+
+@media (max-width: 1180px) {
+  .ec-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ec-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ec-tab {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border, #dcdfe6);
+  background: var(--card, #fff);
+  color: var(--text, #1f2937);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ec-tab:hover,
+.ec-tab:focus-visible {
+  border-color: var(--primary, #2563eb);
+  color: var(--primary, #2563eb);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.ec-tab.is-active {
+  background: var(--primary, #2563eb);
+  border-color: var(--primary, #2563eb);
+  color: #fff;
+  box-shadow: 0 6px 12px rgba(37, 99, 235, 0.16);
+}

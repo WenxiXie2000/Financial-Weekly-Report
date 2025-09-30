@@ -1,58 +1,62 @@
-import { loadSheet } from "../data-adapter.js";
+import { loadSheet } from '../data-adapter.js';
+
+export function ensureEcharts() {
+  if (typeof window === 'undefined' || typeof window.echarts === 'undefined') {
+    throw new Error(
+      'ECharts library not loaded. 请确认 index.html 已正确引入 echarts.min.js 且顺序在 app.js 之前。'
+    );
+  }
+}
 
 export async function renderTemplate(mount, { title, sheet }) {
   const data = await loadSheet(sheet);
-  const h = document.createElement("h2");
+  const h = document.createElement('h2');
   h.textContent = title;
   mount.appendChild(h);
 
   if (Array.isArray(data.series) && data.series.length) {
-    const chartEl = document.createElement("div");
-    chartEl.style.cssText = "height:320px;margin-top:8px";
+    ensureEcharts();
+    const chartEl = document.createElement('div');
+    chartEl.style.cssText = 'height:320px;margin-top:8px';
     mount.appendChild(chartEl);
     const ech = echarts.init(chartEl);
     ech.setOption({
-      tooltip: { trigger: "axis" },
+      tooltip: { trigger: 'axis' },
       legend: { top: 0 },
-      xAxis: { type: "time" },
-      yAxis: { type: "value" },
+      xAxis: { type: 'time' },
+      yAxis: { type: 'value' },
       series: data.series.map((s) => ({
         name: s.name,
-        type: "line",
+        type: 'line',
         showSymbol: false,
-        data: Array.isArray(s.data)
-          ? s.data.map(([t, v]) => [t, Number(v)])
-          : [],
+        data: Array.isArray(s.data) ? s.data.map(([t, v]) => [t, Number(v)]) : [],
       })),
     });
-    window.addEventListener("resize", () => ech.resize());
+    window.addEventListener('resize', () => ech.resize());
   }
 
   if (Array.isArray(data.table) && data.table.length) {
-    const card = document.createElement("div");
-    card.className = "card";
+    const card = document.createElement('div');
+    card.className = 'card';
     card.innerHTML = `<div class="card-header">明细（过滤后全列）</div>`;
-    const tbl = document.createElement("table");
-    tbl.style.cssText =
-      "width:100%;border-collapse:collapse;font-size:14px;margin:8px 0";
+    const tbl = document.createElement('table');
+    tbl.style.cssText = 'width:100%;border-collapse:collapse;font-size:14px;margin:8px 0';
     const cols = Object.keys(data.table[0]);
     tbl.innerHTML = `<thead><tr>${cols
       .map(
         (c) =>
           `<th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">${c}</th>`
       )
-      .join("")}</tr></thead><tbody></tbody>`;
-    const tb = tbl.querySelector("tbody");
+      .join('')}</tr></thead><tbody></tbody>`;
+    const tb = tbl.querySelector('tbody');
     data.table.forEach((row) => {
-      const tr = document.createElement("tr");
+      const tr = document.createElement('tr');
       tr.innerHTML = cols
         .map(
           (k) =>
-            `<td style="padding:6px;border-bottom:1px solid var(--border)">${
-              row[k] ?? "--"
-            }</td>`
+            `<td style="padding:6px;border-bottom:1px solid var(--border)">${row[k] ?? '--'}</td>`
         )
-        .join("");
+        .join('');
       tb.appendChild(tr);
     });
     card.appendChild(tbl);

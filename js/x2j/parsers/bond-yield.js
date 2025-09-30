@@ -16,22 +16,10 @@ const isNonEmptyRow = (row) =>
   Array.isArray(row) &&
   row.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== '');
 
-const expandMatcher = (matcher, rank) => {
-  if (matcher == null) return null;
-  if (typeof matcher === 'function') {
-    return matcher(rank);
-  }
-  if (matcher instanceof RegExp) {
-    return new RegExp(matcher.source.replace(/{R}/g, String(rank)), matcher.flags);
-  }
-  return new RegExp(String(matcher).replace(/{R}/g, String(rank)));
-};
-
-const formatRangeLabel = (mon, fri) => {
-  if (mon && fri) {
-    return mon === fri ? mon : `${mon}~${fri}`;
-  }
-  return mon || fri || '';
+const expandRankRe = (re, rank) => {
+  if (!(re instanceof RegExp)) return null;
+  const src = re.source.replace(/{R}/g, String(rank));
+  return new RegExp(src, re.flags || '');
 };
 
 const FIELD_LABELS = {
@@ -123,105 +111,55 @@ export default function parseBondYield(
     };
   }
 
+  const repEntry = filtered.at(-1) || null;
+  const repRow = repEntry?.row || null;
+
   const groups = Array.isArray(profile?.bondGroups) ? profile.bondGroups : [];
-
-  const groupDefs = groups
-    .map((group) => {
-      if (!group) return null;
-      const [rankStart, rankEnd] =
-        Array.isArray(group.rankRange) && group.rankRange.length === 2 ? group.rankRange : [1, 5];
-
-      const ranks = [];
-      for (let rank = rankStart; rank <= rankEnd; rank += 1) {
-        const cols = {};
-        ['issuer', 'size', 'term', 'coupon'].forEach((field) => {
-          const matcher = expandMatcher(group?.cols?.[field], rank);
-          if (!matcher) {
-            cols[field] = -1;
-            return;
-          }
-          const label = `${group?.label || group?.key || '组'} R${rank} ${
-            FIELD_LABELS[field] || field
-          }`;
-          const colIdx = findColIndex(headerIndex, matcher);
-          recordHit(label, matcher, colIdx);
-          cols[field] = colIdx;
-        });
-
-        if (Object.values(cols).every((idx) => idx < 0)) {
-          continue;
-        }
-
-        ranks.push({ rank, cols });
-      }
-
-      if (!ranks.length) return null;
-
-      return {
-        key: group.key || group.label,
-        label: group.label || group.key || String(group.key ?? '组'),
-        ranks,
-      };
-    })
-    .filter(Boolean);
-
-  const latestMap = new Map();
-
-  filtered.forEach(({ row, date }) => {
-    const dateIso = ymd(date);
-    groupDefs.forEach((group) => {
-      const rowsForGroup = [];
-
-      group.ranks.forEach(({ rank, cols }) => {
-        const issuerRaw = cols.issuer >= 0 ? row[cols.issuer] : null;
-        const sizeRaw = cols.size >= 0 ? row[cols.size] : null;
-        const termRaw = cols.term >= 0 ? row[cols.term] : null;
-        const couponRaw = cols.coupon >= 0 ? row[cols.coupon] : null;
-
-        const issuer = issuerRaw == null ? null : String(issuerRaw).trim() || null;
-        const sizeVal = toNumberOrNull(sizeRaw);
-        const term = termRaw == null ? null : String(termRaw).trim() || null;
-        const coupon = toPctString4OrNull(couponRaw);
-
-        const hasContent =
-          issuer !== null ||
-          (sizeVal !== null && Number.isFinite(sizeVal)) ||
-          term !== null ||
-          (coupon !== null && coupon !== '');
-
-        if (!hasContent) return;
-
-        rowsForGroup.push({
-          rank,
-          issuer,
-          size_yi: Number.isFinite(sizeVal) ? sizeVal : null,
-          term,
-          coupon_pct: coupon ?? null,
-        });
-      });
-
-      if (!rowsForGroup.length) return;
-
-      const previous = latestMap.get(group.key);
-      if (!previous || previous.date < dateIso) {
-        latestMap.set(group.key, { date: dateIso, rows: rowsForGroup.slice() });
-      }
-    });
-  });
-
-  const rangeLabel = formatRangeLabel(window.mon, window.fri);
   const top5Latest = {};
 
   groups.forEach((group) => {
+    if (!group) return;
     const key = group.key || group.label;
-    const latest = latestMap.get(key) || { rows: [] };
-    const rowsSorted = Array.isArray(latest.rows)
-      ? latest.rows.slice().sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
-      : [];
+    const [rankStart, rankEnd] =
+      Array.isArray(group.rankRange) && group.rankRange.length === 2 ? group.rankRange : [1, 5];
+
+    const rowsOut = [];
+    for (let rank = rankStart; rank <= rankEnd; rank += 1) {
+      const indices = {};
+      ['issuer', 'size', 'term', 'coupon'].forEach((field) => {
+        const matcher = expandRankRe(group?.cols?.[field], rank);
+        const label = `${key}[${rank}] ${FIELD_LABELS[field] || field}`;
+        const colIdx = matcher ? findColIndex(headerIndex, matcher) : -1;
+        recordHit(label, matcher, colIdx);
+        indices[field] = colIdx;
+      });
+
+      const issuerRaw = repRow && indices.issuer >= 0 ? repRow[indices.issuer] : null;
+      const sizeRaw = repRow && indices.size >= 0 ? repRow[indices.size] : null;
+      const termRaw = repRow && indices.term >= 0 ? repRow[indices.term] : null;
+      const couponRaw = repRow && indices.coupon >= 0 ? repRow[indices.coupon] : null;
+
+      const issuer = issuerRaw == null ? null : String(issuerRaw).trim() || null;
+      const sizeVal = toNumberOrNull(sizeRaw);
+      const term = termRaw == null ? null : String(termRaw).trim() || null;
+      const coupon = toPctString4OrNull(couponRaw);
+
+      rowsOut.push({
+        rank,
+        issuer,
+        size_yi: Number.isFinite(sizeVal) ? sizeVal : null,
+        term,
+        coupon_pct: coupon ?? null,
+      });
+    }
+
+    const monLabel = window.mon ? String(window.mon).slice(2) : null;
+    const friLabel = window.fri ? String(window.fri).slice(2) : null;
+    const displayRange = repRow && monLabel && friLabel ? `${monLabel}～${friLabel}` : null;
 
     top5Latest[key] = {
-      date: rangeLabel,
-      rows: rowsSorted,
+      date: displayRange,
+      rows: rowsOut,
     };
   });
 

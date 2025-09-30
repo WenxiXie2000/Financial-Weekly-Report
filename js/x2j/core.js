@@ -140,6 +140,16 @@ export function parseSheet(
   const profile = profiles?.[normalized];
   const context = { anchor, sheetName: normalized };
 
+  if (normalized === '公开市场组合') {
+    return {
+      sheetName,
+      normalizedSheetName: normalized,
+      outputFile: null,
+      kind: 'ignored',
+      payload: null,
+    };
+  }
+
   if (normalized === '人民币汇率') {
     const payload = parseCnyFx(rows, profile || {}, context);
     return {

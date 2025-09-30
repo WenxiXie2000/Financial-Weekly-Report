@@ -135,13 +135,54 @@ export function toDateSafe(value) {
     date.setHours(0, 0, 0, 0);
     return date;
   }
-  const text = String(value).trim();
-  if (!text) return null;
-  const normalized = text.includes('/') ? text : text.replace(/-/g, '/');
-  const date = new Date(normalized);
-  if (Number.isNaN(date.getTime())) return null;
-  date.setHours(0, 0, 0, 0);
-  return date;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const normalizedText = raw.replace(/[\u3000]/g, ' ');
+  const normalizedDate = new Date(normalizedText.replace(/\//g, '-'));
+  if (!Number.isNaN(normalizedDate.getTime())) {
+    normalizedDate.setHours(0, 0, 0, 0);
+    return normalizedDate;
+  }
+
+  const intervalMatch = normalizedText.match(
+    /(\d{2,4})[./-](\d{1,2})[./-](\d{1,2})\s*[\uFF5E~\-至]+\s*(\d{2,4})[./-](\d{1,2})[./-](\d{1,2})/
+  );
+  if (intervalMatch) {
+    const wrapYear = (segment) => {
+      const str = String(segment);
+      if (str.length === 2) {
+        const num = Number(str);
+        return num >= 70 ? 1900 + num : 2000 + num;
+      }
+      return Number(str);
+    };
+
+    const year = wrapYear(intervalMatch[4]);
+    const month = Number(intervalMatch[5]);
+    const day = Number(intervalMatch[6]);
+    const tailDate = new Date(year, month - 1, day);
+    if (!Number.isNaN(tailDate.getTime())) {
+      tailDate.setHours(0, 0, 0, 0);
+      return tailDate;
+    }
+  }
+
+  const shortYearMatch = normalizedText.match(/^\s*(\d{2})-(\d{1,2})-(\d{1,2})\s*$/);
+  if (shortYearMatch) {
+    const twoDigitYear = Number(shortYearMatch[1]);
+    // Interpret 00-69 as 2000-2069, 70-99 as 1970-1999（pending）
+    const year = twoDigitYear >= 70 ? 1900 + twoDigitYear : 2000 + twoDigitYear;
+    const month = Number(shortYearMatch[2]);
+    const day = Number(shortYearMatch[3]);
+    const shortDate = new Date(year, month - 1, day);
+    if (!Number.isNaN(shortDate.getTime())) {
+      shortDate.setHours(0, 0, 0, 0);
+      return shortDate;
+    }
+  }
+
+  return null;
 }
 
 export function isWeekday(date) {
