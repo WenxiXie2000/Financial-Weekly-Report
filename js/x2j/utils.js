@@ -21,6 +21,11 @@ export function normalizeHeaderLabel(input) {
   return t;
 }
 
+export function normalizeHeaderCell(value) {
+  if (value == null) return '';
+  return String(value).trim();
+}
+
 export function buildHeaderIndex(header) {
   if (
     header &&
@@ -62,6 +67,38 @@ export function findColIndex(header, matcher) {
   const normalizedKey = normalizeHeaderLabel(key);
   if (map.has(normalizedKey)) return map.get(normalizedKey);
   return norm.findIndex((cell) => cell === normalizedKey);
+}
+
+export function closestHeaderCandidates(header, pattern, topK = 3) {
+  const target = normalizeHeaderLabel(
+    pattern instanceof RegExp ? String(pattern).replace(/^\/|\/[a-z]*$/gi, '') : pattern
+  );
+  if (!target) return [];
+
+  const score = (source) => {
+    const normalized = normalizeHeaderLabel(source);
+    const m = normalized.length;
+    const n = target.length;
+    if (!m || !n) return 0;
+    const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+    for (let i = 1; i <= m; i += 1) {
+      for (let j = 1; j <= n; j += 1) {
+        if (normalized[i - 1] === target[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+      }
+    }
+    return dp[m][n] / Math.max(m, n);
+  };
+
+  return (header || [])
+    .map((col) => [String(col ?? ''), score(col)])
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, topK)
+    .map(([col]) => col)
+    .filter(Boolean);
 }
 
 export function toDateSafe(value) {
@@ -172,6 +209,26 @@ export function toNumberOrNull(value) {
   return Number.isNaN(num) ? null : num;
 }
 
+export function toNumberFixed(value, digits = 4) {
+  const num = toNumberOrNull(value);
+  if (!Number.isFinite(num)) return null;
+  return Number(num.toFixed(digits));
+}
+
+export function toPercentFixed(value, digits = 4) {
+  const num = toNumberOrNull(value);
+  if (!Number.isFinite(num)) return null;
+  return Number(num.toFixed(digits));
+}
+
+export function ymd(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export function toPctString4OrNull(value) {
   const normalized = missingToNull(value);
   if (normalized === null) return null;
@@ -267,8 +324,10 @@ export function mergeSeries(targetList = [], incomingList = []) {
 
 const exported = {
   normalizeHeaderLabel,
+  normalizeHeaderCell,
   buildHeaderIndex,
   findColIndex,
+  closestHeaderCandidates,
   toDateSafe,
   isWeekday,
   lastFridayFromToday,
@@ -278,7 +337,10 @@ const exported = {
   isMissingRaw,
   missingToNull,
   toNumberOrNull,
+  toNumberFixed,
+  toPercentFixed,
   toPctString4OrNull,
+  ymd,
   cloneDataset,
   ensureArray,
   cloneDiagnostics,

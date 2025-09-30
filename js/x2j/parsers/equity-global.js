@@ -1,202 +1,153 @@
-import { findColIndex, toDateSafe, prevCompletedWeekRange, toNumberOrNull } from '../utils.js';
-import { formatDate, describeMatcher, closestHeaders } from './common.js';
+import {
+  buildHeaderIndex,
+  normalizeHeaderCell,
+  findColIndex,
+  closestHeaderCandidates,
+  toDateSafe,
+  prevCompletedWeekRange,
+  toNumberOrNull,
+  ymd,
+} from '../utils.js';
 
-const INDEX_DEFS = [
-  '道琼斯工业指数',
-  '纳斯达克指数',
-  '标准普尔500',
-  '富时100',
-  '法国CAC40',
-  '德国DAX',
-  '泛欧斯托克600',
-  '恒生指数',
-];
+const DEFAULT_SHEET_NAME = '全球股市';
 
-const METRICS = [
-  {
-    key: 'close',
-    suffix: ' 收盘',
-    matcher: (name) => new RegExp(`^${name}收盘价$`),
-    valueType: 'number',
-  },
-  {
-    key: 'chg',
-    suffix: ' 涨跌幅(%)',
-    matcher: (name) => new RegExp(`^${name}涨跌幅$`),
-    valueType: 'percent',
-  },
-];
+const isNonEmptyRow = (row) =>
+  Array.isArray(row) &&
+  row.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== '');
 
-const DEFAULT_HEADER_ROW = 1;
-
-const normalizeHeader = (value) => (value == null ? '' : String(value).trim());
-
-const formatPercentValue = (value) => {
-  const num = toNumberOrNull(value);
+const valueFromMeta = (raw, meta) => {
+  if (!meta) return null;
+  const num = toNumberOrNull(raw);
   if (!Number.isFinite(num)) return null;
-  return Number(num.toFixed(4));
-};
-
-const formatNumericValue = (value) => {
-  const num = toNumberOrNull(value);
-  return Number.isFinite(num) ? num : null;
+  const digits =
+    typeof meta.digits === 'number' ? meta.digits : meta.type === 'percent' ? 4 : undefined;
+  if (typeof digits === 'number') {
+    return Number(num.toFixed(digits));
+  }
+  return num;
 };
 
 export default function parseEquityGlobal(
   rows,
   profile = {},
-  { sheetName = '全球股市', anchor = new Date() } = {}
+  { sheetName = DEFAULT_SHEET_NAME, anchor = new Date() } = {}
 ) {
-  const headerRowIndex = Number.isInteger(profile?.headerRow)
-    ? Math.max(0, profile.headerRow)
-    : DEFAULT_HEADER_ROW;
-  const header = Array.isArray(rows?.[headerRowIndex])
-    ? rows[headerRowIndex].map(normalizeHeader)
+  const headerRowIndex = Number.isInteger(profile?.headerRow) ? Math.max(0, profile.headerRow) : 1;
+  const headerRow = Array.isArray(rows?.[headerRowIndex])
+    ? rows[headerRowIndex].map(normalizeHeaderCell)
     : [];
+  const headerIndex = buildHeaderIndex(headerRow);
   const bodyRows = Array.isArray(rows)
-    ? rows
-        .slice(headerRowIndex + 1)
-        .filter(
-          (row) =>
-            Array.isArray(row) &&
-            row.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== '')
-        )
+    ? rows.slice(headerRowIndex + 1).filter((row) => isNonEmptyRow(row))
     : [];
+
+  const { mon, fri } = prevCompletedWeekRange(anchor);
+  const window = { mon: ymd(mon), fri: ymd(fri) };
 
   const diagnostics = {
     sheet: sheetName,
-    range: null,
-    rows: { total: bodyRows.length, kept: 0 },
-    date_column: null,
-    columns: [],
+    window,
+    rows: { scanned: bodyRows.length, kept: 0 },
+    hits: [],
   };
 
-  const trackColumnInfo = (matcher, label) => {
-    const index = findColIndex(header, matcher);
-    const column = index >= 0 ? header[index] ?? null : null;
-    diagnostics.columns.push({
+  const recordHit = (label, matcher, colIdx) => {
+    diagnostics.hits.push({
       label,
-      matcher: describeMatcher(matcher),
-      column,
-      index: index >= 0 ? index : null,
-      closest: index >= 0 ? [] : closestHeaders(header, matcher),
+      matcher: matcher instanceof RegExp ? matcher.toString() : String(matcher ?? ''),
+      colName: colIdx >= 0 ? headerRow[colIdx] ?? null : null,
+      colIndex: colIdx >= 0 ? colIdx : -1,
+      matched: colIdx >= 0,
+      closest: colIdx >= 0 ? [] : closestHeaderCandidates(headerRow, matcher),
     });
-    return index;
   };
 
   const dateMatcher = profile?.dateCol || /^日期$/;
-  const dateIdx = trackColumnInfo(dateMatcher, '日期');
-  diagnostics.date_column = dateIdx >= 0 ? header[dateIdx] || null : null;
+  const dateIdx = findColIndex(headerIndex, dateMatcher);
+  recordHit('日期列', dateMatcher, dateIdx);
 
-  const { mon, fri } = prevCompletedWeekRange(anchor);
-  const rangeStart = mon ? formatDate(mon) : '';
-  const rangeEnd = fri ? formatDate(fri) : '';
-  diagnostics.range = { start: rangeStart, end: rangeEnd };
-
-  const filtered = bodyRows
-    .map((row) => {
-      const raw = dateIdx >= 0 ? row[dateIdx] : null;
-      const date = toDateSafe(raw);
-      return { row, date };
-    })
-    .filter((item) => item.date && item.date >= mon && item.date <= fri)
-    .sort((a, b) => a.date - b.date);
-
-  diagnostics.rows.kept = filtered.length;
-
-  if (!filtered.length || dateIdx < 0) {
+  if (dateIdx < 0) {
     return {
       series: [],
       table: [],
       export_info: {
         source_sheet: sheetName,
         range: 'prevCompletedWeek',
-        range_window: [rangeStart, rangeEnd],
-        rows: filtered.length,
-        diagnostics: {
-          columns: diagnostics.columns,
-          stats: [
-            {
-              rows_total: bodyRows.length,
-              rows_kept: filtered.length,
-              range_start: rangeStart,
-              range_end: rangeEnd,
-              date_column: diagnostics.date_column,
-            },
-          ],
-        },
+        range_window: [window.mon, window.fri],
+        rows: 0,
+        diagnostics,
       },
     };
   }
 
-  const columnTransforms = new Map();
-  const seriesList = [];
+  const filtered = bodyRows
+    .map((row) => {
+      const dateValue = toDateSafe(row[dateIdx]);
+      if (!dateValue) return null;
+      if (mon && dateValue < mon) return null;
+      if (fri && dateValue > fri) return null;
+      return { row, dateObj: dateValue, date: ymd(dateValue) };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.dateObj - b.dateObj);
 
-  const ensureSeries = (name) => {
-    let existing = seriesList.find((item) => item.name === name);
-    if (!existing) {
-      existing = { name, data: [] };
-      seriesList.push(existing);
-    }
-    return existing;
-  };
+  diagnostics.rows.kept = filtered.length;
 
-  INDEX_DEFS.forEach((indexName) => {
-    METRICS.forEach((metric) => {
-      const matcher = metric.matcher(indexName);
-      const columnIdx = trackColumnInfo(matcher, `${indexName} ${metric.suffix}`);
-      if (columnIdx < 0) return;
+  if (!filtered.length) {
+    return {
+      series: [],
+      table: [],
+      export_info: {
+        source_sheet: sheetName,
+        range: 'prevCompletedWeek',
+        range_window: [window.mon, window.fri],
+        rows: 0,
+        diagnostics,
+      },
+    };
+  }
 
-      const transform = metric.valueType === 'percent' ? formatPercentValue : formatNumericValue;
-      columnTransforms.set(columnIdx, transform);
+  const seriesDefs = Array.isArray(profile?.series) ? profile.series : [];
+  const metricMeta = profile?.metricMeta || {};
 
-      const series = ensureSeries(`${indexName}${metric.suffix}`);
-      const pointMap = new Map();
-      filtered.forEach(({ row, date }) => {
-        const iso = formatDate(date);
-        const value = transform(row[columnIdx]);
-        if (!pointMap.has(iso) || value !== null) {
-          pointMap.set(iso, value);
-        }
-      });
-      series.data = Array.from(pointMap.entries()).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  const series = [];
+  const trackedColumns = new Map();
+
+  seriesDefs.forEach((entry) => {
+    if (!entry || !entry.label) return;
+    const cols = entry.cols || {};
+    Object.entries(cols).forEach(([metricKey, matcher]) => {
+      if (!matcher) return;
+      const colIdx = findColIndex(headerIndex, matcher);
+      recordHit(`${entry.label}.${metricKey}`, matcher, colIdx);
+      if (colIdx < 0) return;
+
+      const meta = metricMeta[metricKey] || { label: metricKey };
+      trackedColumns.set(colIdx, meta);
+      const name = `${entry.label} ${meta.label || metricKey}`;
+      const data = filtered.map(({ row, date }) => [date, valueFromMeta(row[colIdx], meta)]);
+      series.push({ name, data });
     });
   });
 
-  const uniqueColumns = Array.from(columnTransforms.keys());
   const table = filtered.map(({ row, date }) => {
     const record = {};
-    record[header[dateIdx]] = formatDate(date);
-    uniqueColumns.forEach((idx) => {
-      if (idx === dateIdx) return;
-      const transform = columnTransforms.get(idx);
-      record[header[idx]] = transform ? transform(row[idx]) : row[idx];
+    record[headerRow[dateIdx] || '日期'] = date;
+    trackedColumns.forEach((meta, colIdx) => {
+      record[headerRow[colIdx] || `COL_${colIdx}`] = valueFromMeta(row[colIdx], meta);
     });
     return record;
   });
 
-  const exportInfo = {
-    source_sheet: sheetName,
-    range: 'prevCompletedWeek',
-    range_window: [rangeStart, rangeEnd],
-    rows: filtered.length,
-    diagnostics: {
-      columns: diagnostics.columns,
-      stats: [
-        {
-          rows_total: bodyRows.length,
-          rows_kept: filtered.length,
-          range_start: rangeStart,
-          range_end: rangeEnd,
-          date_column: diagnostics.date_column,
-        },
-      ],
-    },
-  };
-
   return {
-    series: seriesList,
+    series,
     table,
-    export_info: exportInfo,
+    export_info: {
+      source_sheet: sheetName,
+      range: 'prevCompletedWeek',
+      range_window: [window.mon, window.fri],
+      rows: filtered.length,
+      diagnostics,
+    },
   };
 }

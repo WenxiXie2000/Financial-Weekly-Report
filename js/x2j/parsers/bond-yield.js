@@ -1,111 +1,111 @@
 import {
+  buildHeaderIndex,
+  normalizeHeaderCell,
   findColIndex,
+  closestHeaderCandidates,
   toDateSafe,
   prevCompletedWeekRange,
   toNumberOrNull,
   toPctString4OrNull,
+  ymd,
 } from '../utils.js';
-import { formatDate, describeMatcher, closestHeaders } from './common.js';
 
 const DEFAULT_SHEET_NAME = '债券利率';
-const DEFAULT_HEADER_ROW = 0;
 
-const GROUP_DEFS = [
-  { key: 'aaa_3y', label: 'AAA公司债3年' },
-  { key: 'aaa_5y', label: 'AAA公司债5年' },
-  { key: 'aaa_mt_5y', label: 'AAA中票5年' },
-  { key: 'aaa_priv_5y', label: 'AAA私募债5年' },
-  { key: 'cp_short', label: '短融' },
-  { key: 'scp_270d', label: '270D超短融' },
-  { key: 'scp_180d', label: '180D超短融' },
-];
+const isNonEmptyRow = (row) =>
+  Array.isArray(row) &&
+  row.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== '');
 
-const FIELD_PATTERNS = {
+const expandMatcher = (matcher, rank) => {
+  if (matcher == null) return null;
+  if (typeof matcher === 'function') {
+    return matcher(rank);
+  }
+  if (matcher instanceof RegExp) {
+    return new RegExp(matcher.source.replace(/{R}/g, String(rank)), matcher.flags);
+  }
+  return new RegExp(String(matcher).replace(/{R}/g, String(rank)));
+};
+
+const formatRangeLabel = (mon, fri) => {
+  if (mon && fri) {
+    return mon === fri ? mon : `${mon}~${fri}`;
+  }
+  return mon || fri || '';
+};
+
+const FIELD_LABELS = {
   issuer: '公司简称',
   size: '发行规模',
   term: '发行期限',
   coupon: '票面利率',
 };
 
-const buildMatcher = (base, field, rank) => {
-  const core = `${base}${rank}${field}`;
-  return new RegExp(`^${core}(?:（[^）]*）)?$`);
-};
-
-const trackColumnInfo = (header, diagnostics, matcher, label) => {
-  const idx = findColIndex(header, matcher);
-  const column = idx >= 0 ? header[idx] ?? null : null;
-  diagnostics.columns.push({
-    label,
-    matcher: describeMatcher(matcher),
-    column,
-    index: idx >= 0 ? idx : null,
-    closest: idx >= 0 ? [] : closestHeaders(header, matcher),
-  });
-  return idx;
-};
-
-const normalizeHeader = (value) => (value == null ? '' : String(value).trim());
-
-const formatRangeLabel = (start, end) => (start && end ? `${start}~${end}` : start || end || '');
-
-export function parseBondYield(
+export default function parseBondYield(
   rows,
   profile = {},
   { sheetName = DEFAULT_SHEET_NAME, anchor = new Date() } = {}
 ) {
-  const headerRowIndex = Number.isInteger(profile?.headerRow)
-    ? Math.max(0, profile.headerRow)
-    : DEFAULT_HEADER_ROW;
-  const header = Array.isArray(rows?.[headerRowIndex])
-    ? rows[headerRowIndex].map(normalizeHeader)
+  const headerRowIndex = Number.isInteger(profile?.headerRow) ? Math.max(0, profile.headerRow) : 0;
+  const headerRow = Array.isArray(rows?.[headerRowIndex])
+    ? rows[headerRowIndex].map(normalizeHeaderCell)
     : [];
+  const headerIndex = buildHeaderIndex(headerRow);
   const bodyRows = Array.isArray(rows)
-    ? rows
-        .slice(headerRowIndex + 1)
-        .filter(
-          (row) =>
-            Array.isArray(row) &&
-            row.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== '')
-        )
+    ? rows.slice(headerRowIndex + 1).filter((row) => isNonEmptyRow(row))
     : [];
+
+  const { mon, fri } = prevCompletedWeekRange(anchor);
+  const window = { mon: ymd(mon), fri: ymd(fri) };
 
   const diagnostics = {
     sheet: sheetName,
-    range: null,
-    rows: { total: bodyRows.length, kept: 0 },
-    date_column: null,
+    window,
+    rows: { scanned: bodyRows.length, kept: 0 },
     columns: [],
   };
 
-  const dateMatcher = profile?.dateCol || /^日期$/;
-  const dateIdx = trackColumnInfo(header, diagnostics, dateMatcher, '日期');
-  diagnostics.date_column = dateIdx >= 0 ? header[dateIdx] || null : null;
+  const recordHit = (label, matcher, colIdx) => {
+    diagnostics.columns.push({
+      label,
+      matcher: matcher instanceof RegExp ? matcher.toString() : String(matcher ?? ''),
+      column: colIdx >= 0 ? headerRow[colIdx] ?? null : null,
+      index: colIdx >= 0 ? colIdx : null,
+      closest: colIdx >= 0 ? [] : closestHeaderCandidates(headerRow, matcher),
+    });
+  };
 
-  const { mon, fri } = prevCompletedWeekRange(anchor);
-  const rangeStart = mon ? formatDate(mon) : '';
-  const rangeEnd = fri ? formatDate(fri) : '';
-  diagnostics.range = { start: rangeStart, end: rangeEnd };
+  const dateMatcher = profile?.dateCol || /^日期$/;
+  const dateIdx = findColIndex(headerIndex, dateMatcher);
+  recordHit('日期列', dateMatcher, dateIdx);
+  const dateColName = dateIdx >= 0 ? headerRow[dateIdx] ?? null : null;
 
   const filtered = bodyRows
     .map((row) => {
       const raw = dateIdx >= 0 ? row[dateIdx] : null;
-      const date = toDateSafe(raw);
-      return { row, date };
+      const dateValue = toDateSafe(raw);
+      if (!dateValue) return null;
+      if (mon && dateValue < mon) return null;
+      if (fri && dateValue > fri) return null;
+      const iso = ymd(dateValue);
+      if (typeof profile.rowFilter === 'function' && !profile.rowFilter({ date: iso })) {
+        return null;
+      }
+      return { row, dateObj: dateValue, date: iso };
     })
-    .filter((item) => item.date && item.date >= mon && item.date <= fri)
-    .sort((a, b) => a.date - b.date);
+    .filter(Boolean)
+    .sort((a, b) => a.dateObj - b.dateObj);
 
   diagnostics.rows.kept = filtered.length;
 
-  if (!filtered.length || dateIdx < 0) {
+  if (dateIdx < 0 || !filtered.length) {
     return {
       top5_latest: {},
       series: [],
       export_info: {
         source_sheet: '债券利率 + 中票利率',
         range: 'prevCompletedWeek',
-        range_window: [rangeStart, rangeEnd],
+        range_window: [window.mon, window.fri],
         rows: filtered.length,
         diagnostics: {
           columns: diagnostics.columns,
@@ -113,9 +113,9 @@ export function parseBondYield(
             {
               rows_total: bodyRows.length,
               rows_kept: filtered.length,
-              range_start: rangeStart,
-              range_end: rangeEnd,
-              date_column: diagnostics.date_column,
+              range_start: window.mon,
+              range_end: window.fri,
+              date_column: dateColName,
             },
           ],
         },
@@ -123,101 +123,112 @@ export function parseBondYield(
     };
   }
 
-  const groupColumnDefs = GROUP_DEFS.map((group) => {
-    const ranks = [];
-    for (let rank = 1; rank <= 5; rank += 1) {
-      const issuerIdx = trackColumnInfo(
-        header,
-        diagnostics,
-        buildMatcher(group.label, FIELD_PATTERNS.issuer, rank),
-        `${group.label} R${rank} 公司简称`
-      );
-      const sizeIdx = trackColumnInfo(
-        header,
-        diagnostics,
-        buildMatcher(group.label, FIELD_PATTERNS.size, rank),
-        `${group.label} R${rank} 发行规模`
-      );
-      const termIdx = trackColumnInfo(
-        header,
-        diagnostics,
-        buildMatcher(group.label, FIELD_PATTERNS.term, rank),
-        `${group.label} R${rank} 发行期限`
-      );
-      const couponIdx = trackColumnInfo(
-        header,
-        diagnostics,
-        buildMatcher(group.label, FIELD_PATTERNS.coupon, rank),
-        `${group.label} R${rank} 票面利率`
-      );
+  const groups = Array.isArray(profile?.bondGroups) ? profile.bondGroups : [];
 
-      ranks.push({ rank, issuerIdx, sizeIdx, termIdx, couponIdx });
-    }
-    return { ...group, ranks };
-  });
+  const groupDefs = groups
+    .map((group) => {
+      if (!group) return null;
+      const [rankStart, rankEnd] =
+        Array.isArray(group.rankRange) && group.rankRange.length === 2 ? group.rankRange : [1, 5];
 
-  const groupDateMap = new Map();
+      const ranks = [];
+      for (let rank = rankStart; rank <= rankEnd; rank += 1) {
+        const cols = {};
+        ['issuer', 'size', 'term', 'coupon'].forEach((field) => {
+          const matcher = expandMatcher(group?.cols?.[field], rank);
+          if (!matcher) {
+            cols[field] = -1;
+            return;
+          }
+          const label = `${group?.label || group?.key || '组'} R${rank} ${
+            FIELD_LABELS[field] || field
+          }`;
+          const colIdx = findColIndex(headerIndex, matcher);
+          recordHit(label, matcher, colIdx);
+          cols[field] = colIdx;
+        });
+
+        if (Object.values(cols).every((idx) => idx < 0)) {
+          continue;
+        }
+
+        ranks.push({ rank, cols });
+      }
+
+      if (!ranks.length) return null;
+
+      return {
+        key: group.key || group.label,
+        label: group.label || group.key || String(group.key ?? '组'),
+        ranks,
+      };
+    })
+    .filter(Boolean);
+
+  const latestMap = new Map();
 
   filtered.forEach(({ row, date }) => {
-    const iso = formatDate(date);
-    groupColumnDefs.forEach((group) => {
-      const records = [];
-      group.ranks.forEach((rankDef) => {
-        const issuerRaw = rankDef.issuerIdx >= 0 ? row[rankDef.issuerIdx] : null;
-        const sizeRaw = rankDef.sizeIdx >= 0 ? row[rankDef.sizeIdx] : null;
-        const termRaw = rankDef.termIdx >= 0 ? row[rankDef.termIdx] : null;
-        const couponRaw = rankDef.couponIdx >= 0 ? row[rankDef.couponIdx] : null;
+    const dateIso = ymd(date);
+    groupDefs.forEach((group) => {
+      const rowsForGroup = [];
+
+      group.ranks.forEach(({ rank, cols }) => {
+        const issuerRaw = cols.issuer >= 0 ? row[cols.issuer] : null;
+        const sizeRaw = cols.size >= 0 ? row[cols.size] : null;
+        const termRaw = cols.term >= 0 ? row[cols.term] : null;
+        const couponRaw = cols.coupon >= 0 ? row[cols.coupon] : null;
 
         const issuer = issuerRaw == null ? null : String(issuerRaw).trim() || null;
-        const sizeValue = toNumberOrNull(sizeRaw);
+        const sizeVal = toNumberOrNull(sizeRaw);
         const term = termRaw == null ? null : String(termRaw).trim() || null;
         const coupon = toPctString4OrNull(couponRaw);
 
-        if (
-          issuer === null &&
-          (sizeValue === null || Number.isNaN(sizeValue)) &&
-          term === null &&
-          (coupon === null || coupon === '')
-        ) {
-          return;
-        }
+        const hasContent =
+          issuer !== null ||
+          (sizeVal !== null && Number.isFinite(sizeVal)) ||
+          term !== null ||
+          (coupon !== null && coupon !== '');
 
-        records.push({
-          rank: rankDef.rank,
+        if (!hasContent) return;
+
+        rowsForGroup.push({
+          rank,
           issuer,
-          size_yi: Number.isFinite(sizeValue) ? sizeValue : null,
+          size_yi: Number.isFinite(sizeVal) ? sizeVal : null,
           term,
           coupon_pct: coupon ?? null,
         });
       });
 
-      if (!records.length) return;
-      if (!groupDateMap.has(group.key)) {
-        groupDateMap.set(group.key, new Map());
+      if (!rowsForGroup.length) return;
+
+      const previous = latestMap.get(group.key);
+      if (!previous || previous.date < dateIso) {
+        latestMap.set(group.key, { date: dateIso, rows: rowsForGroup.slice() });
       }
-      const dateMap = groupDateMap.get(group.key);
-      dateMap.set(iso, records);
     });
   });
 
-  const rangeLabel = formatRangeLabel(rangeStart, rangeEnd);
+  const rangeLabel = formatRangeLabel(window.mon, window.fri);
   const top5Latest = {};
 
-  GROUP_DEFS.forEach((group) => {
-    const dateMap = groupDateMap.get(group.key) || new Map();
-    const dates = Array.from(dateMap.keys()).sort((a, b) => (a < b ? -1 : 1));
-    const latestDate = dates.length ? dates[dates.length - 1] : null;
-    const rowsForLatest = latestDate ? dateMap.get(latestDate) || [] : [];
-    top5Latest[group.key] = {
+  groups.forEach((group) => {
+    const key = group.key || group.label;
+    const latest = latestMap.get(key) || { rows: [] };
+    const rowsSorted = Array.isArray(latest.rows)
+      ? latest.rows.slice().sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
+      : [];
+
+    top5Latest[key] = {
       date: rangeLabel,
-      rows: rowsForLatest.slice().sort((a, b) => a.rank - b.rank),
+      rows: rowsSorted,
     };
   });
 
-  const exportInfo = {
+  const export_info = {
     source_sheet: '债券利率 + 中票利率',
     range: 'prevCompletedWeek',
-    range_window: [rangeStart, rangeEnd],
+    range_window: [window.mon, window.fri],
     rows: filtered.length,
     diagnostics: {
       columns: diagnostics.columns,
@@ -225,9 +236,9 @@ export function parseBondYield(
         {
           rows_total: bodyRows.length,
           rows_kept: filtered.length,
-          range_start: rangeStart,
-          range_end: rangeEnd,
-          date_column: diagnostics.date_column,
+          range_start: window.mon,
+          range_end: window.fri,
+          date_column: dateColName,
         },
       ],
     },
@@ -236,8 +247,6 @@ export function parseBondYield(
   return {
     top5_latest: top5Latest,
     series: [],
-    export_info: exportInfo,
+    export_info,
   };
 }
-
-export default parseBondYield;

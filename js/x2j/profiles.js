@@ -115,6 +115,12 @@ export const SHEET_PROFILES = {
       mid: (kw) => new RegExp(`^${kw}央行中间价$`),
       mid_chg: (kw) => new RegExp(`^${kw}央行中间价调整情况$`),
     },
+    metricMeta: {
+      rate: { label: '汇率', type: 'number', digits: 4 },
+      chg: { label: '涨跌幅(%)', type: 'percent', digits: 4 },
+      mid: { label: '央行中间价', type: 'number', digits: 4 },
+      mid_chg: { label: '央行中间价调整(%)', type: 'percent', digits: 4 },
+    },
   },
   公开市场货币: {
     headerRow: 0,
@@ -228,16 +234,61 @@ export const SHEET_PROFILES = {
     dateCol: /^日期$/,
     rangeDefault: 'prevCompletedWeek',
     stocks: ['国电电力', '中国神华', '龙源电力', '长源电力', '龙源技术', '英力特'],
-    cols: {
-      close: (s) => new RegExp(`^${s}收盘价$`),
-      chg: (s) => new RegExp(`^${s}涨跌幅$`),
-      amount: (s) => new RegExp(`^${s}成交金额`),
-      amount_chg: (s) => new RegExp(`^${s}成交金额变化$|^${s}成交变化$`),
-      mainflow: (s) => new RegExp(`^${s}主力资金流向`),
-      pe: (s) => new RegExp(`^${s}市盈率$`),
-      pb: (s) => new RegExp(`^${s}市净率$`),
-      dev: (s) => new RegExp(`^${s}每日偏离值$`),
-      turn_ratio: (s) => new RegExp(`^${s}换手率比值$`),
+    metrics: {
+      close: {
+        label: '收盘价',
+        type: 'number',
+        digits: 4,
+        matcher: (s) => new RegExp(`^${s}收盘价$`),
+      },
+      chg: {
+        label: '涨跌幅(%)',
+        type: 'percent',
+        digits: 4,
+        matcher: (s) => new RegExp(`^${s}涨跌幅$`),
+      },
+      amount: {
+        label: '成交金额(亿)',
+        type: 'number',
+        digits: 4,
+        matcher: (s) => new RegExp(`^${s}成交金额`),
+      },
+      amount_chg: {
+        label: '成交金额变化(%)',
+        type: 'percent',
+        digits: 4,
+        matcher: (s) => new RegExp(`^${s}成交金额变化$|^${s}成交变化$`),
+      },
+      mainflow: {
+        label: '主力资金流向(亿)',
+        type: 'number',
+        digits: 4,
+        matcher: (s) => new RegExp(`^${s}主力资金流向`),
+      },
+      pe: {
+        label: '市盈率(倍)',
+        type: 'number',
+        digits: 4,
+        matcher: (s) => new RegExp(`^${s}市盈率$`),
+      },
+      pb: {
+        label: '市净率(倍)',
+        type: 'number',
+        digits: 4,
+        matcher: (s) => new RegExp(`^${s}市净率$`),
+      },
+      dev: {
+        label: '每日偏离值',
+        type: 'percent',
+        digits: 4,
+        matcher: (s) => new RegExp(`^${s}每日偏离值$`),
+      },
+      turn_ratio: {
+        label: '换手率比值',
+        type: 'percent',
+        digits: 4,
+        matcher: (s) => new RegExp(`^${s}换手率比值$`),
+      },
     },
     rowFilter: (row) => {
       if (!row.date) return false;
@@ -268,12 +319,37 @@ export const SHEET_PROFILES = {
       { key: '沪深300', alias: '沪深300' },
       { key: '300电力', alias: '300电力' },
     ],
-    cols: {
-      close: (idx) => new RegExp(`^${idx}收盘价$`),
-      chg: (idx) => new RegExp(`^${idx}涨跌幅$`),
-      amount: (idx) => new RegExp(`^${idx}成交金额`),
-      amount_chg: (idx) => new RegExp(`^${idx}成交金额变化$|^${idx}成交变化$`),
-      mainflow: (idx) => new RegExp(`^${idx}主力资金流向`),
+    metrics: {
+      close: {
+        label: '收盘价',
+        type: 'number',
+        digits: 4,
+        matcher: (idx) => new RegExp(`^${idx}收盘价$`),
+      },
+      chg: {
+        label: '涨跌幅(%)',
+        type: 'percent',
+        digits: 4,
+        matcher: (idx) => new RegExp(`^${idx}涨跌幅$`),
+      },
+      amount: {
+        label: '成交金额(亿)',
+        type: 'number',
+        digits: 4,
+        matcher: (idx) => new RegExp(`^${idx}成交金额`),
+      },
+      amount_chg: {
+        label: '成交金额变化(%)',
+        type: 'percent',
+        digits: 4,
+        matcher: (idx) => new RegExp(`^${idx}成交金额变化$|^${idx}成交变化$`),
+      },
+      mainflow: {
+        label: '主力资金流向(亿)',
+        type: 'number',
+        digits: 4,
+        matcher: (idx) => new RegExp(`^${idx}主力资金流向`),
+      },
     },
     marketCols: {
       total_amount: /^两市成交额/,
@@ -303,21 +379,72 @@ export const SHEET_PROFILES = {
       return !Number.isNaN(d.getTime()) && d.getDay() >= 1 && d.getDay() <= 5;
     },
     series: [
-      { label: '道琼斯工业指数', close: /道琼斯工业指数收盘价/, chgPct: /道琼斯工业指数涨跌幅/ },
-      { label: '纳斯达克指数', close: /纳斯达克指数收盘价/, chgPct: /纳斯达克指数涨跌幅/ },
-      { label: '标普500', close: /标准普尔500指数收盘价/, chgPct: /标准普尔500指数涨跌幅/ },
-      { label: '富时100', close: /富时100收盘价/, chgPct: /富时100涨跌幅/ },
-      { label: '法国CAC40', close: /法国CAC40收盘价/, chgPct: /法国CAC40涨跌幅/ },
-      { label: '德国DAX', close: /德国DAX收盘价/, chgPct: /德国DAX涨跌幅/ },
-      { label: '泛欧斯托克600', close: /泛欧斯托克600收盘价/, chgPct: /泛欧斯托克600涨跌幅/ },
-      { label: '恒生指数', close: /恒生指数收盘价/, chgPct: /恒生指数涨跌幅/ },
+      {
+        label: '道琼斯工业指数',
+        cols: {
+          close: /道琼斯工业指数收盘价/,
+          chgPct: /道琼斯工业指数涨跌幅/,
+        },
+      },
+      {
+        label: '纳斯达克指数',
+        cols: {
+          close: /纳斯达克指数收盘价/,
+          chgPct: /纳斯达克指数涨跌幅/,
+        },
+      },
+      {
+        label: '标普500',
+        cols: {
+          close: /标准普尔500指数收盘价/,
+          chgPct: /标准普尔500指数涨跌幅/,
+        },
+      },
+      {
+        label: '富时100',
+        cols: {
+          close: /富时100收盘价/,
+          chgPct: /富时100涨跌幅/,
+        },
+      },
+      {
+        label: '法国CAC40',
+        cols: {
+          close: /法国CAC40收盘价/,
+          chgPct: /法国CAC40涨跌幅/,
+        },
+      },
+      {
+        label: '德国DAX',
+        cols: {
+          close: /德国DAX收盘价/,
+          chgPct: /德国DAX涨跌幅/,
+        },
+      },
+      {
+        label: '泛欧斯托克600',
+        cols: {
+          close: /泛欧斯托克600收盘价/,
+          chgPct: /泛欧斯托克600涨跌幅/,
+        },
+      },
+      {
+        label: '恒生指数',
+        cols: {
+          close: /恒生指数收盘价/,
+          chgPct: /恒生指数涨跌幅/,
+        },
+      },
     ],
     events: [
       { region: 'US', cols: [/美股重点事件\d+/] },
       { region: 'EU', cols: [/欧股重点事件\d+/] },
       { region: 'HK', cols: [/港股重点事件\d+/] },
     ],
-    unit: { close: 'index', chgPct: '%' },
+    metricMeta: {
+      close: { label: '收盘价', type: 'number', digits: 4 },
+      chgPct: { label: '涨跌幅(%)', type: 'percent', digits: 4 },
+    },
   },
   债券利率: {
     headerRow: 0,
@@ -415,19 +542,22 @@ export const SHEET_PROFILES = {
     range: 'prevCompletedWeek',
     rangeDefault: 'prevCompletedWeek',
     series: [
-      { label: 'AAA中短票 1年', close: /AAA中短票1年利率$/ },
-      { label: 'AAA中短票 3年', close: /AAA中短票3年利率$/ },
-      { label: 'AAA中短票 5年', close: /AAA中短票5年利率$/ },
-      { label: 'AAA中短票 7年', close: /AAA中短票7年利率$/ },
-      { label: 'AAA中短票 10年', close: /AAA中短票10年利率$/ },
+      { label: 'AAA中短票 1年', cols: { rate: /AAA中短票1年利率$/ } },
+      { label: 'AAA中短票 3年', cols: { rate: /AAA中短票3年利率$/ } },
+      { label: 'AAA中短票 5年', cols: { rate: /AAA中短票5年利率$/ } },
+      { label: 'AAA中短票 7年', cols: { rate: /AAA中短票7年利率$/ } },
+      { label: 'AAA中短票 10年', cols: { rate: /AAA中短票10年利率$/ } },
     ],
     kpis: [
-      { key: 'mp_1y_rate', col: /AAA中短票1年利率$/, type: 'pct' },
-      { key: 'mp_3y_rate', col: /AAA中短票3年利率$/, type: 'pct' },
-      { key: 'mp_5y_rate', col: /AAA中短票5年利率$/, type: 'pct' },
-      { key: 'mp_7y_rate', col: /AAA中短票7年利率$/, type: 'pct' },
-      { key: 'mp_10y_rate', col: /AAA中短票10年利率$/, type: 'pct' },
+      { key: 'mp_1y_rate', col: /AAA中短票1年利率$/, type: 'percent', digits: 4 },
+      { key: 'mp_3y_rate', col: /AAA中短票3年利率$/, type: 'percent', digits: 4 },
+      { key: 'mp_5y_rate', col: /AAA中短票5年利率$/, type: 'percent', digits: 4 },
+      { key: 'mp_7y_rate', col: /AAA中短票7年利率$/, type: 'percent', digits: 4 },
+      { key: 'mp_10y_rate', col: /AAA中短票10年利率$/, type: 'percent', digits: 4 },
     ],
+    metricMeta: {
+      rate: { label: '利率(%)', type: 'percent', digits: 4 },
+    },
     rowFilter: (row) => {
       if (!row.date) return false;
       const d = new Date(String(row.date).replace(/-/g, '/'));
