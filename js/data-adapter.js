@@ -1,3 +1,10 @@
+/**
+ * 数据适配层：负责从 values-only JSON 中加载并规范化数据集。
+ * - BASE_PATH 可通过 window.__DATA_BASE__ / BASE_PATH / __BASE_PATH__ 注入，默认 /data/values-only/。
+ * - normalizeSummary / normalizeSeries 保证前端视图能直接消费标准结构。
+ * - 所有 API 返回 Promise，失败时抛出 Error，供视图层的 renderError 捕获。
+ */
+
 // --- robust base path detection ---
 const DEFAULT_DATA_BASE = '/data/values-only/';
 // 兼容多种命名：window.__DATA_BASE__（推荐）/ window.BASE_PATH / window.__BASE_PATH__
@@ -99,6 +106,12 @@ const normalizeArticles = (data) => {
   }));
 };
 
+/**
+ * 从静态目录拉取 JSON，统一处理相对路径与缓存策略。
+ * @param {string} fileName - 数据文件名，例如 cny_fx.json。
+ * @returns {Promise<unknown>} - 解析后的原始 JSON。
+ * @throws {Error} - 网络错误或 HTTP 状态非 200 时抛出。
+ */
 async function fetchJson(fileName) {
   // 以站点根为基准拼 URL，避免在 /tools/ 下相对路径跑偏
   const url = new URL(fileName, new URL(_DATA_BASE_NORM, location.origin)).href;
@@ -109,6 +122,11 @@ async function fetchJson(fileName) {
   return res.json();
 }
 
+/**
+ * 加载并规范化单个数据集。
+ * @param {string} datasetKey - 对应 DATASET_TO_FILE 的键，例如 open_market。
+ * @returns {Promise<object>} - {meta, summary, series, table, board?, articles?}。
+ */
 export async function loadDataset(datasetKey) {
   const fileName = DATASET_TO_FILE[datasetKey];
   if (!fileName) {
@@ -137,14 +155,28 @@ export async function loadDataset(datasetKey) {
   return normalized;
 }
 
+/**
+ * loadDataset 的别名，兼容旧代码使用“sheet”术语。
+ * @param {string} sheetKey
+ * @returns {Promise<object>}
+ */
 export async function loadSheet(sheetKey) {
   return loadDataset(sheetKey);
 }
 
+/**
+ * 并行加载多个数据集，常用于页面初始化。
+ * @param {string[]} datasetKeys
+ * @returns {Promise<object[]>}
+ */
 export async function loadDatasets(datasetKeys = []) {
   return Promise.all(datasetKeys.map((key) => loadDataset(key)));
 }
 
+/**
+ * 使缓存失效：传具体 key 清理单个，否则清空整个 Map。
+ * @param {string} [datasetKey]
+ */
 export function invalidateCache(datasetKey) {
   if (datasetKey) {
     cache.delete(datasetKey);
@@ -153,6 +185,11 @@ export function invalidateCache(datasetKey) {
   }
 }
 
+/**
+ * 将工作表中文名映射至文件名，便于工具页与视图联动。
+ * @param {string} sheetName
+ * @returns {string|null}
+ */
 export function mapSheetName(sheetName) {
   return SHEET_TO_FILE[sheetName] || null;
 }

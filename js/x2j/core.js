@@ -1,3 +1,11 @@
+/**
+ * X2J 核心调度：负责调度各 Sheet 解析器并汇总成 JSON 文件 Map。
+ * - runArrayBuffer: 读取 Excel -> rows 映射 -> 调用 convertSheets。
+ * - convertSheets: 根据 profile 选择解析器，处理 diagnostics/mergeDatasets。
+ * - parseSheet: 针对单表执行解析，返回 {kind, payload, outputFile}。
+ * - range 策略说明：profile.rangeDefault 等定义在 profiles.js，由解析器内部采用（如 prevWeekWorkdays）裁剪数据窗口。
+ * - diagnostics：解析器通过 diagnostics.items 记录列匹配、缺失列等信息，最终由 convertSheets 聚合到 diagnosticsList。
+ */
 import { SHEET_PROFILES, SHEET_TO_FILE, normalizeSheetName, getOutputFile } from './profiles.js';
 import parseByProfile from './parsers/profile-based.js';
 import parseGroupListed from './parsers/group-listed.js';
@@ -240,6 +248,13 @@ export function mergeDatasets(target, incoming) {
   return merged;
 }
 
+/**
+ * 解析单个工作表，选择匹配的解析器并返回结果。
+ * @param {Array[]} rows - sheet_to_json(header:1) 生成的二维数组。
+ * @param {string} sheetName - 原始工作表名称。
+ * @param {{anchor?: Date, profiles?: Record<string, object>, headerInfo?: object}} [options]
+ * @returns {{sheetName: string, normalizedSheetName: string, outputFile: string|null, kind: string, payload: object|null}}
+ */
 export function parseSheet(
   rows,
   sheetName,
@@ -347,6 +362,12 @@ export function parseSheet(
   };
 }
 
+/**
+ * 批量解析多张工作表，并生成文件名 -> Dataset 的 Map。
+ * @param {Array|Map|Object} sheetEntries - 形如 [[name, rows]] 的数组、Map 或对象。
+ * @param {{anchor?: Date, profiles?: Record<string, object>, headerInfos?: Map}} [options]
+ * @returns {{files: Map<string, object>, details: Array, diagnostics: Array}}
+ */
 export function convertSheets(sheetEntries, options = {}) {
   const anchor = options.anchor || new Date();
   const profiles = options.profiles || SHEET_PROFILES;
@@ -494,6 +515,12 @@ export function convertSheets(sheetEntries, options = {}) {
   return { files: outputs, details, diagnostics: diagnosticsList };
 }
 
+/**
+ * 入口函数：接收 Excel 二进制数据，输出转换结果。
+ * @param {ArrayBuffer|ArrayBufferView|Blob} source - Excel 文件数据。
+ * @param {{anchor?: Date, profiles?: Record<string, object>, XLSX?: typeof import('xlsx')}} [options]
+ * @returns {Promise<{files: Map<string, object>, details: Array, diagnostics: Array, sheetNames: string[], rows: Array, workbook: object}>}
+ */
 export async function runArrayBuffer(source, options = {}) {
   const { anchor = new Date(), profiles = SHEET_PROFILES } = options;
   const XLSXLib = options.XLSX || globalThis?.XLSX;

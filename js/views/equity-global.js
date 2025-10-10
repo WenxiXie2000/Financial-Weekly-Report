@@ -1,3 +1,9 @@
+/**
+ * 全球股市视图：展示主要海外指数的收盘价与涨跌幅。
+ * - 数据来源：equity_global.json，表格以“日期”为索引列。
+ * - 视图结构：顶部 tabs 切换指数，卡片展示迷你图；收盘价卡使用 renderLineChart 以支持更细腻的轴控制。
+ * - 单位说明：涨跌幅以 % 显示，收盘价保持原币种；空值/"--" 过滤后显示“暂无数据”。
+ */
 import { loadSheet } from '../data-adapter.js';
 import {
   ensureEcharts,
@@ -9,6 +15,7 @@ import {
   waitElementSized,
   formatNumber,
 } from './common-charts.js';
+import { COLORS } from '../theme/palette.js';
 
 const EQUITY_GLOBAL_STYLE_ID = 'equity-global-inline-styles';
 let stylesInjected = false;
@@ -99,6 +106,12 @@ function extractIndexNames(table) {
   return Array.from(names.keys());
 }
 
+/**
+ * 渲染指定指数的两张卡片（收盘价/涨跌幅）。
+ * @param {HTMLElement} container
+ * @param {Array<object>} table
+ * @param {string} indexName
+ */
 async function renderCards(container, table, indexName) {
   const configs = [
     {
@@ -191,7 +204,7 @@ async function renderCards(container, table, indexName) {
             return fmtDateLabel(raw);
           };
 
-          const fallbackPalette = conf.palette === 'linePrimary' ? ['#409EFF'] : [];
+          const fallbackPalette = conf.palette === 'linePrimary' ? [COLORS.primary()] : [];
 
           const chart = renderLineChart(
             chartEl,
@@ -262,6 +275,11 @@ async function renderCards(container, table, indexName) {
   }
 }
 
+/**
+ * 渲染全球股市视图。
+ * @param {HTMLElement} mount
+ * @returns {Promise<void>}
+ */
 export async function renderEquityGlobal(mount) {
   if (!mount) return;
   injectStyles();

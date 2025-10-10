@@ -1,3 +1,12 @@
+/*
+ * 全局样式模块说明
+ * - 统一定义主题变量（含暗色模式切换）与基础排版。
+ * - 负责卡片、图表、布局、交互控件的默认外观，确保视图文件仅关注数据渲染。
+ * - 所有颜色均通过 CSS 变量暴露，方便 /js/theme/palette.js 和 Theme Switch 联动。
+ * - 样式文件不承载业务逻辑，修改前需确认不会破坏工具页和主站的一致性。
+ * - 调整布局时先检查变量 (--header-h 等) 是否已有满足需求的配置。
+ * - 若新增组件，优先复用现有 utility 类（如 .mini-card-grid、.icon-btn）。
+ */
 :root {
   color-scheme: light;
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import parseGroupListed from '../../js/x2j/parsers/group-listed.js';
-import { SHEET_PROFILES } from '../../js/sheet-profiles.js';
+import { SHEET_PROFILES } from '../../js/x2j/profiles.js';
 
 const pad2 = (value) => String(value).padStart(2, '0');
 

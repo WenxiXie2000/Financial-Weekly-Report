@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import parseBondYield from '../../js/x2j/parsers/bond-yield.js';
-import { SHEET_PROFILES } from '../../js/sheet-profiles.js';
+import { SHEET_PROFILES } from '../../js/x2j/profiles.js';
 
 const profile = SHEET_PROFILES['债券利率'];
 assert.ok(profile, 'sheet profile for 债券利率 is missing');

@@ -1,3 +1,9 @@
+/**
+ * 国内股市视图：按指数输出迷你图与关键指标。
+ * - 数据来源：equity_cn.json，字段 table/summary。
+ * - 数据单位：成交金额/主力资金使用“亿”，涨跌幅为 %；渲染阶段统一调用 renderMini。
+ * - 通过 tabs 切换指数，保持 layout 与 cny-fx 视图一致（grid 卡片）。
+ */
 import { loadSheet } from '../data-adapter.js';
 import {
   ensureEcharts,
@@ -61,6 +67,13 @@ function injectEquityCnStyles() {
   equityCnStylesInjected = true;
 }
 
+/**
+ * 渲染单个指数的 5 张迷你图卡片。
+ * @param {HTMLElement} mount
+ * @param {Array<object>} table
+ * @param {string} indexName
+ * @param {string} [dateKey='交易日']
+ */
 async function renderFiveCards(mount, table, indexName, dateKey = '交易日') {
   const columns = {
     close: `${indexName}收盘价`,
@@ -155,6 +168,11 @@ async function renderFiveCards(mount, table, indexName, dateKey = '交易日') {
   }
 }
 
+/**
+ * 渲染国内股市视图，包含指数切换与图表清理。
+ * @param {HTMLElement} mount
+ * @returns {Promise<void>}
+ */
 export async function renderEquityCn(mount) {
   if (!mount) return;
   injectEquityCnStyles();

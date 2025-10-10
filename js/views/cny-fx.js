@@ -1,3 +1,10 @@
+/**
+ * 人民币汇率视图：按币种展示汇率/涨跌幅/中间价走势。
+ * - 数据来源：cny_fx.json，主要字段 table(series) 与 kpis。
+ * - 日期列以“日期”为 key，buildSeriesData 会过滤空值/"--"。
+ * - 卡片使用 renderMini 共享轴格式化；颜色来自 palette.barPositive/linePrimary。
+ * - 离岸人民币(USDCNH)仅展示 rate/chg，其余币种额外包含 mid/mid_chg。
+ */
 import { loadSheet } from '../data-adapter.js';
 import { ensureEcharts, renderMini, buildSeriesData, disposeAllCharts } from './common-charts.js';
 
@@ -175,6 +182,11 @@ function filterAvailableCurrencies(table) {
   });
 }
 
+/**
+ * 渲染人民币汇率视图，带币种切换与迷你图。
+ * @param {HTMLElement} mount - 主内容容器，由 app.js routeTo 提供。
+ * @returns {Promise<void>}
+ */
 export async function renderCnyFx(mount) {
   if (!mount) return;
   injectStyles();

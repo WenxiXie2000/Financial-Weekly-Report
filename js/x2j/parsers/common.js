@@ -179,6 +179,11 @@ export const formatPercent4 = (value) => {
   return Number.isNaN(num) ? `${text}` : `${num.toFixed(4)}%`;
 };
 
+/**
+ * 计算序列的日期范围，常用于 diagnostics.extra.dateRange。
+ * @param {Array<{data: Array<[string, unknown]>}>} [series=[]]
+ * @returns {[string, string]|null}
+ */
 export const deriveRange = (series = []) => {
   let minDate = null;
   let maxDate = null;
@@ -203,6 +208,15 @@ export const deriveRange = (series = []) => {
   return [formatDate(minDate), formatDate(maxDate)];
 };
 
+/**
+ * 根据日期列提取“上一完整工作周”内的行。
+ * - 解析器使用 profile.rangeDefault（prevCompletedWeek/prevWeekWorkdays）时调用。
+ * - 自动跳过无效日期，确保 diagnostics 中 points/dateRange 可信。
+ * @param {Array} rows
+ * @param {number} dateIdx
+ * @param {Date} [now=new Date()]
+ * @returns {Array<{row: Array, date: Date}>}
+ */
 export const computePrevWeekWorkdays = (rows, dateIdx, now = new Date()) => {
   if (!Array.isArray(rows) || typeof dateIdx !== 'number' || dateIdx < 0) return [];
 

@@ -1,9 +1,18 @@
+/**
+ * 中票利率解析器：转换“中票利率”工作表为利率曲线数据。
+ * 输入：Sheet rows + profile；输出 Dataset，示例：
+ * {
+ *   "series": [{"name": "AAA中短票 1年(%)", "data": [["2025-09-22", 2.3456], ...]}],
+ *   "export_info": {...}
+ * }
+ */
 import { findColIndex, toDateSafe, prevCompletedWeekRange, toNumberOrNull } from '../utils.js';
 import { formatDate, describeMatcher, closestHeaders } from './common.js';
 
 const DEFAULT_SHEET_NAME = '中票利率';
 const DEFAULT_HEADER_ROW = 0;
 
+// SERIES_DEFS 定义目标序列标签与匹配正则，用于抽取对应列。
 const SERIES_DEFS = [
   { label: 'AAA中短票 1年(%)', matcher: /AAA中短票1年利率$/ },
   { label: 'AAA中短票 3年(%)', matcher: /AAA中短票3年利率$/ },
@@ -62,7 +71,7 @@ export function parseMidPaper(
     columns: [],
   };
 
-  const dateMatcher = profile?.dateCol || /^日期$/;
+  const dateMatcher = profile?.dateCol || /^日期$/; // 允许 profile 覆盖日期列正则
   const dateIdx = trackColumnInfo(header, diagnostics, dateMatcher, '日期');
   diagnostics.date_column = dateIdx >= 0 ? header[dateIdx] || null : null;
 

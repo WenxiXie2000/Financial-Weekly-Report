@@ -1,3 +1,9 @@
+/**
+ * 集团上市公司视图：聚焦集团内上市主体的核心指标。
+ * - 数据来源：group_listed.json，表格字段形如“公司名+指标名”。
+ * - 展示内容：通过 tabs 切换公司，迷你图覆盖价格/涨幅/成交/估值/换手等 9 项指标。
+ * - 单位处理：金额使用“亿”，涨跌幅/换手/偏离值使用 %，其余保持原值。
+ */
 import { loadSheet } from '../data-adapter.js';
 import { ensureEcharts, renderMini, buildSeriesData, disposeAllCharts } from './common-charts.js';
 
@@ -125,6 +131,12 @@ function loadPersistedCompany(keys) {
   return '';
 }
 
+/**
+ * 绘制指定公司的指标卡片。
+ * @param {HTMLElement} container
+ * @param {Array<object>} table
+ * @param {string} company
+ */
 async function renderCards(container, table, company) {
   const grid = document.createElement('div');
   grid.className = 'ec-grid';
@@ -166,6 +178,11 @@ async function renderCards(container, table, company) {
   }
 }
 
+/**
+ * 渲染集团上市公司视图。
+ * @param {HTMLElement} mount
+ * @returns {Promise<void>}
+ */
 export async function renderGroupListed(mount) {
   if (!mount) return;
   injectStyles();

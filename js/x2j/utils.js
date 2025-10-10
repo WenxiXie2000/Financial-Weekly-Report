@@ -1,3 +1,17 @@
+/**
+ * 解析器基础工具库：处理表头识别、缺失值判断、日期算法等。
+ *
+ * @typedef {[string, number|null]} SeriesPoint
+ * @typedef {{ name: string, data: SeriesPoint[] }} Series
+ * @typedef {{
+ *   meta?: object,
+ *   summary?: object,
+ *   series?: Series[],
+ *   table?: object[],
+ *   export_info?: object,
+ *   diagnostics?: object,
+ * }} Dataset
+ */
 const MISSING_STRINGS = new Set([
   '-',
   '--',
@@ -104,6 +118,12 @@ export function buildHeaderIndex(header) {
   return { raw, norm, map };
 }
 
+/**
+ * 在表头中查找匹配列，兼容正则/字符串及括号变体。
+ * @param {Array|string[]} header
+ * @param {string|RegExp} matcher
+ * @returns {number} - 找不到时返回 -1。
+ */
 export function findColIndex(header, matcher) {
   if (!header) return -1;
   const { raw, norm, map } = buildHeaderIndex(header);
@@ -157,6 +177,11 @@ export function closestHeaderCandidates(header, pattern, topK = 3) {
     .filter(Boolean);
 }
 
+/**
+ * 将 Excel 单元格值转换为日期对象，支持数字序列号、字符串区间等。
+ * @param {unknown} value
+ * @returns {Date|null}
+ */
 export function toDateSafe(value) {
   if (value == null || value === '') return null;
   if (value instanceof Date) {
@@ -274,6 +299,11 @@ export function fridayOf(date) {
   return f;
 }
 
+/**
+ * 计算上一完整工作周（周一至周五）的时间范围。
+ * @param {Date} [now=new Date()]
+ * @returns {{mon: Date, fri: Date}}
+ */
 export function prevCompletedWeekRange(now = new Date()) {
   const fri = lastFridayFromToday(now);
   const mon = mondayOf(fri);
@@ -297,6 +327,11 @@ export function missingToNull(value) {
   return isMissingRaw(value) ? null : value;
 }
 
+/**
+ * 将带有百分号/逗号的字符串转换为数字，空值返回 null。
+ * @param {unknown} value
+ * @returns {number|null}
+ */
 export function toNumberOrNull(value) {
   const normalized = missingToNull(value);
   if (normalized === null) return null;

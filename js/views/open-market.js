@@ -1,3 +1,10 @@
+/**
+ * 公开市场视图：整合央行公开市场操作与 Shibor 曲线。
+ * - 上半部分展示 summary 中的“周度数值”卡片（到期量/投放量/净投放/利率），0 也是有效数据不得过滤。
+ * - 下半部分展示 Shibor 时间序列，提供 90/180/365 天三个视窗，使用 renderLineChart 绘制折线。
+ * - 数据来源：open_market.json，summary/kpis 驱动卡片，series 映射到图表。
+ * - diagnostics/export_info.range_window 用于标注卡片对应的统计区间。
+ */
 import { loadSheet } from '../data-adapter.js';
 import {
   ensureEcharts,
@@ -276,6 +283,13 @@ function getShiborSeriesGroup(seriesSource, groupKey) {
   }));
 }
 
+/**
+ * 渲染“周度数值”卡片区域。
+ * @param {HTMLElement} container
+ * @param {Record<string, unknown>} summary - 解析器生成的 KPI 数据，如 r7d_amt_yi。
+ * @param {Map<string, Array<[string, number]>>} seriesMap - 便于获取对应利率的时间序列。
+ * @param {string[]} rangeWindow - 导出信息中的日期范围，用于提示。
+ */
 async function renderMarketCards(container, summary = {}, seriesMap = new Map(), rangeWindow) {
   if (!container) return;
   container.innerHTML = '';
@@ -330,6 +344,14 @@ async function renderMarketCards(container, summary = {}, seriesMap = new Map(),
   }
 }
 
+/**
+ * 渲染单个迷你数值卡。
+ * @param {HTMLElement} container
+ * @param {string} label
+ * @param {number|string|null} value
+ * @param {string} [unit='']
+ * @param {string} [rateInfo='']
+ */
 function renderValueCard(container, label, value, unit = '', rateInfo = '') {
   if (!container) return;
   const div = document.createElement('div');
@@ -338,6 +360,7 @@ function renderValueCard(container, label, value, unit = '', rateInfo = '') {
     <div class="mini-card__label">${label}</div>
     <div class="mini-card__value">
       ${
+        // 0 属于有效指标（例如净投放为 0），不可当作空值过滤
         value != null && value !== '' && !Number.isNaN(Number(value))
           ? `${formatNumber(value)}${unit}`
           : '--'
@@ -357,6 +380,12 @@ function formatNumber(num) {
   return value.toLocaleString();
 }
 
+/**
+ * 绘制 Shibor 折线图，依据 groupKey 选择曲线集合。
+ * @param {HTMLElement} mountEl
+ * @param {Map<string, Array<[string, number]>>|Array} seriesSource
+ * @param {string} groupKey
+ */
 function renderShiborChart(mountEl, seriesSource, groupKey) {
   if (!mountEl) return;
 
@@ -462,6 +491,11 @@ function renderShiborChart(mountEl, seriesSource, groupKey) {
   shiborChartState.inst = chart;
 }
 
+/**
+ * 渲染 Shibor 区域，包含 Tab/标题/图表。
+ * @param {HTMLElement} container
+ * @param {Array|Map} [seriesSource=[]]
+ */
 async function renderShiborSection(container, seriesSource = []) {
   if (!container) return;
   container.innerHTML = '';
@@ -533,6 +567,11 @@ async function renderShiborSection(container, seriesSource = []) {
   rerender();
 }
 
+/**
+ * 渲染公开市场视图入口。
+ * @param {HTMLElement} mount
+ * @returns {Promise<void>}
+ */
 export async function renderOpenMarket(mount) {
   if (!mount) return;
   if (typeof mount.__viewCleanup === 'function') {

@@ -1,7 +1,14 @@
+/**
+ * 图表工具模块：封装 ECharts 公共逻辑和配色策略。
+ * - 提供 cssVar/styleFor 等接口，为所有视图共享颜色/渐变。
+ * - 管理图表实例的 resize/dispose 生命周期，便于路由切换时统一清理。
+ * - 提供 renderMini/renderLineChart 等基础渲染函数，视图文件按需组合。
+ */
 import { styleFor, COLORS } from '../theme/palette.js';
 
 /**
- * 保障 ECharts 已经可用
+ * 保障 ECharts 已加载，便于在工具页/主站缺失依赖时快速定位。
+ * @throws {Error} - window.echarts 不存在时抛出。
  */
 export function ensureEcharts() {
   if (!window || !window.echarts) throw new Error('ECharts 未加载');
@@ -10,6 +17,12 @@ export function ensureEcharts() {
 // 解析 CSS 变量 -> 真实颜色；带简单缓存
 const __cssVarCache = new Map();
 
+/**
+ * 读取 CSS 变量值并做简易缓存，支持主题切换。
+ * @param {string} name
+ * @param {string} [fallback='']
+ * @returns {string}
+ */
 export function cssVar(name, fallback = '') {
   if (!name) return fallback;
   if (typeof document === 'undefined') return fallback;
@@ -42,6 +55,11 @@ const DEFAULT_PALETTE_SLOTS = [
   ['--gray-600', '#475569'],
 ];
 
+/**
+ * 构建颜色调色板，允许扩展/兜底。
+ * @param {{extend?: string[], fallback?: string[]}} overrides
+ * @returns {string[]}
+ */
 export function resolvePalette(overrides = {}) {
   const { extend = [], fallback = [] } = overrides || {};
   const palette = [];
@@ -80,6 +98,13 @@ export function resolvePalette(overrides = {}) {
   return extend.filter((color) => typeof color === 'string' && color);
 }
 
+/**
+ * 构造竖向线性渐变，兼容缺省色值。
+ * @param {string} topColor
+ * @param {string} bottomColor
+ * @param {string} [fallbackHex='#409EFF']
+ * @returns {import('echarts').LinearGradient}
+ */
 export function makeLinearGradient(topColor, bottomColor, fallbackHex = '#409EFF') {
   const top = topColor || fallbackHex;
   const bottom = bottomColor || fallbackHex;
@@ -90,7 +115,9 @@ export function makeLinearGradient(topColor, bottomColor, fallbackHex = '#409EFF
 }
 
 /**
- * 把日期字符串格式化成 MM-DD 标签
+ * 把日期字符串格式化成 MM-DD 标签。
+ * @param {string|Date} value
+ * @returns {string}
  */
 export function fmtDateLabel(value) {
   const dt = new Date(String(value).replace(/-/g, '/'));
@@ -101,7 +128,11 @@ export function fmtDateLabel(value) {
 }
 
 /**
- * 从表格数据里提取日期-数值对，返回最近 5 条
+ * 从表格数据里提取日期-数值对，返回最近 5 条。
+ * @param {object[]} table
+ * @param {string} dateKey
+ * @param {string} valueKey
+ * @returns {Array<[string, number|null]>}
  */
 export function buildSeriesData(table, dateKey, valueKey) {
   const pairs = [];
@@ -116,7 +147,10 @@ export function buildSeriesData(table, dateKey, valueKey) {
 }
 
 /**
- * 统一的数字格式化，默认保留 2 位小数
+ * 统一的数字格式化，默认保留 2 位小数。
+ * @param {number|string} value
+ * @param {number} [digits=2]
+ * @returns {string}
  */
 export function formatNumber(value, digits = 2) {
   const num = Number(value);
@@ -126,6 +160,12 @@ export function formatNumber(value, digits = 2) {
   });
 }
 
+/**
+ * 将金额换算成“亿”单位文本。
+ * @param {number|string} value
+ * @param {number} [digits=2]
+ * @returns {string}
+ */
 export function formatYi(value, digits = 2) {
   const num = Number(value);
   if (Number.isNaN(num)) return '--';
@@ -190,7 +230,7 @@ export function registerChart(chart) {
 }
 
 /**
- * 释放所有已登记的图表实例（切换视图时调用）
+ * 释放所有已登记的图表实例（切换视图时调用）。
  */
 export function disposeAllCharts() {
   const charts = Array.from(__charts);
@@ -240,7 +280,14 @@ export function waitElementSized(el, { timeout = 1000 } = {}) {
 }
 
 /**
- * 迷你图渲染器：支持折线/柱状，并兼容百分比、金额等格式
+ * 渲染迷你图组件：支持 line/bar，适配百分比/金额单位。
+ * - 常用于视图顶部指标卡片，与主图保持一致配色。
+ * - 自动根据 seriesPairs 计算 dataMin/dataMax 与 padding，避免坐标轴贴边。
+ * @param {HTMLElement} el - 挂载节点，需具备尺寸。
+ * @param {'line'|'bar'} type - 图表类型。
+ * @param {Array<[string, number|null]>} seriesPairs - 日期+数值序列。
+ * @param {{percentLabel?: boolean, percent?: boolean, unit?: 'yi'|null, paletteKey?: string}} [options]
+ * @returns {Promise<import('echarts').ECharts|null>} - 若无有效值则返回 null，避免渲染空图。
  */
 export async function renderMini(el, type, seriesPairs, options = {}) {
   ensureEcharts();
@@ -505,6 +552,15 @@ function mergeTooltip(defaults, overrides) {
   };
 }
 
+/**
+ * 通用折线图渲染器，封装 palette/axis/tooltip 默认值。
+ * - 视图层可传入 series/xAxis/yAxis/legend，自定义数据格式。
+ * - sanitizeLineSeries 会清洗 data，允许输入 [date, value] 或 {date,value}。
+ * @param {HTMLElement} el - 容器元素。
+ * @param {import('echarts').EChartsOption} [option]
+ * @param {{extend?: string[], fallback?: string[]}} [paletteOptions]
+ * @returns {import('echarts').ECharts|null}
+ */
 export function renderLineChart(el, option = {}, paletteOptions = {}) {
   ensureEcharts();
   if (!el) return null;

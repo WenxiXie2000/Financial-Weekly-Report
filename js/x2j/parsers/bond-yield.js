@@ -1,3 +1,13 @@
+/**
+ * 债券利率解析器：将“债券利率”工作表转换为 Top5 JSON。
+ * 输入：rows（二位数组）、profile（profiles.js 定义）、anchor。
+ * 输出契约：{
+ *   "top5_latest": {"aaa_3y": {date: "25-09-22～25-09-26", rows: [...] }},
+ *   "series": [],
+ *   "export_info": {...}
+ * }
+ * - 依赖 profile.bondGroups 中的 {R} 占位符，为各名次生成列正则。
+ */
 import {
   buildHeaderIndex,
   normalizeHeaderCell,
@@ -16,6 +26,7 @@ const isNonEmptyRow = (row) =>
   Array.isArray(row) &&
   row.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== '');
 
+// {R} 占位符在 profiles 中表示名次，解析时替换为具体数字
 const expandRankRe = (re, rank) => {
   if (!(re instanceof RegExp)) return null;
   const src = re.source.replace(/{R}/g, String(rank));

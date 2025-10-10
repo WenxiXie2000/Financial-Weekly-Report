@@ -1,3 +1,10 @@
+/**
+ * 应用入口模块：负责 SPA 路由、组件挂载与运行时交互。
+ * - 通过 hash(#viewId) 控制视图切换，配合 sidebar 菜单与 renderers。
+ * - 初始化 Header/Sidebar/Footer 组件，加载主题与日期显示。
+ * - 禁止在工具页 (/tools/) 上执行，以免干扰转换工具独立逻辑。
+ * - 发生渲染异常时调用 template.renderError，便于定位数据/视图问题。
+ */
 const IS_TOOLS_PAGE = typeof location !== 'undefined' && location.pathname.includes('/tools/');
 
 if (IS_TOOLS_PAGE) {
@@ -169,6 +176,12 @@ function mountSidebarRuntime() {
   }
 }
 
+/**
+ * 切换指定视图并处理挂载容器生命周期。
+ * @param {string} viewId - 侧边栏/URL 指定的视图标识，对应 sheet-profiles.js 中的 view。
+ * @param {{push?: boolean}} [options] - push=true 时写入 hash，push=false 用于 hashchange 触发的回流。
+ * @returns {Promise<void>} - 渲染完成后 resolve；渲染失败时捕获并交给 renderError。
+ */
 export async function routeTo(viewId, { push = true } = {}) {
   const mount = getMount();
   if (!mount) {
@@ -218,6 +231,10 @@ function handleHashChange() {
   routeTo(viewId, { push: false });
 }
 
+/**
+ * 更新头部日期展示，并维持分钟级刷新。
+ * @param {HTMLElement|null} targetEl - 目标节点，默认查找 #current-date，未找到则静默返回。
+ */
 export function updateCurrentDate(targetEl = document.getElementById('current-date')) {
   if (!targetEl) return;
 
@@ -304,6 +321,12 @@ function mountHeaderRuntime() {
   setupThemeToggle();
 }
 
+/**
+ * 启动流程：加载静态组件、挂载运行时交互、同步路由状态。
+ * - loadComponents 拉取 header/sidebar/footer 片段。
+ * - 挂载主题切换、Sidebar 响应式折叠，以及 hash 路由监听。
+ * - 初始 routeTo 根据当前 hash 渲染对应视图。
+ */
 async function bootstrap() {
   await loadComponents([
     { containerId: 'header-container', path: './components/header.html' },

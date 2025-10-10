@@ -1,3 +1,9 @@
+/**
+ * 解析器专用 profiles：描述每个工作表的结构、匹配规则与输出期望。
+ * - 与前端 sheet-profiles.js 区分：此处包含正则、列匹配、范围策略等，仅供转换器使用。
+ * - headerRow/dateCol 指定读取表头与日期列，rangeDefault 控制 computePrevWeekWorkdays 等策略。
+ * - 正则写法需兼容常见括号/空格变体（例如 “（亿元）”/“(%)”）。
+ */
 import { toDateSafe, isWeekday, mondayOf, fridayOf, prevCompletedWeekRange } from './utils.js';
 
 export const SHEET_ALIASES = {
@@ -85,6 +91,12 @@ export function computeRange(rows, dateIdx, mode, options = {}) {
 }
 
 export const SHEET_PROFILES = {
+  /**
+   * 人民币汇率：表头首行，日期列匹配 /^日期$/，默认使用上一完整周数据。
+   * - cols.* 生成带括号容错的正则，兼容 “（%）/()” 及空格变体。
+   * - currencies 数组驱动 parser 输出 series/kpis（rate/chg/mid/mid_chg）。
+   * - 目标 JSON：{ series: [...], kpis: {usdcny_mid, ...}, diagnostics }。
+   */
   人民币汇率: {
     headerRow: 0,
     dateCol: /^日期$/,
@@ -95,7 +107,27 @@ export const SHEET_PROFILES = {
       mid: { label: '央行中间价', type: 'number', digits: 4 },
       mid_chg: { label: '央行中间价调整(%)', type: 'percent', digits: 4 },
     },
+    currencies: [
+      { key: 'usdcny', keyword: '人民币兑美元' },
+      { key: 'cnhusd', keyword: '离岸人民币兑美元', noMid: true },
+      { key: 'eurcny', keyword: '人民币兑欧元' },
+      { key: 'jpy100cny', keyword: '人民币兑100日元' },
+      { key: 'audcny', keyword: '人民币兑澳元' },
+    ],
+    cols: {
+      rate: (keyword) => new RegExp(`^${keyword}汇率(?:（[^）]*）|\\([^)]*\\))?$`),
+      chg: (keyword) => new RegExp(`^${keyword}涨跌幅(?:（[^）]*）|\\([^)]*\\))?$`),
+      mid: (keyword) => new RegExp(`^${keyword}央行中间价(?:（[^）]*）|\\([^)]*\\))?$`),
+      mid_chg: (keyword) =>
+        new RegExp(`^${keyword}央行中间价调整(?:情况)?(?:（[^）]*）|\\([^)]*\\))?$`),
+    },
   },
+  /**
+   * 公开市场货币：headerRow=0，日期列 /^日期$/，取 prevCompletedWeek。
+   * - items.* 定义操作项（逆回购/MLF 等），cols 正则覆盖“量/利率”。
+   * - unit 指定金额/利率单位，parser 将填充 summary/table。
+   * - 输出 JSON：{ summary: KPI, series: 利率折线, table: 原始周度 }。
+   */
   公开市场货币: {
     headerRow: 0,
     dateCol: /^日期$/,
@@ -176,6 +208,11 @@ export const SHEET_PROFILES = {
       rate: '%',
     },
   },
+  /**
+   * Shibor 利率：多组日期列（隔夜90、3月180、1年365），表头仍在第 0 行。
+   * - col_* 使用明细正则锁定各期限利率，解析后并入 open_market 数据集。
+   * - 输出 JSON：{ series: [...], summary?, diagnostics }，后续与货币操作合并。
+   */
   Shibor利率: {
     headerRow: 0,
     dateCol_on_90: /^SHIBOR隔夜日期(?:[（(]90[）)])?$/,
@@ -189,6 +226,12 @@ export const SHEET_PROFILES = {
     col_9m: /^SHIBOR9月利率$/,
     col_1y: /^SHIBOR1年利率$/,
   },
+  /**
+   * 国能上市公司：headerRow=0，/^日期$/，prevCompletedWeek。
+   * - metrics.* matcher 通过 `${股票名}指标` 构造，兼容“成交金额变化/成交变化”。
+   * - rowFilter 仅保留工作日，unit 提供前端展示提示。
+   * - 输出 JSON：{ summary, series, table }，series 以股票+指标命名。
+   */
   国能上市公司: {
     headerRow: 0,
     dateCol: /^日期$/,
@@ -267,6 +310,11 @@ export const SHEET_PROFILES = {
       turn_ratio: '%',
     },
   },
+  /**
+   * 国内股市：headerRow=1（表头有标题行），/^交易日$/，prevCompletedWeek。
+   * - indices 定义指数列表，metrics.* matcher 处理“成交金额/变化”等括号差异。
+   * - rowFilter 保留工作日，以 summary/series/table 提供指数与市场总量。
+   */
   国内股市: {
     headerRow: 1,
     dateCol: /^交易日$/,
@@ -329,6 +377,11 @@ export const SHEET_PROFILES = {
       mainflow: '亿',
     },
   },
+  /**
+   * 全球股市：headerRow=1，日期列 /^日期$/，prevCompletedWeek。
+   * - series.* cols 正则覆盖境外指数，events 捕捉重点事件列。
+   * - metricMeta 提供单位描述，供 parser 输出 summary/table/series。
+   */
   全球股市: {
     headerRow: 1,
     dateCol: /^日期$/,
@@ -406,6 +459,11 @@ export const SHEET_PROFILES = {
       chgPct: { label: '涨跌幅(%)', type: 'percent', digits: 4 },
     },
   },
+  /**
+   * 债券利率：headerRow=0，/^日期$/，prevCompletedWeek。
+   * - bondGroups.* 使用 {R} 占位拼出“公司简称/发行规模”等列，兼容括号后缀。
+   * - 输出 JSON：{ top5_latest, table, series }，top5_latest 用于视图 Top5。
+   */
   债券利率: {
     headerRow: 0,
     dateCol: /^日期$/,
@@ -496,6 +554,11 @@ export const SHEET_PROFILES = {
       size: '亿',
     },
   },
+  /**
+   * 中票利率：headerRow=0，/^日期$/，prevCompletedWeek。
+   * - series 定义各期限曲线，kpis 填充最新利率，metricMeta 指定单位。
+   * - 输出 JSON：{ series, kpis, table }。
+   */
   中票利率: {
     headerRow: 0,
     dateCol: /^日期$/,
@@ -526,6 +589,11 @@ export const SHEET_PROFILES = {
     },
     unit: { rate: '%' },
   },
+  /**
+   * 财经资讯：headerRow=0，日期列 /^日期$/，默认 range lastNDays:30。
+   * - rowFilter 过滤非法日期，series 由 parser 动态生成（新闻条目）。
+   * - 输出 JSON：{ series: [], table, summary? }，前端依赖 articles/items 字段。
+   */
   财经资讯: {
     headerRow: 0,
     dateCol: /^日期$/,
