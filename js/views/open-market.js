@@ -2,9 +2,9 @@ import { loadSheet } from '../data-adapter.js';
 import {
   ensureEcharts,
   disposeAllCharts,
-  registerChart,
   fmtDateLabel,
   removeChartFromResize,
+  renderLineChart,
 } from './common-charts.js';
 
 (function injectStyles() {
@@ -22,7 +22,7 @@ import {
 .om-card-secondary{font-size:13px;color:var(--text2,#666);margin:0 0 12px 2px;}
 .om-range{font-size:13px;color:var(--text2,#666);margin:4px 0 16px;}
 .badge-pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--primary,#2563eb);color:#fff;}
-.shibor-card .chart{height:320px;}
+.shibor-card .chart{height:320px;margin-top:var(--space-md,12px);}
 .shibor-card .title{margin-bottom:6px;}
 .shibor-subtitle{font-size:13px;color:var(--text2,#666);margin:0 0 12px 2px;}
 .section-title{margin:18px 0 8px;font-weight:700;font-size:16px;}
@@ -359,7 +359,6 @@ function formatNumber(num) {
 
 function renderShiborChart(mountEl, seriesSource, groupKey) {
   if (!mountEl) return;
-  ensureEcharts();
 
   if (shiborChartState.mount !== mountEl) {
     shiborChartState.mount = mountEl;
@@ -387,14 +386,6 @@ function renderShiborChart(mountEl, seriesSource, groupKey) {
     shiborChartState.slot = slot;
   }
 
-  const ech = echarts.init(slot);
-
-  const shiborColors = [
-    'var(--blue-600, #2B7BEB)',
-    'var(--amber-600, #F5A623)',
-    'var(--violet-600, #7B61FF)',
-  ];
-
   const valuePool = [];
   seriesList.forEach((serie) => {
     serie.data.forEach(([, value]) => {
@@ -410,13 +401,19 @@ function renderShiborChart(mountEl, seriesSource, groupKey) {
   const spread = vMax - vMin;
   const pad = spread > 0 ? spread * 0.1 : Math.abs(vMax || 1) * 0.02;
 
-  ech.setOption({
-    color: shiborColors,
+  const chartSeries = seriesList.map((serie) => ({
+    name: serie.name,
+    data: serie.data.map(([date, value]) => [date, value]),
+    smooth: true,
+    showSymbol: true,
+    symbolSize: 5,
+    connectNulls: true,
+  }));
+
+  const chart = renderLineChart(slot, {
     legend: { top: 8, left: 0, icon: 'circle' },
     grid: { left: 48, right: 32, top: 40, bottom: 48, containLabel: true },
     tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'line' },
       valueFormatter: (value) => {
         if (value == null || Number.isNaN(Number(value))) return '--';
         return `${Number(value).toFixed(4)}%`;
@@ -438,11 +435,7 @@ function renderShiborChart(mountEl, seriesSource, groupKey) {
       },
     },
     xAxis: {
-      type: 'time',
-      axisTick: { show: false },
-      axisLine: { show: false },
       axisLabel: {
-        color: 'var(--text2,#666)',
         formatter: (value) => {
           const dt = new Date(value);
           if (Number.isNaN(dt.getTime())) return '';
@@ -454,49 +447,19 @@ function renderShiborChart(mountEl, seriesSource, groupKey) {
       },
     },
     yAxis: {
-      type: 'value',
       min: vMin - pad,
       max: vMax + pad,
-      axisLine: { show: false },
-      axisTick: { show: false },
       axisLabel: {
-        color: 'var(--text2,#666)',
         formatter: (value) => {
           if (value == null || Number.isNaN(Number(value))) return '--';
           return `${Number(value).toFixed(2)}%`;
         },
       },
-      splitLine: {
-        lineStyle: { color: 'rgba(0,0,0,0.08)' },
-      },
     },
-    series: seriesList.map((serie, idx) => {
-      const color = shiborColors[idx % shiborColors.length];
-      return {
-        name: serie.name,
-        type: 'line',
-        smooth: true,
-        showSymbol: true,
-        symbolSize: 5,
-        connectNulls: true,
-        data: serie.data.map(([date, value]) => [date, value]),
-        lineStyle: { width: 2, color },
-        itemStyle: { color },
-      };
-    }),
+    series: chartSeries,
   });
 
-  registerChart(ech);
-
-  requestAnimationFrame(() => {
-    try {
-      ech.resize();
-    } catch (err) {
-      console.warn('[open-market] resize failed', err);
-    }
-  });
-
-  shiborChartState.inst = ech;
+  shiborChartState.inst = chart;
 }
 
 async function renderShiborSection(container, seriesSource = []) {
@@ -604,7 +567,7 @@ export async function renderOpenMarket(mount) {
 
   const shTitle = document.createElement('div');
   shTitle.className = 'section-title';
-  shTitle.textContent = 'Shibor';
+  shTitle.textContent = 'SHIBOR';
   mount.appendChild(shTitle);
 
   const shContainer = document.createElement('div');

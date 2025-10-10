@@ -33,6 +33,53 @@ export function clearCssVarCache() {
   __cssVarCache.clear();
 }
 
+const DEFAULT_PALETTE_SLOTS = [
+  ['--blue-600', '#2B7BEB'],
+  ['--amber-600', '#F5A623'],
+  ['--violet-600', '#7B61FF'],
+  ['--teal-600', '#14B8A6'],
+  ['--rose-600', '#E11D48'],
+  ['--gray-600', '#475569'],
+];
+
+export function resolvePalette(overrides = {}) {
+  const { extend = [], fallback = [] } = overrides || {};
+  const palette = [];
+
+  for (const [varName, fallback] of DEFAULT_PALETTE_SLOTS) {
+    const color = cssVar(varName, fallback);
+    if (color) palette.push(color.trim());
+  }
+
+  if (Array.isArray(extend)) {
+    for (const color of extend) {
+      if (typeof color === 'string' && color.trim()) {
+        palette.push(color.trim());
+      }
+    }
+  }
+
+  const deduped = [];
+  const seen = new Set();
+  for (const color of palette) {
+    const key = color.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(color);
+  }
+
+  if (deduped.length) return deduped;
+
+  const usableFallback = Array.isArray(fallback)
+    ? fallback.filter((color) => typeof color === 'string' && color.trim())
+    : [];
+  if (usableFallback.length) {
+    return usableFallback.map((color) => color.trim());
+  }
+
+  return extend.filter((color) => typeof color === 'string' && color);
+}
+
 export function makeLinearGradient(topColor, bottomColor, fallbackHex = '#409EFF') {
   const top = topColor || fallbackHex;
   const bottom = bottomColor || fallbackHex;
@@ -344,4 +391,180 @@ export async function renderMini(el, type, seriesPairs, options = {}) {
   } finally {
     if (loading.parentNode) loading.parentNode.removeChild(loading);
   }
+}
+
+function normalizeLinePoint(entry) {
+  if (!entry) return null;
+  if (Array.isArray(entry)) {
+    const [rawDate, rawValue] = entry;
+    if (rawDate == null) return null;
+    const parsed = parseNumericValue(rawValue);
+    if (parsed == null) return null;
+    return [String(rawDate), parsed];
+  }
+
+  if (typeof entry === 'object') {
+    const rawDate = entry.date ?? entry.x ?? entry[0];
+    const rawValue = entry.value ?? entry.y ?? entry[1];
+    if (rawDate == null) return null;
+    const parsed = parseNumericValue(rawValue);
+    if (parsed == null) return null;
+    return [String(rawDate), parsed];
+  }
+
+  return null;
+}
+
+function parseNumericValue(raw) {
+  if (raw == null) return null;
+  if (typeof raw === 'number') {
+    if (Number.isNaN(raw)) return null;
+    return raw;
+  }
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === '--') return null;
+    const num = Number(trimmed.replace(/[%]/g, ''));
+    return Number.isNaN(num) ? null : num;
+  }
+  const num = Number(raw);
+  return Number.isNaN(num) ? null : num;
+}
+
+function sanitizeLineSeries(series = []) {
+  return series
+    .map((raw) => {
+      if (!raw) return null;
+      const normalized = { ...raw };
+      normalized.type = normalized.type || 'line';
+      normalized.connectNulls =
+        typeof normalized.connectNulls === 'boolean' ? normalized.connectNulls : true;
+      normalized.showSymbol =
+        typeof normalized.showSymbol === 'boolean' ? normalized.showSymbol : true;
+      normalized.symbolSize = Number.isFinite(normalized.symbolSize) ? normalized.symbolSize : 5;
+      normalized.smooth = typeof normalized.smooth === 'boolean' ? normalized.smooth : false;
+
+      const dataPoints = Array.isArray(normalized.data) ? normalized.data : [];
+      normalized.data = dataPoints.map((entry) => normalizeLinePoint(entry)).filter(Boolean);
+
+      if (normalized.lineStyle) {
+        normalized.lineStyle = { ...normalized.lineStyle };
+        delete normalized.lineStyle.color;
+        if (typeof normalized.lineStyle.width !== 'number') {
+          normalized.lineStyle.width = 2;
+        }
+        if (typeof normalized.lineStyle.opacity !== 'number') {
+          normalized.lineStyle.opacity = 1;
+        }
+      } else {
+        normalized.lineStyle = { width: 2, opacity: 1 };
+      }
+
+      if (normalized.itemStyle) {
+        normalized.itemStyle = { ...normalized.itemStyle };
+        delete normalized.itemStyle.color;
+        if (!Object.keys(normalized.itemStyle).length) {
+          delete normalized.itemStyle;
+        }
+      }
+
+      if (normalized.areaStyle) {
+        normalized.areaStyle = { ...normalized.areaStyle };
+        delete normalized.areaStyle.color;
+      }
+
+      return normalized;
+    })
+    .filter(Boolean);
+}
+
+function mergeAxis(defaults, overrides) {
+  if (!overrides) return { ...defaults };
+  const merged = { ...defaults, ...overrides };
+  if (defaults.axisLabel || overrides.axisLabel) {
+    merged.axisLabel = { ...defaults.axisLabel, ...overrides.axisLabel };
+  }
+  if (defaults.splitLine || overrides.splitLine) {
+    const defaultStyle = defaults.splitLine?.lineStyle || {};
+    const overrideStyle = overrides.splitLine?.lineStyle || {};
+    merged.splitLine = {
+      ...defaults.splitLine,
+      ...overrides.splitLine,
+      lineStyle: { ...defaultStyle, ...overrideStyle },
+    };
+  }
+  return merged;
+}
+
+function mergeTooltip(defaults, overrides) {
+  if (!overrides) return { ...defaults };
+  return {
+    ...defaults,
+    ...overrides,
+    axisPointer: { ...defaults.axisPointer, ...overrides.axisPointer },
+  };
+}
+
+export function renderLineChart(el, option = {}, paletteOptions = {}) {
+  ensureEcharts();
+  if (!el) return null;
+
+  const palette = resolvePalette(paletteOptions);
+  const chart = echarts.init(el);
+
+  const { series = [], grid, xAxis, yAxis, tooltip, legend, color, ...rest } = option || {};
+
+  const defaultTooltip = {
+    trigger: 'axis',
+    axisPointer: { type: 'line' },
+  };
+
+  const defaultGrid = {
+    left: 48,
+    right: 32,
+    top: 32,
+    bottom: 40,
+    containLabel: true,
+  };
+
+  const defaultXAxis = {
+    type: 'time',
+    boundaryGap: false,
+    axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: { color: COLORS.text2() },
+    splitLine: { show: false },
+  };
+
+  const defaultYAxis = {
+    type: 'value',
+    axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: { color: COLORS.text2() },
+    splitLine: { lineStyle: { color: COLORS.grid() } },
+  };
+
+  const finalOption = {
+    color: Array.isArray(color) && color.length ? color : palette,
+    legend: legend ? { ...legend } : undefined,
+    grid: { ...defaultGrid, ...grid },
+    xAxis: mergeAxis(defaultXAxis, xAxis),
+    yAxis: mergeAxis(defaultYAxis, yAxis),
+    tooltip: mergeTooltip(defaultTooltip, tooltip),
+    series: sanitizeLineSeries(series),
+    ...rest,
+  };
+
+  chart.setOption(finalOption, true);
+  registerChart(chart);
+
+  requestAnimationFrame(() => {
+    try {
+      chart.resize();
+    } catch (err) {
+      console.warn('[common-charts] resize after init failed', err);
+    }
+  });
+
+  return chart;
 }

@@ -5,6 +5,8 @@ import {
   buildSeriesData,
   disposeAllCharts,
   renderMini,
+  renderLineChart,
+  waitElementSized,
   formatNumber,
 } from './common-charts.js';
 
@@ -138,15 +140,120 @@ async function renderCards(container, table, indexName) {
 
     if (series.length) {
       try {
-        const chart = await renderMini(chartEl, conf.type, series, {
-          percent: conf.percent,
-          paletteKey: conf.palette,
-        });
-        if (!chart) {
-          chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+        if (conf.type === 'line') {
+          await waitElementSized(chartEl);
+
+          const normalized = series.map(([date, value]) => {
+            const label = date == null ? '' : String(date);
+            const num = value == null ? null : Number(value);
+            return [label, Number.isNaN(num) ? null : num];
+          });
+
+          const numericValues = normalized
+            .map(([, value]) => (typeof value === 'number' ? value : null))
+            .filter((value) => value != null);
+
+          if (!numericValues.length) {
+            chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+            continue;
+          }
+
+          const safeValues = numericValues.length ? numericValues : [0];
+          const vMin = Math.min(...safeValues);
+          const vMax = Math.max(...safeValues);
+          const spread = Number.isFinite(vMax - vMin) ? vMax - vMin : 0;
+          const pad = Math.max(spread * 0.1, Math.abs(vMax || 1) * 0.02);
+          const yMin = vMin - pad;
+          const yMax = vMax + pad;
+          const nonNullCount = numericValues.length;
+
+          const axisFormatter = (val) => {
+            if (val == null || Number.isNaN(Number(val))) return '';
+            return formatNumber(val, 2);
+          };
+
+          const tooltipFormatter = (val) => {
+            if (val == null || Number.isNaN(Number(val))) return '--';
+            return formatNumber(val, 2);
+          };
+
+          const formatAxisDate = (raw) => {
+            if (raw == null) return '';
+            if (typeof raw === 'number') {
+              const dt = new Date(raw);
+              if (Number.isNaN(dt.getTime())) return '';
+              const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(
+                2,
+                '0'
+              )}-${String(dt.getDate()).padStart(2, '0')}`;
+              return fmtDateLabel(iso);
+            }
+            return fmtDateLabel(raw);
+          };
+
+          const fallbackPalette = conf.palette === 'linePrimary' ? ['#409EFF'] : [];
+
+          const chart = renderLineChart(
+            chartEl,
+            {
+              grid: { left: 48, right: 24, top: 28, bottom: 40, containLabel: true },
+              tooltip: {
+                formatter: (items) => {
+                  const first = Array.isArray(items) ? items[0] : items;
+                  if (!first) return '';
+                  const rawValue = Array.isArray(first.data) ? first.data[1] : first.data;
+                  const axisValue = Array.isArray(first.data) ? first.data[0] : first.axisValue;
+                  const dateLabel = formatAxisDate(axisValue);
+                  if (rawValue == null || Number.isNaN(Number(rawValue))) {
+                    return `${dateLabel}<br/>--`;
+                  }
+                  return `${dateLabel}<br/>${tooltipFormatter(Number(rawValue))}`;
+                },
+              },
+              xAxis: {
+                axisLabel: {
+                  formatter: (value) => formatAxisDate(value),
+                },
+              },
+              yAxis: {
+                min: yMin,
+                max: yMax,
+                scale: true,
+                boundaryGap: [0, 0],
+                axisLabel: {
+                  formatter: (value) => axisFormatter(value),
+                },
+              },
+              series: [
+                {
+                  name: `${indexName} · ${conf.title}`,
+                  data: normalized,
+                  smooth: nonNullCount > 1,
+                  showSymbol: nonNullCount <= 1,
+                  symbolSize: nonNullCount <= 1 ? 9 : 6,
+                  connectNulls: false,
+                  lineStyle: { width: 2, opacity: 0.95 },
+                  areaStyle: { opacity: 0.12 },
+                },
+              ],
+            },
+            { fallback: fallbackPalette }
+          );
+
+          if (!chart) {
+            chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+          }
+        } else {
+          const chart = await renderMini(chartEl, conf.type, series, {
+            percent: conf.percent,
+            paletteKey: conf.palette,
+          });
+          if (!chart) {
+            chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+          }
         }
       } catch (err) {
-        console.error('[equity-global] renderMini failed', err);
+        console.error('[equity-global] render card failed', err);
         chartEl.innerHTML = '<div style="opacity:.6">加载失败</div>';
       }
     } else {
