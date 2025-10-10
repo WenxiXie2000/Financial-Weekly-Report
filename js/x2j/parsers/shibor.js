@@ -1,156 +1,160 @@
-import { findColIndex, toDateSafe } from '../utils.js';
-import {
-  fmtISO,
-  parsePercentNumber,
-  deriveRange,
-  createSheetDiagnostics,
-  trackColumn,
-} from './common.js';
+import { toDateSafe, toNumberOrNull } from '../utils.js';
+import { fmtISO, deriveRange, createSheetDiagnostics, trackColumn } from './common.js';
 
 const DEFAULT_SHEET_NAME = 'Shibor利率';
 
+function dedupeByDate(pairs) {
+  const map = new Map();
+  for (const [date, value] of pairs) {
+    if (date == null) continue;
+    if (value == null) continue;
+    map.set(date, value);
+  }
+  return Array.from(map.entries())
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .map(([date, value]) => [date, value]);
+}
+
 export function parseShibor(rows, profile = {}, { sheetName = DEFAULT_SHEET_NAME } = {}) {
   const headerRowIndex = Number.isInteger(profile?.headerRow) ? Math.max(0, profile.headerRow) : 0;
-  const header = rows[headerRowIndex] || [];
-  const body = rows
-    .slice(headerRowIndex + 1)
-    .filter(
-      (row) =>
-        Array.isArray(row) &&
-        row.some((cell) => cell !== undefined && cell !== null && String(cell).trim() !== '')
-    );
+  const header = Array.isArray(rows?.[headerRowIndex])
+    ? rows[headerRowIndex].map((cell) => String(cell ?? '').trim())
+    : [];
+  const body = Array.isArray(rows)
+    ? rows.slice(headerRowIndex + 1).filter((row) => Array.isArray(row))
+    : [];
 
-  const groups = Array.isArray(profile?.groups) ? profile.groups : [];
   const diagnostics = createSheetDiagnostics(sheetName);
-  diagnostics.range = profile?.rangeLabel || null;
   const series = [];
 
-  const normalizeRate = (value) => {
-    const parsed = parsePercentNumber(value);
-    if (parsed == null || Number.isNaN(parsed)) return null;
-    return Number(parsed.toFixed(4));
-  };
+  const groupConfigs = [
+    {
+      key: 'g_90',
+      label: 'SHIBOR 90d',
+      dateMatcher: profile?.dateCol_on_90,
+      series: [
+        { name: 'SHIBOR 隔夜(%)', matcher: profile?.col_on },
+        { name: 'SHIBOR 1周(%)', matcher: profile?.col_1w },
+        { name: 'SHIBOR 2周(%)', matcher: profile?.col_2w },
+      ],
+    },
+    {
+      key: 'g_180',
+      label: 'SHIBOR 180d',
+      dateMatcher: profile?.dateCol_3m_180,
+      series: [
+        { name: 'SHIBOR 3月(%)', matcher: profile?.col_3m },
+        { name: 'SHIBOR 6月(%)', matcher: profile?.col_6m },
+        { name: 'SHIBOR 9月(%)', matcher: profile?.col_9m },
+      ],
+    },
+    {
+      key: 'g_365',
+      label: 'SHIBOR 365d',
+      dateMatcher: profile?.dateCol_1y_365,
+      series: [{ name: 'SHIBOR 1年(%)', matcher: profile?.col_1y }],
+    },
+  ];
 
-  groups.forEach((group, groupIndex) => {
-    const groupKey = group?.key || `group_${groupIndex}`;
-    const dateIdx = trackColumn(diagnostics, header, group?.dateCol ?? '', {
+  const buildGroupSeries = (group) => {
+    const dateIdx = trackColumn(diagnostics, header, group.dateMatcher ?? '', {
       category: 'date',
-      label: `${group?.label || groupKey} 日期列`,
+      label: `${group.label} 代表日期`,
       allowMissing: true,
-      extra: { group: groupKey, range: group?.range || null },
+      extra: { group: group.key },
     });
     const dateEntry = diagnostics.items[diagnostics.items.length - 1] || null;
-
     if (dateIdx < 0) {
       if (dateEntry) {
         dateEntry.note = dateEntry.note || '未找到日期列';
       }
-      return;
+      return [];
     }
 
-    const datedRows = body
-      .map((row) => {
-        const date = toDateSafe(row?.[dateIdx]);
-        if (!date) return null;
-        return { row, date, iso: fmtISO(date) };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.date - b.date);
+    const seriesStates = group.series.map((seriesDef) => {
+      const colIdx = trackColumn(diagnostics, header, seriesDef.matcher ?? '', {
+        category: 'rate',
+        label: seriesDef.name,
+        allowMissing: true,
+        extra: { group: group.key },
+      });
+      const entry = diagnostics.items[diagnostics.items.length - 1] || null;
+      if (colIdx < 0 && entry) {
+        entry.note = entry.note || '未找到数据列';
+      }
+      return {
+        def: seriesDef,
+        colIdx,
+        entry,
+        data: [],
+      };
+    });
 
+    const dateMap = new Map();
+    body.forEach((row) => {
+      const dateValue = dateIdx >= 0 ? toDateSafe(row?.[dateIdx]) : null;
+      if (!dateValue) return;
+      const iso = fmtISO(dateValue);
+      if (!iso) return;
+      const bucket = dateMap.get(iso) || { iso };
+      seriesStates.forEach((state) => {
+        if (state.colIdx < 0) return;
+        const raw = row?.[state.colIdx];
+        const parsed = toNumberOrNull(raw);
+        if (parsed == null) return;
+        bucket[state.def.name] = Number(parsed.toFixed(4));
+      });
+      dateMap.set(iso, bucket);
+    });
+
+    const ordered = Array.from(dateMap.values()).sort((a, b) =>
+      a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : 0
+    );
     if (dateEntry) {
       dateEntry.extra = {
         ...(dateEntry.extra || {}),
-        points: datedRows.length,
+        points: ordered.length,
       };
-    }
-    if (datedRows.length === 1) {
-      if (dateEntry) {
-        dateEntry.extra = {
-          ...(dateEntry.extra || {}),
-          dateRange: [datedRows[0].iso, datedRows[0].iso],
-        };
-      }
-    } else if (datedRows.length >= 2) {
-      if (dateEntry) {
-        dateEntry.extra = {
-          ...(dateEntry.extra || {}),
-          dateRange: [datedRows[0].iso, datedRows[datedRows.length - 1].iso],
-        };
+      if (ordered.length) {
+        dateEntry.extra.dateRange = [ordered[0].iso, ordered[ordered.length - 1].iso];
       }
     }
 
-    if (!datedRows.length) {
-      return;
-    }
-
-    let cutoff = null;
-    if (typeof group?.range === 'string' && group.range.startsWith('lastNDays:')) {
-      const n = Number(group.range.split(':')[1] || '0');
-      if (Number.isFinite(n) && n > 0) {
-        const latest = datedRows[datedRows.length - 1].date;
-        cutoff = new Date(latest.getTime());
-        cutoff.setHours(0, 0, 0, 0);
-        cutoff.setDate(cutoff.getDate() - (n - 1));
-      }
-    }
-
-    (Array.isArray(group?.items) ? group.items : []).forEach((item) => {
-      if (!item) {
-        return;
-      }
-
-      const colIdx = trackColumn(diagnostics, header, item?.col ?? '', {
-        category: 'rate',
-        label: item?.label || item?.key || '',
-        extra: { group: groupKey, key: item?.key || '' },
+    seriesStates.forEach((state) => {
+      const rawPairs = [];
+      ordered.forEach((item) => {
+        const value = item[state.def.name];
+        if (value == null) return;
+        rawPairs.push([item.iso, value]);
       });
-      const itemEntry = diagnostics.items[diagnostics.items.length - 1] || null;
-
-      if (colIdx < 0) {
-        if (itemEntry) {
-          itemEntry.note = itemEntry.note || '未找到数据列';
-        }
-        return;
-      }
-
-      const data = [];
-      datedRows.forEach(({ row, iso, date }) => {
-        if (cutoff && date < cutoff) {
-          return;
-        }
-        const raw = row[colIdx];
-        const value = normalizeRate(raw);
-        if (value == null) {
-          return;
-        }
-        data.push([iso, value]);
-      });
-
-      if (!data.length) {
-        return;
-      }
-
-      if (itemEntry) {
-        itemEntry.extra = {
-          ...(itemEntry.extra || {}),
+      const data = dedupeByDate(rawPairs);
+      state.data = data;
+      if (state.entry) {
+        state.entry.extra = {
+          ...(state.entry.extra || {}),
           points: data.length,
         };
-      }
-      const range = deriveRange([{ data }]);
-      if (Array.isArray(range) && range.length === 2) {
-        if (itemEntry) {
-          itemEntry.extra = {
-            ...(itemEntry.extra || {}),
-            dateRange: range,
-          };
+        if (data.length) {
+          state.entry.extra.dateRange = [data[0][0], data[data.length - 1][0]];
         }
       }
+    });
 
-      series.push({
-        name: item.label || item.key || '',
-        data,
-        unit: '%',
-      });
+    return seriesStates.map((state) => ({
+      name: state.def.name,
+      data: state.data,
+      unit: '%',
+    }));
+  };
+
+  groupConfigs.forEach((group) => {
+    const collected = buildGroupSeries(group);
+    collected.forEach((serie) => {
+      if (Array.isArray(serie.data) && serie.data.length) {
+        series.push(serie);
+      } else {
+        series.push({ ...serie, data: [] });
+      }
     });
   });
 
@@ -158,7 +162,16 @@ export function parseShibor(rows, profile = {}, { sheetName = DEFAULT_SHEET_NAME
     (acc, serie) => acc + (Array.isArray(serie.data) ? serie.data.length : 0),
     0
   );
-  const overallRange = deriveRange(series);
+  let minDate = null;
+  let maxDate = null;
+  series.forEach((serie) => {
+    (serie.data || []).forEach(([iso]) => {
+      if (!iso) return;
+      if (!minDate || iso < minDate) minDate = iso;
+      if (!maxDate || iso > maxDate) maxDate = iso;
+    });
+  });
+  const overallRange = minDate && maxDate ? [minDate, maxDate] : deriveRange(series);
 
   const meta = {
     timezone: 'Asia/Shanghai',

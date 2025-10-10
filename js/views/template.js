@@ -1,5 +1,26 @@
 import { loadSheet } from '../data-adapter.js';
 
+export function renderPlaceholder(mount, message = '内容即将上线') {
+  if (!mount) return;
+  mount.innerHTML = `
+    <div class="empty-state" style="
+      padding:16px;border:1px dashed var(--border,#e6e6e6);
+      border-radius:12px;color:var(--text2,#666);background:var(--bg2,#fafafa);
+    ">${message}</div>
+  `;
+}
+
+export function renderError(mount, err) {
+  if (!mount) return;
+  const msg = err && err.message ? err.message : String(err ?? '未知错误');
+  mount.innerHTML = `
+    <div class="empty-state" style="
+      padding:16px;border:1px solid #f5c2c7;background:#fff5f5;color:#b42318;
+      border-radius:12px;white-space:pre-wrap;font-family:var(--font-mono,ui-monospace,monospace);
+    ">渲染失败：${msg}</div>
+  `;
+}
+
 export function ensureEcharts() {
   if (typeof window === 'undefined' || typeof window.echarts === 'undefined') {
     throw new Error(

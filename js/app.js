@@ -1,4 +1,14 @@
+const IS_TOOLS_PAGE = typeof location !== 'undefined' && location.pathname.includes('/tools/');
+
+if (IS_TOOLS_PAGE) {
+  console.info('[app] skip init on tools page');
+}
+
+export {};
+
 import { loadComponents } from './load-components.js';
+import { getMount, setMountContent } from './dom.js';
+import { renderPlaceholder, renderError } from './views/template.js';
 import { renderOpenMarket } from './views/open-market.js';
 import { renderBondYield } from './views/bond-yield.js';
 import { renderCnyFx } from './views/cny-fx.js';
@@ -20,29 +30,49 @@ const RENDERERS = {
 };
 
 const STORAGE_KEY = 'theme';
+const SIDEBAR_STORAGE_KEY = 'sidebar:collapsed';
+const SIDEBAR_BREAKPOINT = 1200;
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
 let dateTimerId = null;
 let themeToggleInitialized = false;
 
-function getMount() {
-  const mount = document.getElementById('main-content');
-  if (!mount) {
-    throw new Error('未找到 #main-content 容器');
+function getSidebarPreference() {
+  try {
+    const value = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    return value === '1' || value === '0' ? value : null;
+  } catch (err) {
+    console.warn('无法读取侧边栏状态', err);
+    return null;
   }
-  return mount;
 }
 
-async function renderPlaceholder(mount, viewId) {
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = `<div class="card-header">页面暂未实现</div><div style="padding:12px 16px">${viewId}</div>`;
-  mount.appendChild(card);
+function setSidebarPreference(value) {
+  try {
+    if (value === '1' || value === '0') {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, value);
+    } else {
+      localStorage.removeItem(SIDEBAR_STORAGE_KEY);
+    }
+  } catch (err) {
+    console.warn('无法保存侧边栏状态', err);
+  }
+}
+
+function triggerLayoutResize() {
+  window.setTimeout(() => {
+    try {
+      window.dispatchEvent(new Event('resize'));
+    } catch (err) {
+      console.warn('触发 resize 事件失败', err);
+    }
+  }, 0);
 }
 
 function syncSidebarActive(viewId) {
   const menu = document.getElementById('sidebar-menu');
   if (!menu) return;
+
   menu.querySelectorAll('a[data-view]').forEach((link) => {
     const active = link.dataset.view === viewId;
     link.classList.toggle('is-active', active);
@@ -54,8 +84,97 @@ function syncSidebarActive(viewId) {
   });
 }
 
+function mountSidebarRuntime() {
+  const sidebar = document.getElementById('app-sidebar');
+  const toggleBtn = document.getElementById('btn-toggle-sidebar');
+
+  if (!sidebar || !toggleBtn) {
+    return;
+  }
+
+  const mediaQuerySupported = typeof window.matchMedia === 'function';
+  const mediaQuery = mediaQuerySupported
+    ? window.matchMedia(`(max-width: ${SIDEBAR_BREAKPOINT}px)`)
+    : null;
+
+  const getIsNarrow = () => {
+    if (mediaQuery) {
+      return mediaQuery.matches;
+    }
+    const width = window.innerWidth || document.documentElement.clientWidth || 0;
+    return width <= SIDEBAR_BREAKPOINT;
+  };
+
+  const apply = (collapsed, { manual = false } = {}) => {
+    const isCollapsed = Boolean(collapsed);
+    const isNarrow = getIsNarrow();
+    sidebar.classList.toggle('is-collapsed', isCollapsed);
+    sidebar.classList.toggle('is-manual-expanded', !isCollapsed && manual && isNarrow);
+    toggleBtn.setAttribute('aria-expanded', String(!isCollapsed));
+    triggerLayoutResize();
+  };
+
+  const saved = getSidebarPreference();
+  if (saved != null) {
+    apply(saved === '1', { manual: true });
+  } else {
+    apply(getIsNarrow(), { manual: false });
+  }
+
+  if (!toggleBtn.dataset.sidebarBound) {
+    toggleBtn.dataset.sidebarBound = 'true';
+    toggleBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const nextCollapsed = !sidebar.classList.contains('is-collapsed');
+      apply(nextCollapsed, { manual: true });
+      setSidebarPreference(nextCollapsed ? '1' : '0');
+    });
+  }
+
+  const handleResponsiveChange = (matches) => {
+    const preference = getSidebarPreference();
+    if (preference == null) {
+      apply(matches, { manual: false });
+    } else {
+      apply(preference === '1', { manual: true });
+    }
+  };
+
+  if (mediaQuery) {
+    const listener = (event) => {
+      handleResponsiveChange(event?.matches ?? getIsNarrow());
+    };
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', listener);
+    } else if (typeof mediaQuery.addListener === 'function') {
+      mediaQuery.addListener(listener);
+    }
+  } else {
+    const resizeHandler = () => {
+      handleResponsiveChange(getIsNarrow());
+    };
+    window.addEventListener('resize', resizeHandler);
+  }
+
+  if (!sidebar.__collapseObserver) {
+    const observer = new MutationObserver(() => {
+      const preference = getSidebarPreference();
+      if (preference != null) {
+        apply(preference === '1', { manual: true });
+      }
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    sidebar.__collapseObserver = observer;
+  }
+}
+
 export async function routeTo(viewId, { push = true } = {}) {
   const mount = getMount();
+  if (!mount) {
+    console.error('[app] 未找到主内容挂载点 #main-content');
+    return;
+  }
   const key = viewId && typeof viewId === 'string' ? viewId : DEFAULT_VIEW;
   const renderer = RENDERERS[key];
 
@@ -77,21 +196,18 @@ export async function routeTo(viewId, { push = true } = {}) {
     }
   }
 
-  mount.innerHTML = '';
+  setMountContent('');
   mount.scrollTop = 0;
 
   if (renderer) {
     try {
       await renderer(mount);
     } catch (error) {
-      console.error('[app] 渲染失败', error);
-      const errBox = document.createElement('div');
-      errBox.className = 'error-box';
-      errBox.innerHTML = `<strong>渲染失败</strong><span>${error.message}</span>`;
-      mount.appendChild(errBox);
+      console.error(`[app] 渲染失败: ${key}`, error);
+      renderError(mount, error);
     }
   } else {
-    await renderPlaceholder(mount, key);
+    renderPlaceholder(mount, `页面暂未实现：${key}`);
   }
 
   syncSidebarActive(key);
@@ -196,16 +312,23 @@ async function bootstrap() {
   ]);
 
   mountHeaderRuntime();
+  mountSidebarRuntime();
   window.addEventListener('hashchange', handleHashChange);
 
   const initial = window.location.hash.replace('#', '') || DEFAULT_VIEW;
   await routeTo(initial, { push: false });
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', bootstrap);
-} else {
-  bootstrap();
-}
+if (!IS_TOOLS_PAGE) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  } else {
+    bootstrap();
+  }
 
-window.routeTo = routeTo;
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('[unhandledrejection]', event?.reason ?? event);
+  });
+
+  window.routeTo = routeTo;
+}

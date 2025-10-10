@@ -21,6 +21,62 @@ export function normalizeHeaderLabel(input) {
   return t;
 }
 
+export function readHeaderRowSmart(ws, XLSXLib = globalThis?.XLSX) {
+  if (!ws || !XLSXLib?.utils || typeof XLSXLib.utils.decode_range !== 'function') {
+    return { headerRow: 0, headers: [] };
+  }
+
+  const ref = ws['!ref'];
+  if (!ref) return { headerRow: 0, headers: [] };
+
+  const XLSXUtils = XLSXLib.utils;
+  const rg = XLSXUtils.decode_range(ref);
+  const merges = Array.isArray(ws['!merges']) ? ws['!merges'] : [];
+
+  const getCell = (r, c) => ws[XLSXUtils.encode_cell({ r, c })];
+  const setCell = (r, c, v) => {
+    ws[XLSXUtils.encode_cell({ r, c })] = { t: 's', v };
+  };
+
+  merges.forEach((merge) => {
+    const anchor = getCell(merge.s.r, merge.s.c);
+    if (!anchor || anchor.v == null) return;
+    for (let r = merge.s.r; r <= merge.e.r; r += 1) {
+      for (let c = merge.s.c; c <= merge.e.c; c += 1) {
+        const cell = getCell(r, c);
+        if (!cell || cell.v == null || cell.v === '') {
+          setCell(r, c, anchor.v);
+        }
+      }
+    }
+  });
+
+  const normalize = (value) =>
+    String(value ?? '')
+      .replace(/\r?\n/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/[（）]/g, (m) => ({ '（': '(', '）': ')' }[m]))
+      .trim();
+
+  let best = { row: rg.s.r, headers: [], nonEmpty: -1 };
+  const scanMax = Math.min(rg.s.r + 4, rg.e.r);
+  for (let r = rg.s.r; r <= scanMax; r += 1) {
+    const headers = [];
+    let nonEmpty = 0;
+    for (let c = rg.s.c; c <= rg.e.c; c += 1) {
+      const value = getCell(r, c)?.v;
+      const normalized = normalize(value);
+      headers.push(normalized);
+      if (normalized) nonEmpty += 1;
+    }
+    if (nonEmpty > best.nonEmpty) {
+      best = { row: r, headers, nonEmpty };
+    }
+  }
+
+  return { headerRow: best.row, headers: best.headers };
+}
+
 export function normalizeHeaderCell(value) {
   if (value == null) return '';
   return String(value).trim();
@@ -366,6 +422,7 @@ export function mergeSeries(targetList = [], incomingList = []) {
 const exported = {
   normalizeHeaderLabel,
   normalizeHeaderCell,
+  readHeaderRowSmart,
   buildHeaderIndex,
   findColIndex,
   closestHeaderCandidates,

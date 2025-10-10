@@ -9,6 +9,65 @@ import {
 
 const DEFAULT_MONETARY_SHEET = '公开市场货币';
 
+const SUMMARY_PREFIX_MAP = {
+  rr7d: 'r7d',
+  rr14d: 'r14d',
+  mlf: 'mlf',
+  tcd: 'tcd',
+  slf: 'slf',
+  slo: 'slo',
+  repo: 'repo',
+};
+
+const toYiSafe = (value) => {
+  if (value == null || value === '') return null;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  const text = String(value).trim();
+  if (!text) return null;
+
+  let normalized = text.replace(/,/g, '').replace(/（|）/g, (m) => (m === '（' ? '(' : ')'));
+  let multiplier = 1;
+
+  const unitMatch = normalized.match(/(万亿|亿元|亿|万元|万)/);
+  if (unitMatch) {
+    const unit = unitMatch[1];
+    switch (unit) {
+      case '万亿':
+        multiplier = 1e4;
+        break;
+      case '亿元':
+      case '亿':
+        multiplier = 1;
+        break;
+      case '万元':
+      case '万':
+        multiplier = 1e-4;
+        break;
+      default:
+        multiplier = 1;
+    }
+    normalized = normalized.replace(unit, '');
+  }
+
+  normalized = normalized.replace(/[\s元人民币]/g, '');
+  normalized = normalized.replace(/[^0-9.+-]/g, '');
+
+  if (!normalized) {
+    const fallback = parseNumberLike(text);
+    if (!Number.isFinite(fallback)) return null;
+    return Number(fallback);
+  }
+
+  const num = Number(normalized);
+  if (!Number.isFinite(num)) {
+    const fallback = parseNumberLike(text);
+    return Number.isFinite(fallback) ? Number(fallback) : null;
+  }
+  return num * multiplier;
+};
+
 export function parseOpenMarketMonetary(
   rows,
   profile = {},
@@ -28,28 +87,16 @@ export function parseOpenMarketMonetary(
     note: profile.dateCol == null ? '未配置匹配规则' : undefined,
   });
 
-  const summary = {
-    r7d_amt_yi: null,
-    r14d_amt_yi: null,
-    mlf_amt_yi: null,
-    tcd_amt_yi: null,
-    slf_amt_yi: null,
-    slo_amt_yi: null,
-    repo_amt_yi: null,
-  };
+  const summary = {};
+  Object.values(SUMMARY_PREFIX_MAP).forEach((prefix) => {
+    summary[`${prefix}_expiry_yi`] = null;
+    summary[`${prefix}_amt_yi`] = null;
+    summary[`${prefix}_net_yi`] = null;
+    summary[`${prefix}_rate_pct`] = null;
+  });
   const rateSeries = [];
   let table = [];
   let rangeWindow = [];
-
-  const summaryKeyMap = {
-    rr7d: 'r7d_amt_yi',
-    rr14d: 'r14d_amt_yi',
-    mlf: 'mlf_amt_yi',
-    tcd: 'tcd_amt_yi',
-    slf: 'slf_amt_yi',
-    slo: 'slo_amt_yi',
-    repo: 'repo_amt_yi',
-  };
 
   diagnostics.dateCol = dateIdx >= 0 ? header[dateIdx] || null : null;
   const dateEntry = diagnostics.items[diagnostics.items.length - 1] || null;
@@ -63,6 +110,15 @@ export function parseOpenMarketMonetary(
       rateSeries,
       table,
       rangeWindow,
+    };
+  }
+
+  if (dateEntry) {
+    dateEntry.extra = {
+      ...(dateEntry.extra || {}),
+      field: 'date',
+      header: diagnostics.dateCol,
+      index: dateIdx,
     };
   }
 
@@ -105,25 +161,76 @@ export function parseOpenMarketMonetary(
   const items = Array.isArray(profile.items) ? profile.items : [];
   items.forEach((item) => {
     if (!item || !item.key) return;
-    const summaryKey = summaryKeyMap[item.key];
     const baseLabel = item.label || item.key;
+    const summaryPrefix = SUMMARY_PREFIX_MAP[item.key] || null;
+    const summaryFields = summaryPrefix
+      ? {
+          expiry: `${summaryPrefix}_expiry_yi`,
+          amount: `${summaryPrefix}_amt_yi`,
+          net: `${summaryPrefix}_net_yi`,
+          rate: `${summaryPrefix}_rate_pct`,
+        }
+      : {};
 
-    if (summaryKey && item.cols?.inj) {
-      const amountIdx = trackColumn(diagnostics, header, item.cols.inj ?? '', {
+    if (summaryFields.expiry && item.cols?.due) {
+      const dueIdx = trackColumn(diagnostics, header, item.cols.due ?? '', {
         category: 'summary',
-        label: `${baseLabel} 投放量(亿)`,
-        extra: { field: summaryKey },
+        label: `${baseLabel} 到期量(亿)`,
+        extra: { field: summaryFields.expiry },
       });
-      const amountVal = amountIdx >= 0 ? parseNumberLike(latestRow[amountIdx]) : null;
-      if (amountVal != null) {
-        summary[summaryKey] = amountVal;
+      const dueVal = dueIdx >= 0 ? toYiSafe(latestRow[dueIdx]) : null;
+      if (dueVal != null) {
+        summary[summaryFields.expiry] = dueVal;
       }
       const entry = diagnostics.items[diagnostics.items.length - 1];
       if (entry) {
         entry.extra = {
           ...(entry.extra || {}),
-          field: summaryKey,
+          field: summaryFields.expiry,
+          value: dueVal,
+          header: entry.column ?? null,
+        };
+      }
+    }
+
+    if (summaryFields.amount && item.cols?.inj) {
+      const amountIdx = trackColumn(diagnostics, header, item.cols.inj ?? '', {
+        category: 'summary',
+        label: `${baseLabel} 投放量(亿)`,
+        extra: { field: summaryFields.amount },
+      });
+      const amountVal = amountIdx >= 0 ? toYiSafe(latestRow[amountIdx]) : null;
+      if (amountVal != null) {
+        summary[summaryFields.amount] = amountVal;
+      }
+      const entry = diagnostics.items[diagnostics.items.length - 1];
+      if (entry) {
+        entry.extra = {
+          ...(entry.extra || {}),
+          field: summaryFields.amount,
           value: amountVal,
+          header: entry.column ?? null,
+        };
+      }
+    }
+
+    if (summaryFields.net && item.cols?.net) {
+      const netIdx = trackColumn(diagnostics, header, item.cols.net ?? '', {
+        category: 'summary',
+        label: `${baseLabel} 净投放(亿)`,
+        extra: { field: summaryFields.net },
+      });
+      const netVal = netIdx >= 0 ? toYiSafe(latestRow[netIdx]) : null;
+      if (netVal != null) {
+        summary[summaryFields.net] = netVal;
+      }
+      const entry = diagnostics.items[diagnostics.items.length - 1];
+      if (entry) {
+        entry.extra = {
+          ...(entry.extra || {}),
+          field: summaryFields.net,
+          value: netVal,
+          header: entry.column ?? null,
         };
       }
     }
@@ -136,7 +243,12 @@ export function parseOpenMarketMonetary(
       });
       const rawRate = rateIdx >= 0 ? toNumberOrNull(latestRow[rateIdx]) : null;
       const rateVal = rawRate != null ? Number(rawRate.toFixed(4)) : null;
-      const seriesName = `${baseLabel}利率(%)`;
+      const normalizedLabel = String(baseLabel ?? '')
+        .replace(/[（]/g, '(')
+        .replace(/[）]/g, ')')
+        .replace(/\s+/g, '')
+        .trim();
+      const seriesName = normalizedLabel ? `${normalizedLabel}利率(%)` : `${baseLabel}利率(%)`;
       if (iso && rateVal != null) {
         rateSeries.push({ name: seriesName, data: [[iso, rateVal]] });
       }
@@ -146,7 +258,27 @@ export function parseOpenMarketMonetary(
           ...(entry.extra || {}),
           field: `rate:${seriesName}`,
           value: rateVal,
+          header: entry.column ?? null,
         };
+      }
+      if (summaryFields.rate) {
+        summary[summaryFields.rate] = rateVal;
+      }
+    }
+
+    if (summaryFields.net && summary[summaryFields.net] == null) {
+      const expiryVal = summaryFields.expiry ? summary[summaryFields.expiry] : null;
+      const amountVal = summaryFields.amount ? summary[summaryFields.amount] : null;
+      if (
+        typeof amountVal === 'number' &&
+        Number.isFinite(amountVal) &&
+        typeof expiryVal === 'number' &&
+        Number.isFinite(expiryVal)
+      ) {
+        const netFallback = amountVal - expiryVal;
+        if (Number.isFinite(netFallback)) {
+          summary[summaryFields.net] = netFallback;
+        }
       }
     }
   });
@@ -173,17 +305,16 @@ export function buildOpenMarketDataset(omPart, shiborPart) {
   const hasShibor = shiborPart && Object.keys(shiborPart).length;
   if (!hasOm && !hasShibor) return null;
 
-  const summary = {
-    r7d_amt_yi: omPart?.summary?.r7d_amt_yi ?? null,
-    r14d_amt_yi: omPart?.summary?.r14d_amt_yi ?? null,
-    mlf_amt_yi: omPart?.summary?.mlf_amt_yi ?? null,
-    tcd_amt_yi: omPart?.summary?.tcd_amt_yi ?? null,
-    slf_amt_yi: omPart?.summary?.slf_amt_yi ?? null,
-    slo_amt_yi: omPart?.summary?.slo_amt_yi ?? null,
-    repo_amt_yi: omPart?.summary?.repo_amt_yi ?? null,
-  };
+  const summarySource = (omPart && omPart.summary) || {};
+  const summary = {};
+  Object.values(SUMMARY_PREFIX_MAP).forEach((prefix) => {
+    summary[`${prefix}_expiry_yi`] = summarySource[`${prefix}_expiry_yi`] ?? null;
+    summary[`${prefix}_amt_yi`] = summarySource[`${prefix}_amt_yi`] ?? null;
+    summary[`${prefix}_net_yi`] = summarySource[`${prefix}_net_yi`] ?? null;
+    summary[`${prefix}_rate_pct`] = summarySource[`${prefix}_rate_pct`] ?? null;
+  });
 
-  const order = [
+  const OM_ORDER = [
     '逆回购7D利率(%)',
     '逆回购14D利率(%)',
     'MLF利率(%)',
@@ -191,29 +322,54 @@ export function buildOpenMarketDataset(omPart, shiborPart) {
     'SLF利率(%)',
     'SLO利率(%)',
     '正回购利率(%)',
-    'SHIBOR 隔夜(%)',
-    'SHIBOR 1周(%)',
-    'SHIBOR 2周(%)',
-    'SHIBOR 3月(%)',
-    'SHIBOR 6月(%)',
-    'SHIBOR 9月(%)',
-    'SHIBOR 1年(%)',
   ];
 
-  const seriesMap = new Map();
-  const collect = (list) => {
-    (Array.isArray(list) ? list : []).forEach((serie) => {
-      if (!serie || !serie.name) return;
-      seriesMap.set(serie.name, Array.isArray(serie.data) ? serie.data : []);
-    });
+  const series = [];
+  const indexMap = new Map();
+  const pushSerie = (serie) => {
+    if (!serie || !serie.name) return;
+    const name = String(serie.name);
+    const data = Array.isArray(serie.data) ? serie.data : [];
+    const payload = {
+      name,
+      data,
+    };
+    if (serie.unit) {
+      payload.unit = serie.unit;
+    }
+    if (indexMap.has(name)) {
+      const idx = indexMap.get(name);
+      series[idx] = payload;
+    } else {
+      series.push(payload);
+      indexMap.set(name, series.length - 1);
+    }
   };
-  collect(omPart?.rateSeries);
-  collect(shiborPart?.series);
 
-  const series = order.map((name) => ({
-    name,
-    data: seriesMap.get(name) || [],
-  }));
+  const omSeries = Array.isArray(omPart?.rateSeries) ? omPart.rateSeries : [];
+  const omMap = new Map();
+  omSeries.forEach((serie) => {
+    if (!serie || !serie.name) return;
+    omMap.set(serie.name, serie);
+  });
+
+  OM_ORDER.forEach((name) => {
+    if (omMap.has(name)) {
+      pushSerie(omMap.get(name));
+      omMap.delete(name);
+    } else {
+      pushSerie({ name, data: [] });
+    }
+  });
+
+  omMap.forEach((serie) => {
+    pushSerie(serie);
+  });
+
+  const shiborSeries = Array.isArray(shiborPart?.series) ? shiborPart.series : [];
+  shiborSeries.forEach((serie) => {
+    pushSerie(serie);
+  });
 
   const exportInfo = {
     source_sheet: '公开市场货币 + Shibor利率',

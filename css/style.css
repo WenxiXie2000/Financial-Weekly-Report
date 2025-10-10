@@ -8,6 +8,7 @@
   --muted: #6b7280;
   --border: #e2e8f0;
   --shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 6px 16px rgba(15, 23, 42, 0.08);
   --primary: #2563eb;
   --primary-soft: rgba(37, 99, 235, 0.1);
   --accent-up: #16a34a;
@@ -30,6 +31,7 @@ html[data-theme="dark"] {
   --muted: #93a5c9;
   --border: #20345f;
   --shadow: none;
+  --shadow-sm: none;
   --primary: #4c8dff;
   --primary-soft: rgba(76, 141, 255, 0.18);
   --accent-up: #34d399;
@@ -176,6 +178,65 @@ a:hover {
   box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
+.mini-card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.market-card .mini-card-grid {
+  margin-top: 12px;
+}
+
+.mini-card.compact {
+  display: inline-block;
+  width: 22%;
+  margin: 0.5%;
+  padding: 12px 10px;
+  border-radius: 12px;
+  background: var(--card-bg, var(--card, #fff));
+  box-shadow: var(--shadow-sm, var(--shadow));
+  text-align: center;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.mini-card.compact:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm, var(--shadow));
+}
+
+.mini-card__label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.mini-card__value {
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-top: 4px;
+}
+
+.mini-card__rate {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .mini-card.compact {
+    width: 48%;
+    margin: 1% 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .mini-card.compact {
+    width: 100%;
+    margin: 0 0 8px;
+  }
+}
+
 .muted {
   color: var(--muted);
   font-size: 14px;
@@ -278,6 +339,107 @@ a:hover {
   }
 
   .sidebar-host {
+
+/* ========== Sidebar ========== */
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  width: 240px;
+  min-width: 240px;
+  padding: 0;
+  transition: width 0.18s ease;
+  will-change: width;
+}
+
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 12px;
+}
+
+.sidebar__toggle {
+  border: 1px solid var(--border, #e6e6e6);
+  background: var(--bg, #fff);
+  border-radius: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  line-height: 1;
+  color: var(--text2, #666);
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.sidebar__toggle:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.dark .sidebar__toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar__nav {
+  flex: 1;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.sidebar.is-collapsed {
+  width: 56px;
+  min-width: 56px;
+}
+
+.sidebar.is-collapsed .sidebar__nav .label {
+  display: none;
+}
+
+.sidebar.is-collapsed .sidebar__nav {
+  padding: 8px 6px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0;
+  will-change: width;
+}
+
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 56px;
+    min-width: 56px;
+  }
+}
+
+/* 基础：展开=240，折叠=56 */
+#app-sidebar.sidebar {
+  width: 240px;
+  min-width: 240px;
+  transition: width 0.18s ease;
+}
+
+#app-sidebar.sidebar.is-collapsed {
+  width: 56px !important;
+  min-width: 56px !important;
+}
+
+#app-sidebar.sidebar.is-collapsed .sidebar__nav .label {
+  display: none !important;
+}
+
+/* 小屏默认折叠（仅当用户没有手动设置时），但允许“手动展开”覆盖 */
+@media (max-width: 1200px) {
+  #app-sidebar.sidebar {
+    width: 56px;
+    min-width: 56px;
+  }
+
+  /* 用户手动选择展开时，强制覆盖小屏规则 */
+  #app-sidebar.sidebar.is-manual-expanded {
+    width: 240px !important;
+    min-width: 240px !important;
+  }
+}
     display: none;
   }
 
@@ -426,26 +588,12 @@ html.dark,
 }
 
 .sidebar {
-  height: calc(100vh - 60px);
+  height: calc(100vh - var(--header-h, 56px));
   background: var(--card);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 12px;
-  gap: 12px;
-}
-
-.sidebar-toggle {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
+  color: var(--muted);
 }
 
 .sidebar-menu {
@@ -455,11 +603,6 @@ html.dark,
   display: flex;
   flex-direction: column;
   gap: 4px;
-  overflow-y: auto;
-}
-
-.sidebar-menu.is-collapsed {
-  display: none;
 }
 
 .sidebar-menu a {
@@ -494,27 +637,8 @@ html.dark,
 @media (max-width: 900px) {
   .sidebar {
     height: auto;
-    position: sticky;
-    top: 60px;
   }
-
-  .sidebar-toggle {
-    display: inline-flex;
-  }
-
-  .sidebar-menu {
-    max-height: 0;
-    transition: max-height 0.2s ease;
-  }
-
-  .sidebar-menu.is-collapsed {
-    max-height: 0;
-  }
-
-  .sidebar-menu:not(.is-collapsed) {
-      max-height: 360px;
-    }
-  }
+}
 
   .app-shell {
     display: flex;

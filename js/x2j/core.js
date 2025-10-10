@@ -6,7 +6,116 @@ import parseShibor from './parsers/shibor.js';
 import { parseOpenMarketMonetary, buildOpenMarketDataset } from './parsers/open-market.js';
 import parseBondYield from './parsers/bond-yield.js';
 import parseMidPaper from './parsers/mid-paper.js';
-import { cloneDataset, ensureArray, cloneDiagnostics, mergeSeries } from './utils.js';
+
+const DIRECT_PARSERS = [
+  '人民币汇率',
+  '公开市场货币',
+  'Shibor利率',
+  '国能上市公司',
+  '债券利率',
+  '中票利率',
+];
+
+if (typeof console !== 'undefined' && typeof console.debug === 'function') {
+  try {
+    const profileKeys = Object.keys(SHEET_PROFILES || {});
+    console.debug('[convert] bootstrap SHEET_PROFILES keys =', profileKeys);
+    console.debug(
+      '[convert] bootstrap direct parser handlers =',
+      DIRECT_PARSERS,
+      'profile-backed=',
+      profileKeys.filter((name) => !DIRECT_PARSERS.includes(name))
+    );
+  } catch (err) {
+    console.warn('[convert] bootstrap logging failed', err);
+  }
+}
+import {
+  cloneDataset,
+  ensureArray,
+  cloneDiagnostics,
+  mergeSeries,
+  readHeaderRowSmart,
+} from './utils.js';
+
+function resolveHeaderInfo(ws, profile) {
+  const XLSXLib = globalThis?.XLSX;
+  if (!ws || !XLSXLib?.utils || typeof XLSXLib.utils.decode_range !== 'function') {
+    return { headerRow: null, headers: [], range: null };
+  }
+
+  const ref = ws['!ref'];
+  if (!ref) return { headerRow: null, headers: [], range: null };
+
+  const rg = XLSXLib.utils.decode_range(ref);
+  const smart = readHeaderRowSmart(ws, XLSXLib);
+
+  if (profile && typeof profile.headerRow === 'number') {
+    const targetRow = rg.s.r + profile.headerRow;
+    const headers = [];
+    for (let c = rg.s.c; c <= rg.e.c; c += 1) {
+      const cell = ws[XLSXLib.utils.encode_cell({ r: targetRow, c })];
+      headers.push(String(cell?.v ?? '').trim());
+    }
+    const nonEmpty = headers.filter(Boolean).length;
+    if (nonEmpty >= 3) {
+      return { headerRow: targetRow, headers, range: rg };
+    }
+  }
+
+  return { headerRow: smart.headerRow ?? null, headers: smart.headers ?? [], range: rg };
+}
+
+function getHeaderRowIndex(headerInfo) {
+  if (!headerInfo) return null;
+  if (Number.isInteger(headerInfo.headerRowIndex)) {
+    return headerInfo.headerRowIndex;
+  }
+  const startRow = headerInfo?.range?.s?.r;
+  if (Number.isInteger(headerInfo.headerRow) && Number.isInteger(startRow)) {
+    const offset = headerInfo.headerRow - startRow;
+    if (Number.isInteger(offset) && offset >= 0) {
+      return offset;
+    }
+  }
+  return null;
+}
+
+function applyHeaderFallback(profile, rows, headerInfo) {
+  if (!profile) return profile;
+
+  const headerIndexHint = getHeaderRowIndex(headerInfo);
+  const manualHeaderRow = Number.isInteger(profile.headerRow)
+    ? Math.max(0, profile.headerRow)
+    : null;
+
+  if (manualHeaderRow == null) {
+    if (headerIndexHint != null && headerIndexHint !== manualHeaderRow) {
+      return { ...profile, headerRow: headerIndexHint };
+    }
+    return profile;
+  }
+
+  const manualRowValues = Array.isArray(rows?.[manualHeaderRow]) ? rows[manualHeaderRow] : null;
+  let nonEmpty = 0;
+  if (manualRowValues) {
+    for (const cell of manualRowValues) {
+      if (String(cell ?? '').trim()) {
+        nonEmpty += 1;
+      }
+    }
+  }
+
+  if (nonEmpty >= 3) {
+    return profile;
+  }
+
+  if (headerIndexHint != null && headerIndexHint !== manualHeaderRow) {
+    return { ...profile, headerRow: headerIndexHint };
+  }
+
+  return profile;
+}
 
 export { SHEET_PROFILES, SHEET_TO_FILE, normalizeSheetName, getOutputFile } from './profiles.js';
 
@@ -134,10 +243,12 @@ export function mergeDatasets(target, incoming) {
 export function parseSheet(
   rows,
   sheetName,
-  { anchor = new Date(), profiles = SHEET_PROFILES } = {}
+  { anchor = new Date(), profiles = SHEET_PROFILES, headerInfo = null } = {}
 ) {
   const normalized = normalizeSheetName(sheetName);
   const profile = profiles?.[normalized];
+  const effectiveProfile = applyHeaderFallback(profile, rows, headerInfo);
+  const activeProfile = effectiveProfile || profile || {};
   const context = { anchor, sheetName: normalized };
 
   if (normalized === '公开市场组合') {
@@ -151,7 +262,7 @@ export function parseSheet(
   }
 
   if (normalized === '人民币汇率') {
-    const payload = parseCnyFx(rows, profile || {}, context);
+    const payload = parseCnyFx(rows, activeProfile, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
@@ -162,7 +273,7 @@ export function parseSheet(
   }
 
   if (normalized === '国能上市公司') {
-    const payload = parseGroupListed(rows, profile || {}, context);
+    const payload = parseGroupListed(rows, activeProfile, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
@@ -173,7 +284,7 @@ export function parseSheet(
   }
 
   if (normalized === '公开市场货币') {
-    const payload = parseOpenMarketMonetary(rows, profile || {}, context);
+    const payload = parseOpenMarketMonetary(rows, activeProfile, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
@@ -184,7 +295,7 @@ export function parseSheet(
   }
 
   if (normalized === 'Shibor利率') {
-    const payload = parseShibor(rows, profile || {}, context);
+    const payload = parseShibor(rows, activeProfile, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
@@ -195,7 +306,7 @@ export function parseSheet(
   }
 
   if (normalized === '债券利率') {
-    const payload = parseBondYield(rows, profile || {}, context);
+    const payload = parseBondYield(rows, activeProfile, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
@@ -206,7 +317,7 @@ export function parseSheet(
   }
 
   if (normalized === '中票利率') {
-    const payload = parseMidPaper(rows, profile || {}, context);
+    const payload = parseMidPaper(rows, activeProfile, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
@@ -217,7 +328,7 @@ export function parseSheet(
   }
 
   if (profile) {
-    const payload = parseByProfile(rows, profile, context);
+    const payload = parseByProfile(rows, activeProfile, context);
     return {
       sheetName,
       normalizedSheetName: normalized,
@@ -239,6 +350,7 @@ export function parseSheet(
 export function convertSheets(sheetEntries, options = {}) {
   const anchor = options.anchor || new Date();
   const profiles = options.profiles || SHEET_PROFILES;
+  const headerInfos = options.headerInfos || null;
   const outputs = new Map();
   const details = [];
   const diagnosticsList = [];
@@ -248,6 +360,21 @@ export function convertSheets(sheetEntries, options = {}) {
     shibor: null,
   };
 
+  if (typeof console !== 'undefined' && typeof console.debug === 'function') {
+    try {
+      const profileKeys = Object.keys(profiles || {});
+      console.debug('[convert] convertSheets profile keys =', profileKeys);
+      console.debug(
+        '[convert] convertSheets direct parser keys =',
+        DIRECT_PARSERS,
+        'total=',
+        DIRECT_PARSERS.length
+      );
+    } catch (err) {
+      console.warn('[convert] logging convertSheets profiles failed', err);
+    }
+  }
+
   const iterator = Array.isArray(sheetEntries)
     ? sheetEntries
     : sheetEntries instanceof Map
@@ -255,7 +382,28 @@ export function convertSheets(sheetEntries, options = {}) {
     : Object.entries(sheetEntries || {});
 
   iterator.forEach(([sheetName, rows]) => {
-    const result = parseSheet(rows, sheetName, { anchor, profiles });
+    if (typeof console !== 'undefined' && typeof console.debug === 'function') {
+      try {
+        const normalized = normalizeSheetName(sheetName);
+        console.debug(
+          '[convert] visiting sheet =',
+          sheetName,
+          'normalized=',
+          normalized,
+          'has profile?',
+          !!profiles?.[normalized]
+        );
+      } catch (err) {
+        console.warn('[convert] visiting sheet log failed', err);
+      }
+    }
+    const headerInfo =
+      headerInfos instanceof Map
+        ? headerInfos.get(sheetName) || null
+        : headerInfos && typeof headerInfos === 'object'
+        ? headerInfos[sheetName] || null
+        : null;
+    const result = parseSheet(rows, sheetName, { anchor, profiles, headerInfo });
     details.push(result);
     if (!result || !result.payload) return;
 
@@ -285,6 +433,21 @@ export function convertSheets(sheetEntries, options = {}) {
       pushDiagnostics(payload.diagnostics);
     }
 
+    if (typeof console !== 'undefined' && typeof console.debug === 'function') {
+      try {
+        console.debug(
+          '[convert] parsed sheet stats',
+          sheetName,
+          'series=',
+          Array.isArray(payload?.series) ? payload.series.length : 0,
+          'tableRows=',
+          Array.isArray(payload?.table) ? payload.table.length : 0
+        );
+      } catch (err) {
+        console.warn('[convert] parsed sheet stats log failed', err);
+      }
+    }
+
     if (result.kind === 'open_market_monetary') {
       openMarketState.monetary = result.payload;
       return;
@@ -296,6 +459,10 @@ export function convertSheets(sheetEntries, options = {}) {
 
     const fileName = result.outputFile;
     if (!fileName) return;
+
+    if (typeof console !== 'undefined' && typeof console.debug === 'function') {
+      console.debug('[convert] will write?', !!payload, 'file=', fileName);
+    }
 
     const previous = outputs.get(fileName) || null;
     const merged = mergeDatasets(previous, result.payload);
@@ -350,11 +517,21 @@ export async function runArrayBuffer(source, options = {}) {
   }
 
   const workbook = XLSXLib.read(uint8, { type: 'array' });
+  const headerInfos = new Map();
   const rows = workbook.SheetNames.map((sheetName) => {
     const worksheet = workbook.Sheets?.[sheetName];
     if (!worksheet) {
+      headerInfos.set(sheetName, null);
       return [sheetName, []];
     }
+    const normalizedSheetName = normalizeSheetName(sheetName);
+    const profile = profiles?.[normalizedSheetName];
+    const headerMeta = resolveHeaderInfo(worksheet, profile);
+    const headerRowIndex = getHeaderRowIndex(headerMeta);
+    headerInfos.set(sheetName, {
+      ...headerMeta,
+      headerRowIndex,
+    });
     const sheetRows = XLSXLib.utils?.sheet_to_json
       ? XLSXLib.utils.sheet_to_json(worksheet, {
           header: 1,
@@ -365,7 +542,28 @@ export async function runArrayBuffer(source, options = {}) {
     return [sheetName, sheetRows];
   });
 
-  const converted = convertSheets(rows, { anchor, profiles });
+  if (typeof console !== 'undefined' && typeof console.debug === 'function') {
+    try {
+      console.debug('[convert] runArrayBuffer profile keys =', Object.keys(profiles || {}));
+      console.debug('[convert] runArrayBuffer sheetNames =', workbook.SheetNames);
+    } catch (err) {
+      console.warn('[convert] runArrayBuffer pre-convert log failed', err);
+    }
+  }
+
+  const converted = convertSheets(rows, { anchor, profiles, headerInfos });
+
+  if (typeof console !== 'undefined' && typeof console.debug === 'function') {
+    try {
+      const fileSize = converted?.files instanceof Map ? converted.files.size : undefined;
+      const diagLen = Array.isArray(converted?.diagnostics)
+        ? converted.diagnostics.length
+        : undefined;
+      console.debug('[convert] convertSheets returned files=', fileSize, 'diags=', diagLen);
+    } catch (err) {
+      console.warn('[convert] runArrayBuffer post-convert log failed', err);
+    }
+  }
   return {
     files: converted.files,
     details: converted.details,

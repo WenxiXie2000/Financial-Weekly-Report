@@ -1,5 +1,8 @@
 import { styleFor, COLORS } from '../theme/palette.js';
 
+/**
+ * 保障 ECharts 已经可用
+ */
 export function ensureEcharts() {
   if (!window || !window.echarts) throw new Error('ECharts 未加载');
 }
@@ -39,6 +42,9 @@ export function makeLinearGradient(topColor, bottomColor, fallbackHex = '#409EFF
   ]);
 }
 
+/**
+ * 把日期字符串格式化成 MM-DD 标签
+ */
 export function fmtDateLabel(value) {
   const dt = new Date(String(value).replace(/-/g, '/'));
   if (Number.isNaN(dt.getTime())) return String(value ?? '');
@@ -47,6 +53,24 @@ export function fmtDateLabel(value) {
   return `${mm}-${dd}`;
 }
 
+/**
+ * 从表格数据里提取日期-数值对，返回最近 5 条
+ */
+export function buildSeriesData(table, dateKey, valueKey) {
+  const pairs = [];
+  for (const row of Array.isArray(table) ? table : []) {
+    const date = row?.[dateKey];
+    const value = row?.[valueKey];
+    if (date == null || value == null || value === '' || value === '--') continue;
+    const num = Number(value);
+    pairs.push([String(date), Number.isNaN(num) ? null : num]);
+  }
+  return pairs.slice(-5);
+}
+
+/**
+ * 统一的数字格式化，默认保留 2 位小数
+ */
 export function formatNumber(value, digits = 2) {
   const num = Number(value);
   if (Number.isNaN(num)) return '--';
@@ -64,44 +88,73 @@ export function formatYi(value, digits = 2) {
 const __charts = new Set();
 let __resizeAttached = false;
 
-function __onResize() {
-  __charts.forEach((chart) => {
-    try {
-      chart.resize();
-    } catch (err) {
-      console.warn('[common-charts] resize chart failed', err);
-    }
-  });
-}
-
-function __attachResize() {
-  if (__resizeAttached) return;
-  window.addEventListener('resize', __onResize);
-  __resizeAttached = true;
-}
-
 function __detachResizeIfIdle() {
+  if (typeof window === 'undefined') return;
   if (__resizeAttached && __charts.size === 0) {
     window.removeEventListener('resize', __onResize);
     __resizeAttached = false;
   }
 }
 
-export function registerChart(chart) {
-  if (!chart) return;
-  __charts.add(chart);
-  __attachResize();
+function __ensureAttached() {
+  if (typeof window === 'undefined') return;
+  if (!__resizeAttached) {
+    window.addEventListener('resize', __onResize);
+    __resizeAttached = true;
+  }
 }
 
-export function disposeAllCharts() {
-  __charts.forEach((chart) => {
+function __onResize() {
+  for (const chart of Array.from(__charts)) {
     try {
-      chart.dispose();
+      const dom = typeof chart.getDom === 'function' ? chart.getDom() : null;
+      if (!dom || (typeof dom === 'object' && 'isConnected' in dom && !dom.isConnected)) {
+        __charts.delete(chart);
+        continue;
+      }
+      chart.resize?.();
+    } catch (err) {
+      console.warn('[common-charts] resize chart failed', err);
+      __charts.delete(chart);
+    }
+  }
+  __detachResizeIfIdle();
+}
+
+export function addChartForResize(chart) {
+  if (!chart) return;
+  __charts.add(chart);
+  __ensureAttached();
+}
+
+export function removeChartFromResize(chart) {
+  if (!chart) return;
+  __charts.delete(chart);
+  __detachResizeIfIdle();
+}
+
+export function ensureResizeAttached() {
+  __ensureAttached();
+}
+
+export function registerChart(chart) {
+  if (!chart) return;
+  addChartForResize(chart);
+}
+
+/**
+ * 释放所有已登记的图表实例（切换视图时调用）
+ */
+export function disposeAllCharts() {
+  const charts = Array.from(__charts);
+  charts.forEach((chart) => {
+    try {
+      removeChartFromResize(chart);
+      chart.dispose?.();
     } catch (err) {
       console.warn('[common-charts] dispose chart failed', err);
     }
   });
-  __charts.clear();
   __detachResizeIfIdle();
 }
 
@@ -139,6 +192,9 @@ export function waitElementSized(el, { timeout = 1000 } = {}) {
   });
 }
 
+/**
+ * 迷你图渲染器：支持折线/柱状，并兼容百分比、金额等格式
+ */
 export async function renderMini(el, type, seriesPairs, options = {}) {
   ensureEcharts();
 
@@ -188,6 +244,7 @@ export async function renderMini(el, type, seriesPairs, options = {}) {
 
     const xAxisData = normalizedPairs.map(([d]) => fmtDateLabel(d));
     const seriesData = normalizedPairs.map(([, value]) => value);
+    const nonNullCount = seriesData.filter((value) => value != null && !Number.isNaN(value)).length;
     const rawValues = seriesData.filter(
       (value) => typeof value === 'number' && !Number.isNaN(value)
     );
@@ -250,8 +307,9 @@ export async function renderMini(el, type, seriesPairs, options = {}) {
         {
           type,
           data: seriesData,
-          showSymbol: type === 'line' ? false : true,
-          smooth: type === 'line',
+          showSymbol: type === 'line' ? nonNullCount <= 1 : true,
+          smooth: type === 'line' ? nonNullCount > 1 : false,
+          symbolSize: type === 'line' && nonNullCount <= 1 ? 9 : 6,
           barWidth: type === 'bar' ? '52%' : undefined,
           barMinHeight: type === 'bar' ? 3 : undefined,
           itemStyle:

@@ -1,67 +1,20 @@
-<nav class="sidebar" aria-label="主导航">
-  <button class="sidebar-toggle" type="button" aria-expanded="true" aria-controls="sidebar-menu">
-    <i class="bi bi-list"></i>
-  </button>
-  <ul id="sidebar-menu" class="sidebar-menu">
-    <li><a href="#overview" data-view="overview"><i class="bi bi-speedometer2"></i><span>市场总览</span></a></li>
-    <li><a href="#equity-cn" data-view="equity-cn"><i class="bi bi-bar-chart-line"></i><span>国内股市</span></a></li>
-    <li><a href="#equity-global" data-view="equity-global"><i class="bi bi-globe-asia-australia"></i><span>全球股市</span></a></li>
-    <li><a href="#cny-fx" data-view="cny-fx"><i class="bi bi-currency-exchange"></i><span>人民币汇率</span></a></li>
-    <li><a href="#open-market" data-view="open-market"><i class="bi bi-bank"></i><span>公开市场</span></a></li>
-    <li><a href="#bond-yield" data-view="bond-yield"><i class="bi bi-percent"></i><span>债券利率</span></a></li>
-    <li><a href="#group-listed" data-view="group-listed"><i class="bi bi-building"></i><span>集团上市公司</span></a></li>
-    <li><a href="#news" data-view="news"><i class="bi bi-newspaper"></i><span>财经资讯</span></a></li>
-  </ul>
-</nav>
+<aside class="sidebar" id="app-sidebar" aria-label="侧边导航">
+  <div class="sidebar__header">
+    <button id="btn-toggle-sidebar" class="sidebar__toggle" type="button" aria-label="折叠/展开侧边栏" aria-expanded="true">
+      <i class="bi bi-layout-sidebar-inset"></i>
+    </button>
+  </div>
 
-<script>
-  (() => {
-    const menu = document.getElementById('sidebar-menu');
-    const toggleBtn = document.querySelector('.sidebar-toggle');
-
-    const syncActive = (viewId) => {
-      if (!menu) return;
-      menu.querySelectorAll('a[data-view]').forEach((link) => {
-        const active = link.dataset.view === viewId;
-        link.classList.toggle('is-active', active);
-        if (active) {
-          link.setAttribute('aria-current', 'page');
-        } else {
-          link.removeAttribute('aria-current');
-        }
-      });
-    };
-
-    const handleClick = (event) => {
-      const link = event.target.closest('a[data-view]');
-      if (!link) return;
-      event.preventDefault();
-      const viewId = link.dataset.view;
-      if (window.routeTo) {
-        window.routeTo(viewId);
-      } else {
-        window.location.hash = `#${viewId}`;
-      }
-    };
-
-    if (menu) {
-      menu.addEventListener('click', handleClick);
-    }
-
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', () => {
-        const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
-        toggleBtn.setAttribute('aria-expanded', String(!expanded));
-        menu.classList.toggle('is-collapsed', expanded);
-      });
-    }
-
-    window.addEventListener('hashchange', () => {
-      const current = window.location.hash.replace('#', '') || 'overview';
-      syncActive(current);
-    });
-
-    const initial = window.location.hash.replace('#', '') || 'overview';
-    syncActive(initial);
-  })();
-</script>
+  <nav class="sidebar__nav" aria-label="主导航">
+    <ul id="sidebar-menu" class="sidebar-menu">
+      <li><a href="#overview" data-view="overview"><i class="bi bi-speedometer2"></i><span class="label">市场总览</span></a></li>
+      <li><a href="#equity-cn" data-view="equity-cn"><i class="bi bi-bar-chart-line"></i><span class="label">国内股市</span></a></li>
+      <li><a href="#equity-global" data-view="equity-global"><i class="bi bi-globe-asia-australia"></i><span class="label">全球股市</span></a></li>
+      <li><a href="#cny-fx" data-view="cny-fx"><i class="bi bi-currency-exchange"></i><span class="label">人民币汇率</span></a></li>
+      <li><a href="#open-market" data-view="open-market"><i class="bi bi-bank"></i><span class="label">公开市场</span></a></li>
+      <li><a href="#bond-yield" data-view="bond-yield"><i class="bi bi-percent"></i><span class="label">债券利率</span></a></li>
+      <li><a href="#group-listed" data-view="group-listed"><i class="bi bi-building"></i><span class="label">集团上市公司</span></a></li>
+      <li><a href="#news" data-view="news"><i class="bi bi-newspaper"></i><span class="label">财经资讯</span></a></li>
+    </ul>
+  </nav>
+</aside>

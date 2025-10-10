@@ -1,4 +1,10 @@
-import { toDateSafe, isWeekday, mondayOf, fridayOf, prevCompletedWeekRange } from './utils.js';
+import {
+  toDateSafe,
+  isWeekday,
+  mondayOf,
+  fridayOf,
+  prevCompletedWeekRange,
+} from '../js/x2j/utils.js';
 
 export const SHEET_ALIASES = {
   集团上市公司: '国能上市公司',
@@ -31,7 +37,7 @@ export function getOutputFile(sheetName) {
   return SHEET_TO_FILE[normalized] || null;
 }
 
-export { toDateSafe, isWeekday, mondayOf, fridayOf } from './utils.js';
+export { toDateSafe, isWeekday, mondayOf, fridayOf } from '../js/x2j/utils.js';
 
 export function fmtISO(d) {
   if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '';
@@ -84,9 +90,9 @@ export function computeRange(rows, dateIdx, mode, options = {}) {
   return enriched.filter((item) => isWeekday(item.date));
 }
 
-export const SHEET_PROFILES = {
+const SHEET_PROFILES = {
   人民币汇率: {
-    headerRow: 0,
+    headerRow: 1,
     dateCol: /^日期$/,
     rangeDefault: 'prevCompletedWeek',
     metrics: {
@@ -178,16 +184,48 @@ export const SHEET_PROFILES = {
   },
   Shibor利率: {
     headerRow: 0,
-    dateCol_on_90: /^SHIBOR隔夜日期(?:[（(]90[）)])?$/,
-    dateCol_3m_180: /^SHIBOR3月日期(?:[（(]180[）)])?$/,
-    dateCol_1y_365: /^SHIBOR1年日期(?:[（(]365[）)])?$/,
-    col_on: /^SHIBOR隔夜利率$/,
-    col_1w: /^SHIBOR1周利率$/,
-    col_2w: /^SHIBOR2周利率$/,
-    col_3m: /^SHIBOR3月利率$/,
-    col_6m: /^SHIBOR6月利率$/,
-    col_9m: /^SHIBOR9月利率$/,
-    col_1y: /^SHIBOR1年利率$/,
+    groups: [
+      {
+        key: 'overnight_90d',
+        label: 'group_0',
+        range: 'lastNDays:90',
+        window: 90,
+        dateCol: /^(?:SHIBOR)?隔夜日期(?:[（(]\s*90\s*[）)])?$/,
+        items: [
+          { key: 'shibor_on', label: 'SHIBOR 隔夜(%)', col: /^SHIBOR隔夜利率$/ },
+          { key: 'shibor_1w', label: 'SHIBOR 1周(%)', col: /^SHIBOR1周利率$/ },
+          { key: 'shibor_2w', label: 'SHIBOR 2周(%)', col: /^SHIBOR2周利率$/ },
+        ],
+      },
+      {
+        key: 'quarter_180d',
+        label: 'group_1',
+        range: 'lastNDays:180',
+        window: 180,
+        dateCol: /^(?:SHIBOR)?3月日期(?:[（(]\s*180\s*[）)])?$/,
+        items: [
+          { key: 'shibor_3m', label: 'SHIBOR 3月(%)', col: /^SHIBOR3月利率$/ },
+          { key: 'shibor_6m', label: 'SHIBOR 6月(%)', col: /^SHIBOR6月利率$/ },
+          { key: 'shibor_9m', label: 'SHIBOR 9月(%)', col: /^SHIBOR9月利率$/ },
+        ],
+      },
+      {
+        key: 'oneyear_365d',
+        label: 'group_2',
+        range: 'lastNDays:365',
+        window: 365,
+        dateCol: /^(?:SHIBOR)?1年日期(?:[（(]\s*365\s*[）)])?$/,
+        items: [
+          {
+            key: 'shibor_1y',
+            label: 'SHIBOR 1年(%)',
+            col: /^(?:SHIBOR1年利率|SHIBOR一年利率)$/,
+          },
+        ],
+      },
+    ],
+    rowFilter: (row) => !!row?.date,
+    unit: { rate: '%' },
   },
   国能上市公司: {
     headerRow: 0,

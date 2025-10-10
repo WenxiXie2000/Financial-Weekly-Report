@@ -84,9 +84,9 @@ export function computeRange(rows, dateIdx, mode, options = {}) {
   return enriched.filter((item) => isWeekday(item.date));
 }
 
-export const SHEET_PROFILES = {
+const SHEET_PROFILES = {
   人民币汇率: {
-    headerRow: 0,
+    headerRow: 1,
     dateCol: /^日期$/,
     rangeDefault: 'prevCompletedWeek',
     metrics: {
@@ -170,24 +170,45 @@ export const SHEET_PROFILES = {
         },
       },
     ],
-    rowFilter: (row) => !!row?.date,
-    unit: {
-      amount: '亿',
-      rate: '%',
-    },
   },
   Shibor利率: {
     headerRow: 0,
-    dateCol_on_90: /^SHIBOR隔夜日期(?:[（(]90[）)])?$/,
-    dateCol_3m_180: /^SHIBOR3月日期(?:[（(]180[）)])?$/,
-    dateCol_1y_365: /^SHIBOR1年日期(?:[（(]365[）)])?$/,
-    col_on: /^SHIBOR隔夜利率$/,
-    col_1w: /^SHIBOR1周利率$/,
-    col_2w: /^SHIBOR2周利率$/,
-    col_3m: /^SHIBOR3月利率$/,
-    col_6m: /^SHIBOR6月利率$/,
-    col_9m: /^SHIBOR9月利率$/,
-    col_1y: /^SHIBOR1年利率$/,
+    groups: [
+      {
+        key: 'overnight_90d',
+        label: 'group_0',
+        range: 'lastNDays:90',
+        window: 90,
+        dateCol: /^(?:SHIBOR)?隔夜日期(?:[（(]\s*90\s*[）)])?$/,
+        items: [
+          { key: 'shibor_on', label: 'SHIBOR 隔夜(%)', col: /^SHIBOR隔夜利率$/ },
+          { key: 'shibor_1w', label: 'SHIBOR 1周(%)', col: /^SHIBOR1周利率$/ },
+          { key: 'shibor_2w', label: 'SHIBOR 2周(%)', col: /^SHIBOR2周利率$/ },
+        ],
+      },
+      {
+        key: 'quarter_180d',
+        label: 'group_1',
+        range: 'lastNDays:180',
+        window: 180,
+        dateCol: /^(?:SHIBOR)?3月日期(?:[（(]\s*180\s*[）)])?$/,
+        items: [
+          { key: 'shibor_3m', label: 'SHIBOR 3月(%)', col: /^SHIBOR3月利率$/ },
+          { key: 'shibor_6m', label: 'SHIBOR 6月(%)', col: /^SHIBOR6月利率$/ },
+          { key: 'shibor_9m', label: 'SHIBOR 9月(%)', col: /^SHIBOR9月利率$/ },
+        ],
+      },
+      {
+        key: 'oneyear_365d',
+        label: 'group_2',
+        range: 'lastNDays:365',
+        window: 365,
+        dateCol: /^(?:SHIBOR)?1年日期(?:[（(]\s*365\s*[）)])?$/,
+        items: [{ key: 'shibor_1y', label: 'SHIBOR 1年(%)', col: /^SHIBOR1年利率$/ }],
+      },
+    ],
+    rowFilter: (row) => !!row?.date,
+    unit: { rate: '%' },
   },
   国能上市公司: {
     headerRow: 0,
@@ -251,7 +272,7 @@ export const SHEET_PROFILES = {
       },
     },
     rowFilter: (row) => {
-      if (!row?.date) return false;
+      if (!row.date) return false;
       const d = new Date(String(row.date).replace(/-/g, '/'));
       const w = d.getDay();
       return !Number.isNaN(d.getTime()) && w >= 1 && w <= 5;
@@ -317,7 +338,7 @@ export const SHEET_PROFILES = {
       north_inflow: /^沪股通资金净流入/,
     },
     rowFilter: (row) => {
-      if (!row?.date) return false;
+      if (!row.date) return false;
       const d = new Date(String(row.date).replace(/-/g, '/'));
       const w = d.getDay();
       return !Number.isNaN(d.getTime()) && w >= 1 && w <= 5;
@@ -334,7 +355,7 @@ export const SHEET_PROFILES = {
     dateCol: /^日期$/,
     rangeDefault: 'prevCompletedWeek',
     rowFilter: (row) => {
-      if (!row?.date) return false;
+      if (!row.date) return false;
       const d = new Date(String(row.date).replace(/-/g, '/'));
       return !Number.isNaN(d.getTime()) && d.getDay() >= 1 && d.getDay() <= 5;
     },
@@ -354,184 +375,86 @@ export const SHEET_PROFILES = {
         },
       },
       {
-        label: '标普500',
+        label: '标普500指数',
         cols: {
-          close: /标准普尔500指数收盘价/,
-          chgPct: /标准普尔500指数涨跌幅/,
+          close: /标普500指数收盘价/,
+          chgPct: /标普500指数涨跌幅/,
         },
       },
       {
-        label: '富时100',
+        label: '德国DAX指数',
         cols: {
-          close: /富时100收盘价/,
-          chgPct: /富时100涨跌幅/,
+          close: /德国DAX指数收盘价/,
+          chgPct: /德国DAX指数涨跌幅/,
         },
       },
       {
-        label: '法国CAC40',
+        label: '英国FTSE100指数',
         cols: {
-          close: /法国CAC40收盘价/,
-          chgPct: /法国CAC40涨跌幅/,
+          close: /英国FTSE100指数收盘价/,
+          chgPct: /英国FTSE100指数涨跌幅/,
         },
       },
       {
-        label: '德国DAX',
+        label: '法国CAC40指数',
         cols: {
-          close: /德国DAX收盘价/,
-          chgPct: /德国DAX涨跌幅/,
+          close: /法国CAC40指数收盘价/,
+          chgPct: /法国CAC40指数涨跌幅/,
         },
       },
       {
-        label: '泛欧斯托克600',
+        label: '日经225指数',
         cols: {
-          close: /泛欧斯托克600收盘价/,
-          chgPct: /泛欧斯托克600涨跌幅/,
-        },
-      },
-      {
-        label: '恒生指数',
-        cols: {
-          close: /恒生指数收盘价/,
-          chgPct: /恒生指数涨跌幅/,
+          close: /日经225指数收盘价/,
+          chgPct: /日经225指数涨跌幅/,
         },
       },
     ],
-    events: [
-      { region: 'US', cols: [/美股重点事件\d+/] },
-      { region: 'EU', cols: [/欧股重点事件\d+/] },
-      { region: 'HK', cols: [/港股重点事件\d+/] },
-    ],
-    metricMeta: {
-      close: { label: '收盘价', type: 'number', digits: 4 },
-      chgPct: { label: '涨跌幅(%)', type: 'percent', digits: 4 },
-    },
   },
   债券利率: {
-    headerRow: 0,
+    headerRow: 1,
     dateCol: /^日期$/,
-    range: 'prevCompletedWeek',
     rangeDefault: 'prevCompletedWeek',
-    bondGroups: [
+    groups: [
       {
-        key: 'aaa_3y',
-        label: 'AAA公司债3年',
-        rankRange: [1, 5],
-        cols: {
-          issuer: /AAA公司债3年{R}公司简称(?:（[^）]*）|\([^)]*\))?$/,
-          size: /AAA公司债3年{R}发行规模(?:（[^）]*）|\([^)]*\))?$/,
-          term: /AAA公司债3年{R}发行期限(?:（[^）]*）|\([^)]*\))?$/,
-          coupon: /AAA公司债3年{R}票面利率(?:（[^）]*）|\([^)]*\))?$/,
-        },
+        key: '国债收益率',
+        metrics: [
+          { label: '1年期国债', col: /1年期国债收益率$/ },
+          { label: '3年期国债', col: /3年期国债收益率$/ },
+          { label: '5年期国债', col: /5年期国债收益率$/ },
+          { label: '7年期国债', col: /7年期国债收益率$/ },
+          { label: '10年期国债', col: /10年期国债收益率$/ },
+        ],
       },
       {
-        key: 'aaa_5y',
-        label: 'AAA公司债5年',
-        rankRange: [1, 5],
-        cols: {
-          issuer: /AAA公司债5年{R}公司简称(?:（[^）]*）|\([^)]*\))?$/,
-          size: /AAA公司债5年{R}发行规模(?:（[^）]*）|\([^)]*\))?$/,
-          term: /AAA公司债5年{R}发行期限(?:（[^）]*）|\([^)]*\))?$/,
-          coupon: /AAA公司债5年{R}票面利率(?:（[^）]*）|\([^)]*\))?$/,
-        },
-      },
-      {
-        key: 'aaa_mt_5y',
-        label: 'AAA中票5年',
-        rankRange: [1, 5],
-        cols: {
-          issuer: /AAA中票5年{R}公司简称(?:（[^）]*）|\([^)]*\))?$/,
-          size: /AAA中票5年{R}发行规模(?:（[^）]*）|\([^)]*\))?$/,
-          term: /AAA中票5年{R}发行期限(?:（[^）]*）|\([^)]*\))?$/,
-          coupon: /AAA中票5年{R}票面利率(?:（[^）]*）|\([^)]*\))?$/,
-        },
-      },
-      {
-        key: 'aaa_priv_5y',
-        label: 'AAA私募债5年',
-        rankRange: [1, 5],
-        cols: {
-          issuer: /AAA私募债5年{R}公司简称(?:（[^）]*）|\([^)]*\))?$/,
-          size: /AAA私募债5年{R}发行规模(?:（[^）]*）|\([^)]*\))?$/,
-          term: /AAA私募债5年{R}发行期限(?:（[^）]*）|\([^)]*\))?$/,
-          coupon: /AAA私募债5年{R}票面利率(?:（[^）]*）|\([^)]*\))?$/,
-        },
-      },
-      {
-        key: 'cp_short',
-        label: '短融',
-        rankRange: [1, 5],
-        cols: {
-          issuer: /短融{R}公司简称(?:（[^）]*）|\([^)]*\))?$/,
-          size: /短融{R}发行规模(?:（[^）]*）|\([^)]*\))?$/,
-          term: /短融{R}发行期限(?:（[^）]*）|\([^)]*\))?$/,
-          coupon: /短融{R}票面利率(?:（[^）]*）|\([^)]*\))?$/,
-        },
-      },
-      {
-        key: 'scp_270d',
-        label: '270D超短融',
-        rankRange: [1, 5],
-        cols: {
-          issuer: /270D超短融{R}公司简称(?:（[^）]*）|\([^)]*\))?$/,
-          size: /270D超短融{R}发行规模(?:（[^）]*）|\([^)]*\))?$/,
-          term: /270D超短融{R}发行期限(?:（[^）]*）|\([^)]*\))?$/,
-          coupon: /270D超短融{R}票面利率(?:（[^）]*）|\([^)]*\))?$/,
-        },
-      },
-      {
-        key: 'scp_180d',
-        label: '180D超短融',
-        rankRange: [1, 5],
-        cols: {
-          issuer: /180D超短融{R}公司简称(?:（[^）]*）|\([^)]*\))?$/,
-          size: /180D超短融{R}发行规模(?:（[^）]*）|\([^)]*\))?$/,
-          term: /180D超短融{R}发行期限(?:（[^）]*）|\([^)]*\))?$/,
-          coupon: /180D超短融{R}票面利率(?:（[^）]*）|\([^)]*\))?$/,
-        },
+        key: '国开债收益率',
+        metrics: [
+          { label: '1年期国开债', col: /1年期国开债收益率$/ },
+          { label: '3年期国开债', col: /3年期国开债收益率$/ },
+          { label: '5年期国开债', col: /5年期国开债收益率$/ },
+          { label: '7年期国开债', col: /7年期国开债收益率$/ },
+          { label: '10年期国开债', col: /10年期国开债收益率$/ },
+        ],
       },
     ],
-    rowFilter: (row) => !!row?.date,
-    unit: {
-      coupon: '%',
-      size: '亿',
-    },
   },
   中票利率: {
     headerRow: 0,
     dateCol: /^日期$/,
-    range: 'prevCompletedWeek',
     rangeDefault: 'prevCompletedWeek',
     series: [
-      { label: 'AAA中短票 1年', cols: { rate: /AAA中短票1年利率$/ } },
-      { label: 'AAA中短票 3年', cols: { rate: /AAA中短票3年利率$/ } },
-      { label: 'AAA中短票 5年', cols: { rate: /AAA中短票5年利率$/ } },
-      { label: 'AAA中短票 7年', cols: { rate: /AAA中短票7年利率$/ } },
-      { label: 'AAA中短票 10年', cols: { rate: /AAA中短票10年利率$/ } },
+      { label: 'AAA中票 3月', col: /AAA中票3月利率$/ },
+      { label: 'AAA中票 6月', col: /AAA中票6月利率$/ },
+      { label: 'AAA中票 9月', col: /AAA中票9月利率$/ },
+      { label: 'AAA中票 1年', col: /AAA中票1年利率$/ },
     ],
-    kpis: [
-      { key: 'mp_1y_rate', col: /AAA中短票1年利率$/, type: 'percent', digits: 4 },
-      { key: 'mp_3y_rate', col: /AAA中短票3年利率$/, type: 'percent', digits: 4 },
-      { key: 'mp_5y_rate', col: /AAA中短票5年利率$/, type: 'percent', digits: 4 },
-      { key: 'mp_7y_rate', col: /AAA中短票7年利率$/, type: 'percent', digits: 4 },
-      { key: 'mp_10y_rate', col: /AAA中短票10年利率$/, type: 'percent', digits: 4 },
-    ],
-    metricMeta: {
-      rate: { label: '利率(%)', type: 'percent', digits: 4 },
-    },
-    rowFilter: (row) => {
-      if (!row?.date) return false;
-      const d = new Date(String(row.date).replace(/-/g, '/'));
-      const w = d.getDay();
-      return !Number.isNaN(d.getTime()) && w >= 1 && w <= 5;
-    },
-    unit: { rate: '%' },
   },
   财经资讯: {
     headerRow: 0,
     dateCol: /^日期$/,
     rangeDefault: 'lastNDays:30',
     rowFilter: (row) => {
-      if (!row?.date) return false;
+      if (!row.date) return false;
       const d = new Date(String(row.date).replace(/-/g, '/'));
       return !Number.isNaN(d.getTime());
     },

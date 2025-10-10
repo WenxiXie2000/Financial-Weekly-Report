@@ -1,5 +1,12 @@
 import { loadSheet } from '../data-adapter.js';
-import { renderMini, disposeAllCharts } from './common-charts.js';
+import {
+  ensureEcharts,
+  fmtDateLabel,
+  buildSeriesData,
+  disposeAllCharts,
+  renderMini,
+  formatNumber,
+} from './common-charts.js';
 
 const INDEX_OPTIONS = ['上证综指', '深圳成指', '中小板指', '创业板指', '沪深300', '300电力'];
 
@@ -52,17 +59,6 @@ function injectEquityCnStyles() {
   }
 
   equityCnStylesInjected = true;
-}
-
-function buildSeriesData(table, dateKey, valueKey) {
-  const arr = [];
-  for (const row of Array.isArray(table) ? table : []) {
-    const d = row?.[dateKey];
-    const v = row?.[valueKey];
-    if (d == null || v == null || v === '' || v === '--') continue;
-    arr.push([String(d), Number(v)]);
-  }
-  return arr.slice(-5);
 }
 
 async function renderFiveCards(mount, table, indexName, dateKey = '交易日') {
@@ -162,6 +158,7 @@ async function renderFiveCards(mount, table, indexName, dateKey = '交易日') {
 export async function renderEquityCn(mount) {
   if (!mount) return;
   injectEquityCnStyles();
+  ensureEcharts();
   if (typeof mount.__viewCleanup === 'function') {
     mount.__viewCleanup();
   }

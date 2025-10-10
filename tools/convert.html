@@ -2,6 +2,7 @@
 <html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="utf-8" />
+  <base href="/" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Excel 转换工具 · 金融市场周报</title>
   <meta name="description" content="上传 Excel 周报并导出结构化 JSON 的辅助工具。" />
@@ -36,89 +37,109 @@
       line-height: 1.6;
     }
   </style>
+  <!-- 第三方库（必须先于模块） -->
   <script src="https://cdn.staticfile.org/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.staticfile.org/jszip/3.10.1/jszip.min.js"></script>
   <script type="module">
-    import '../js/x2j/utils.js';
-    import '../js/x2j/profiles.js';
-    import '../js/x2j/parsers/cny-fx.js';
-    import '../js/x2j/parsers/open-market.js';
-    import '../js/x2j/parsers/shibor.js';
-    import '../js/x2j/parsers/bond-yield.js';
-    import '../js/x2j/parsers/mid-paper.js';
-    import '../js/x2j/parsers/equity-cn.js';
-    import '../js/x2j/parsers/equity-global.js';
+  // profiles：默认导出就是整张映射，同时也有命名导出 SHEET_PROFILES（两者等价）
+  import SHEET_PROFILES from '../js/x2j/profiles.js';
+
+  // 解析器（缺哪个文件就先注释，避免 404）
+  import '../js/x2j/parsers/cny-fx.js';
+  import '../js/x2j/parsers/open-market.js';
+  import '../js/x2j/parsers/shibor.js';
+  import '../js/x2j/parsers/bond-yield.js';
+  import '../js/x2j/parsers/mid-paper.js';
+  import '../js/x2j/parsers/equity-cn.js';
+  import '../js/x2j/parsers/equity-global.js';
   import '../js/x2j/parsers/group-listed.js';
-  import { runArrayBuffer, SHEET_PROFILES } from '../js/x2j/core.js';
+  // import '../js/x2j/parsers/news.js'; // 目前不存在，会 404，先别引
 
-    const fileInput = document.querySelector('#xlsxFile');
-    const log = document.querySelector('#convertLog');
-    const logInfo = (level, message, extra) => {
-      const logger = level && console[level] ? console[level] : console.log;
-      logger(message, extra || '');
-      if (!log) return;
-      const row = document.createElement('div');
-      row.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-      log.appendChild(row);
-      log.scrollTop = log.scrollHeight;
-    };
+  // 使用 runArrayBuffer 统一解析流程
+  import { runArrayBuffer } from '../js/x2j/core.js';
 
-    document.querySelector('#btn-convert')?.addEventListener('click', async () => {
-      const file = fileInput?.files?.[0];
-      if (!file) {
-        alert('请选择 Excel 文件');
-        return;
+  const $ = (s) => document.querySelector(s);
+  const fileInput = $('#xlsxFile');
+  const logBox = $('#convertLog');
+
+  const log = (lv, msg, extra) => {
+    (console[lv] || console.log)('[convert]', msg, extra || '');
+    if (!logBox) return;
+    const row = document.createElement('div');
+    row.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    logBox.appendChild(row);
+    logBox.scrollTop = logBox.scrollHeight;
+  };
+
+  async function runConvert() {
+    const file = fileInput?.files?.[0];
+    if (!file) return alert('请选择 Excel 文件');
+
+    try {
+      if (typeof XLSX === 'undefined') throw new Error('XLSX 未加载');
+      if (typeof JSZip === 'undefined') throw new Error('JSZip 未加载');
+
+      log('info', `读取 ${file.name}`);
+      const buf = await file.arrayBuffer();
+
+      log('info', '解析工作表并构建数据集中…');
+
+      const result = await runArrayBuffer(buf, {
+        profiles: SHEET_PROFILES,
+        anchor: new Date(), // “上一周”计算锚点
+        XLSX
+      });
+      console.log('[convert] result=', result);
+      const files = result?.files instanceof Map ? result.files : new Map();
+      console.log('[convert] files.size=', files.size, 'names=', [...files.keys()]);
+      if (Array.isArray(result?.diagnostics)) {
+        console.table(
+          result.diagnostics.map((d) => ({
+            sheet: d?.sheet || d?.name,
+            status: d?.status || d?.error || d?.note || 'ok',
+            dateColMatcher: String(d?.profileDateCol || d?.dateCol || ''),
+            matchedHeader: d?.dateHeader || d?.column || '',
+            headerRow: typeof d?.headerRow === 'number' ? d.headerRow : '',
+            sampleHeaders: (d?.headers || d?.closest || []).slice(0, 6).join(' | '),
+          }))
+        );
       }
-      try {
-        if (typeof JSZip === 'undefined') {
-          throw new Error('JSZip 未加载');
-        }
-        const anchor = new Date();
-        logInfo('info', `读取 ${file.name}`);
-        const buffer = await file.arrayBuffer();
-        logInfo('info', '解析工作表并构建数据集中…');
-        const result = await runArrayBuffer(buffer, {
-          anchor,
-          profiles: SHEET_PROFILES,
-          XLSX,
-        });
 
-        const zip = new JSZip();
-        const folder = zip.folder('values-only');
-        const files = result?.files instanceof Map ? result.files : new Map();
-        const fileNames = [];
+      const zip = new JSZip();
+      const folder = zip.folder('values-only');
+      const outNames = [];
 
-        files.forEach((json, filename) => {
-          const pretty = JSON.stringify(json, null, 2);
-          folder.file(filename, pretty, { binary: false });
-          fileNames.push(filename);
-        });
+      files.forEach((json, filename) => {
+        folder.file(filename, JSON.stringify(json, null, 2));
+        outNames.push(filename);
+      });
 
-        if (!fileNames.length) {
-          logInfo('warn', '未生成任何输出文件，请检查输入工作簿是否包含已配置的工作表');
-        }
-
-        if (Array.isArray(result?.diagnostics) && result.diagnostics.length) {
-          logInfo(
-            'info',
-            `捕获 ${result.diagnostics.length} 条诊断信息，可在控制台查看完整详情`,
-            result.diagnostics
-          );
-        }
-
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(zipBlob);
-        a.download = 'values-only.zip';
-        a.click();
-        URL.revokeObjectURL(a.href);
-        logInfo('info', `已导出 values-only.zip，包含文件：${fileNames.join(', ')}`);
-      } catch (err) {
-        console.error('[convert] 处理失败', err);
-        alert('转换失败，请查看控制台');
+      console.log('[convert] 输出文件：', outNames);
+      if (Array.isArray(result?.diagnostics) && result.diagnostics.length) {
+        console.log('[convert] 诊断信息 diagnostics：', result.diagnostics);
+        log('info', `捕获 ${result.diagnostics.length} 条诊断信息，可在控制台查看`);
       }
-    });
-  </script>
+      if (!outNames.length) {
+        log('warn', '未生成任何输出文件，请检查 profiles 与解析器是否正确注册');
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'values-only.zip';
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      log('info', `已导出 values-only.zip，包含文件：${outNames.join(', ') || '(空)'}`);
+    } catch (e) {
+      console.error('[convert] 处理失败', e);
+      alert('转换失败：' + e.message);
+    }
+  }
+
+  document.querySelector('#btn-convert')?.addEventListener('click', runConvert);
+  // 备用：window.runConvert = runConvert;
+</script>
 </head>
 <body class="tool-body">
   <noscript class="noscript">

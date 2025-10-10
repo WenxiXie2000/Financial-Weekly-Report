@@ -3,7 +3,7 @@
     "title": "一周财经资讯速览",
     "unit": "条",
     "timezone": "Asia/Shanghai",
-    "updatedAt": "2025-09-25"
+    "updatedAt": "2025-10-03"
   },
   "summary": {
     "重点关注": "央行开展 400 亿元 7 天逆回购，维持资金面平稳。",
@@ -14,21 +14,21 @@
     {
       "title": "央行净投放 400 亿元，公开市场操作力度加码",
       "source": "上海证券报",
-      "time": "2025-09-23 10:15",
+      "time": "2025-10-01 10:15",
       "link": "https://example.com/news/pboc-injection",
       "summary": "央行连续第六个交易日开展 7 天期逆回购操作，市场流动性总体保持合理充裕。"
     },
     {
       "title": "财政部：明年专项债额度预计 3.8 万亿元",
       "source": "第一财经",
-      "time": "2025-09-24 08:30",
+      "time": "2025-10-02 08:30",
       "link": "https://example.com/news/moF-2026-quota",
       "summary": "财政部提出 2026 年将继续保持专项债适度力度，重点投向基础设施和科技创新。"
     },
     {
       "title": "美联储官员：利率或维持高位直至通胀回落",
       "source": "Bloomberg",
-      "time": "2025-09-24 22:05",
+      "time": "2025-10-03 22:05",
       "link": "https://example.com/news/fed-policy",
       "summary": "多位美联储官员表示，近期通胀回落仍不稳定，政策利率需要在高位保持更长时间。"
     }
