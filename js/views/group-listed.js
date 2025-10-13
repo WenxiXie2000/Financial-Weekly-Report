@@ -6,6 +6,8 @@
  */
 import { loadSheet } from '../data-adapter.js';
 import { ensureEcharts, renderMini, buildSeriesData, disposeAllCharts } from './common-charts.js';
+import { ensure } from '../core/guard.js';
+import { renderEmptyState } from '../core/empty.js';
 
 const STYLE_ID = 'group-listed-inline-styles';
 const STORAGE_KEY = 'group-listed:last-company';
@@ -165,15 +167,18 @@ async function renderCards(container, table, company) {
           percent: metric.percent,
           paletteKey: metric.palette,
         });
-        if (!chart) {
-          chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+        if (
+          !ensure(chart, 'group-listed: mini chart init failed', { company, metric: metric.key })
+        ) {
+          renderEmptyState(chartEl, '暂无数据', { className: '', style: 'opacity:.6' });
         }
       } catch (err) {
         console.error('[group-listed] renderMini failed', err);
-        chartEl.innerHTML = '<div style="opacity:.6">加载失败</div>';
+        renderEmptyState(chartEl, '加载失败', { className: '', style: 'opacity:.6' });
       }
     } else {
-      chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+      ensure(false, 'group-listed: empty series', { company, metric: metric.key });
+      renderEmptyState(chartEl, '暂无数据', { className: '', style: 'opacity:.6' });
     }
   }
 }
@@ -252,8 +257,8 @@ export async function renderGroupListed(mount) {
     disposeAllCharts();
     body.innerHTML = '';
 
-    if (!current) {
-      body.innerHTML = '<div class="empty-state">暂无可用数据</div>';
+    if (!ensure(current, 'group-listed: current company missing')) {
+      renderEmptyState(body, '暂无可用数据', { className: 'empty-state' });
       return;
     }
 

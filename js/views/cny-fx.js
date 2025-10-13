@@ -7,6 +7,8 @@
  */
 import { loadSheet } from '../data-adapter.js';
 import { ensureEcharts, renderMini, buildSeriesData, disposeAllCharts } from './common-charts.js';
+import { ensure } from '../core/guard.js';
+import { renderEmptyState } from '../core/empty.js';
 
 const STYLE_ID = 'cny-fx-inline-styles';
 const STORAGE_KEY = 'cny-fx:last-currency';
@@ -160,15 +162,21 @@ async function renderCards(container, table, currency) {
           percent: def.percent,
           paletteKey: def.palette,
         });
-        if (!chart) {
-          chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+        if (
+          !ensure(chart, 'cny-fx: mini chart init failed', {
+            currency: currency.key,
+            field: def.field,
+          })
+        ) {
+          renderEmptyState(chartEl, '暂无数据', { className: '', style: 'opacity:.6' });
         }
       } catch (err) {
         console.error('[cny-fx] renderMini failed', err);
-        chartEl.innerHTML = '<div style="opacity:.6">加载失败</div>';
+        renderEmptyState(chartEl, '加载失败', { className: '', style: 'opacity:.6' });
       }
     } else {
-      chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+      ensure(false, 'cny-fx: empty series', { currency: currency.key, field: def.field });
+      renderEmptyState(chartEl, '暂无数据', { className: '', style: 'opacity:.6' });
     }
   }
 }
@@ -259,13 +267,15 @@ export async function renderCnyFx(mount) {
     body.innerHTML = '';
 
     if (!currentKey) {
-      body.innerHTML = '<div class="empty-state">暂无可用数据</div>';
+      ensure(false, 'cny-fx: current key missing');
+      renderEmptyState(body, '暂无可用数据', { className: 'empty-state' });
       return;
     }
 
     const currency = list.find((item) => item.key === currentKey);
     if (!currency) {
-      body.innerHTML = '<div class="empty-state">暂无可用数据</div>';
+      ensure(false, 'cny-fx: currency not found', { currentKey });
+      renderEmptyState(body, '暂无可用数据', { className: 'empty-state' });
       return;
     }
 

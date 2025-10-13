@@ -16,6 +16,8 @@ import {
 } from './common-charts.js';
 import { COLORS } from '../theme/palette.js';
 import { fmtDateLabel, buildTimeXAxis, normalizePoints } from '../core/dates.js';
+import { ensure } from '../core/guard.js';
+import { renderEmptyState } from '../core/empty.js';
 
 const EQUITY_GLOBAL_STYLE_ID = 'equity-global-inline-styles';
 let stylesInjected = false;
@@ -162,8 +164,10 @@ async function renderCards(container, table, indexName) {
             .map(([, value]) => (typeof value === 'number' ? value : null))
             .filter((value) => value != null);
 
-          if (!numericValues.length) {
-            chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+          if (
+            !ensure(numericValues.length, 'equity-global: normalized values empty', { indexName })
+          ) {
+            renderEmptyState(chartEl, '暂无数据', { className: '', style: 'opacity:.6' });
             continue;
           }
 
@@ -249,24 +253,30 @@ async function renderCards(container, table, indexName) {
             { fallback: fallbackPalette }
           );
 
-          if (!chart) {
-            chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+          if (!ensure(chart, 'equity-global: line chart init failed', { indexName })) {
+            renderEmptyState(chartEl, '暂无数据', { className: '', style: 'opacity:.6' });
           }
         } else {
           const chart = await renderMini(chartEl, conf.type, series, {
             percent: conf.percent,
             paletteKey: conf.palette,
           });
-          if (!chart) {
-            chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+          if (
+            !ensure(chart, 'equity-global: mini chart init failed', {
+              indexName,
+              metric: conf.suffix,
+            })
+          ) {
+            renderEmptyState(chartEl, '暂无数据', { className: '', style: 'opacity:.6' });
           }
         }
       } catch (err) {
         console.error('[equity-global] render card failed', err);
-        chartEl.innerHTML = '<div style="opacity:.6">加载失败</div>';
+        renderEmptyState(chartEl, '加载失败', { className: '', style: 'opacity:.6' });
       }
     } else {
-      chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+      ensure(false, 'equity-global: series empty', { indexName, suffix: conf.suffix });
+      renderEmptyState(chartEl, '暂无数据', { className: '', style: 'opacity:.6' });
     }
   }
 }
@@ -307,7 +317,7 @@ export async function renderEquityGlobal(mount) {
 
   const indexes = extractIndexNames(table);
 
-  if (!indexes.length) {
+  if (!ensure(indexes.length, 'equity-global: no index extracted', { tableSize: table.length })) {
     tabs.textContent = '暂无可用指数';
   }
 
@@ -350,8 +360,8 @@ export async function renderEquityGlobal(mount) {
     disposeAllCharts();
     body.innerHTML = '';
     const name = currentIndex;
-    if (!name) {
-      body.innerHTML = '<div class="empty-state">暂无可用数据</div>';
+    if (!ensure(name, 'equity-global: no current index')) {
+      renderEmptyState(body, '暂无可用数据', { className: 'empty-state' });
       return;
     }
     await renderCards(body, table, name);

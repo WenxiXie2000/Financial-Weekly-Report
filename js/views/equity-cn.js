@@ -13,6 +13,8 @@ import {
   formatNumber,
 } from './common-charts.js';
 import { fmtDateLabel } from '../core/dates.js';
+import { ensure } from '../core/guard.js';
+import { renderEmptyState } from '../core/empty.js';
 
 const INDEX_OPTIONS = ['上证综指', '深圳成指', '中小板指', '创业板指', '沪深300', '300电力'];
 
@@ -155,15 +157,16 @@ async function renderFiveCards(mount, table, indexName, dateKey = '交易日') {
           unit: conf.unitOpt,
           paletteKey: conf.palette,
         });
-        if (!chart) {
-          chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+        if (!ensure(chart, 'equity-cn: mini chart init failed', { indexName, metric: conf.key })) {
+          renderEmptyState(chartEl, '暂无数据', { className: '', style: 'opacity:.6' });
         }
       } catch (err) {
         console.error('[equity-cn] renderMini failed', err);
-        chartEl.innerHTML = '<div style="opacity:.6">加载失败</div>';
+        renderEmptyState(chartEl, '加载失败', { className: '', style: 'opacity:.6' });
       }
     } else {
-      chartEl.innerHTML = '<div style="opacity:.6">暂无数据</div>';
+      ensure(false, 'equity-cn: empty series', { indexName, field: columns[conf.key] });
+      renderEmptyState(chartEl, '暂无数据', { className: '', style: 'opacity:.6' });
     }
   }
 }
@@ -204,7 +207,9 @@ export async function renderEquityCn(mount) {
     })
   );
 
-  if (!availableIndexes.length) {
+  if (
+    !ensure(availableIndexes.length, 'equity-cn: no available indexes', { tableSize: table.length })
+  ) {
     toolbar.textContent = '暂无可用指数';
   }
 
@@ -247,8 +252,8 @@ export async function renderEquityCn(mount) {
     disposeAllCharts();
     body.innerHTML = '';
     const chosen = currentIndex;
-    if (!chosen) {
-      body.innerHTML = '<div class="empty-state">暂无可用数据</div>';
+    if (!ensure(chosen, 'equity-cn: no chosen index')) {
+      renderEmptyState(body, '暂无可用数据', { className: 'empty-state' });
       return;
     }
     await renderFiveCards(body, table, chosen, '交易日');

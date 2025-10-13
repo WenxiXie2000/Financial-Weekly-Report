@@ -532,6 +532,62 @@ function mergeTooltip(defaults, overrides) {
   };
 }
 
+function defaultTooltipFormatter(payload) {
+  const items = Array.isArray(payload) ? payload : [payload];
+  if (!items.length) return '';
+
+  const first = items[0];
+  const rawDate = Array.isArray(first.value) ? first.value[0] : first.data?.[0] ?? first.axisValue;
+  const title = fmtDateLabel(rawDate);
+
+  const lines = items.map((item) => {
+    const rawValue = Array.isArray(item.value)
+      ? item.value[1]
+      : item.data?.[1] ?? item.data ?? item.value;
+    const marker = item.marker || '';
+    const label = item.seriesName || '';
+
+    if (rawValue == null) {
+      return `${marker}${label}: --`;
+    }
+
+    if (typeof rawValue === 'string') {
+      const trimmed = rawValue.trim();
+      if (!trimmed || trimmed === '--') {
+        return `${marker}${label}: --`;
+      }
+      const numeric = Number(trimmed);
+      if (Number.isFinite(numeric)) {
+        return `${marker}${label}: ${numeric.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        })}`;
+      }
+      return `${marker}${label}: ${trimmed}`;
+    }
+
+    if (typeof rawValue === 'number') {
+      if (!Number.isFinite(rawValue)) {
+        return `${marker}${label}: --`;
+      }
+      return `${marker}${label}: ${rawValue.toLocaleString(undefined, {
+        maximumFractionDigits: 2,
+      })}`;
+    }
+
+    const numeric = Number(rawValue);
+    if (Number.isFinite(numeric)) {
+      return `${marker}${label}: ${numeric.toLocaleString(undefined, {
+        maximumFractionDigits: 2,
+      })}`;
+    }
+
+    return `${marker}${label}: ${String(rawValue)}`;
+  });
+
+  const header = title || (rawDate != null ? String(rawDate) : '');
+  return [header, ...lines].filter(Boolean).join('<br/>');
+}
+
 /**
  * 通用折线图渲染器，封装 palette/axis/tooltip 默认值。
  * - 视图层可传入 series/xAxis/yAxis/legend，自定义数据格式。
@@ -553,6 +609,7 @@ export function renderLineChart(el, option = {}, paletteOptions = {}) {
   const defaultTooltip = {
     trigger: 'axis',
     axisPointer: { type: 'line' },
+    formatter: defaultTooltipFormatter,
   };
 
   const defaultGrid = {
