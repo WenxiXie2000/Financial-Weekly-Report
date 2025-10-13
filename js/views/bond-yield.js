@@ -4,7 +4,8 @@
  * - Top5 数据通过分组标签切换，折线图使用 renderLineChart 统一配色与生命周期。
  */
 import { loadSheet } from '../data-adapter.js';
-import { ensureEcharts, renderLineChart, disposeAllCharts, fmtDateLabel } from './common-charts.js';
+import { ensureEcharts, renderLineChart, disposeAllCharts } from './common-charts.js';
+import { fmtDateLabel } from '../core/dates.js';
 
 const GROUP_LABELS = {
   aaa_3y: 'AAA公司债3年',

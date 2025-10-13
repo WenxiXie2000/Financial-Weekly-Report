@@ -7,16 +7,15 @@
 import { loadSheet } from '../data-adapter.js';
 import {
   ensureEcharts,
-  fmtDateLabel,
   buildSeriesData,
   disposeAllCharts,
   renderMini,
   renderLineChart,
   waitElementSized,
   formatNumber,
-  buildTimeXAxis,
 } from './common-charts.js';
 import { COLORS } from '../theme/palette.js';
+import { fmtDateLabel, buildTimeXAxis, normalizePoints } from '../core/dates.js';
 
 const EQUITY_GLOBAL_STYLE_ID = 'equity-global-inline-styles';
 let stylesInjected = false;
@@ -107,26 +106,6 @@ function extractIndexNames(table) {
   return Array.from(names.keys());
 }
 
-function normalizeLinePoints(pairs = []) {
-  const normalized = [];
-  for (const entry of Array.isArray(pairs) ? pairs : []) {
-    if (!Array.isArray(entry) || entry.length < 2) continue;
-    const [rawDate, rawValue] = entry;
-    const dateString = rawDate == null ? '' : String(rawDate).trim();
-    if (!dateString) continue;
-    let dateObj = new Date(dateString);
-    if (Number.isNaN(dateObj.getTime())) {
-      dateObj = new Date(dateString.replace(/\./g, '-'));
-    }
-    if (Number.isNaN(dateObj.getTime())) continue;
-    const value = Number(rawValue);
-    if (!Number.isFinite(value)) continue;
-    const iso = dateObj.toISOString().slice(0, 10);
-    normalized.push([iso, value]);
-  }
-  return normalized.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-}
-
 /**
  * 渲染指定指数的两张卡片（收盘价/涨跌幅）。
  * @param {HTMLElement} container
@@ -177,7 +156,7 @@ async function renderCards(container, table, indexName) {
         if (conf.type === 'line') {
           await waitElementSized(chartEl);
 
-          const normalized = normalizeLinePoints(series);
+          const normalized = normalizePoints(series);
 
           const numericValues = normalized
             .map(([, value]) => (typeof value === 'number' ? value : null))
@@ -207,7 +186,7 @@ async function renderCards(container, table, indexName) {
             return formatNumber(val, 2);
           };
 
-          const xDates = normalized.map(([date]) => date).filter(Boolean);
+          const xDates = normalized.map(([time]) => time);
           const xAxisOption = buildTimeXAxis(xDates, { shortMaxPoints: 7 });
 
           const fallbackPalette = conf.palette === 'linePrimary' ? [COLORS.primary()] : [];

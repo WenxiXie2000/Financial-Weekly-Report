@@ -7,12 +7,12 @@
 import { loadSheet } from '../data-adapter.js';
 import {
   ensureEcharts,
-  fmtDateLabel,
   buildSeriesData,
   disposeAllCharts,
   renderMini,
   formatNumber,
 } from './common-charts.js';
+import { fmtDateLabel } from '../core/dates.js';
 
 const INDEX_OPTIONS = ['上证综指', '深圳成指', '中小板指', '创业板指', '沪深300', '300电力'];
 

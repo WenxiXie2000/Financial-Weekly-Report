@@ -5,6 +5,11 @@
  * - 提供 renderMini/renderLineChart 等基础渲染函数，视图文件按需组合。
  */
 import { styleFor, COLORS } from '../theme/palette.js';
+import { fmtDateLabel } from '../core/dates.js';
+import { formatYi } from '../core/number-format.js';
+
+export { fmtDateLabel, buildTimeXAxis, normalizePoints, sliceByRange } from '../core/dates.js';
+export { formatYi } from '../core/number-format.js';
 
 /**
  * 保障 ECharts 已加载，便于在工具页/主站缺失依赖时快速定位。
@@ -115,19 +120,6 @@ export function makeLinearGradient(topColor, bottomColor, fallbackHex = '#409EFF
 }
 
 /**
- * 把日期字符串格式化成 MM-DD 标签。
- * @param {string|Date} value
- * @returns {string}
- */
-export function fmtDateLabel(value) {
-  const dt = new Date(String(value).replace(/-/g, '/'));
-  if (Number.isNaN(dt.getTime())) return String(value ?? '');
-  const mm = String(dt.getMonth() + 1).padStart(2, '0');
-  const dd = String(dt.getDate()).padStart(2, '0');
-  return `${mm}-${dd}`;
-}
-
-/**
  * 从表格数据里提取日期-数值对，返回最近 5 条。
  * @param {object[]} table
  * @param {string} dateKey
@@ -158,18 +150,6 @@ export function formatNumber(value, digits = 2) {
   return num.toLocaleString(undefined, {
     maximumFractionDigits: digits,
   });
-}
-
-/**
- * 将金额换算成“亿”单位文本。
- * @param {number|string} value
- * @param {number} [digits=2]
- * @returns {string}
- */
-export function formatYi(value, digits = 2) {
-  const num = Number(value);
-  if (Number.isNaN(num)) return '--';
-  return `${(num / 1e8).toFixed(digits)} 亿`;
 }
 
 const __charts = new Set();
@@ -626,26 +606,3 @@ export function renderLineChart(el, option = {}, paletteOptions = {}) {
 }
 
 // --- helper: 构造 time 轴配置（短周期时强制显示全部刻度） ---
-export function buildTimeXAxis(dates = [], opts = {}) {
-  const n = Array.isArray(dates) ? dates.length : 0;
-  const shortSpan = n > 0 && n <= (opts.shortMaxPoints ?? 7);
-
-  return {
-    type: 'time',
-    boundaryGap: false,
-    axisLabel: {
-      formatter: (value) => {
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return '';
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        return `${mm}-${dd}`;
-      },
-      hideOverlap: shortSpan ? false : undefined,
-      showMinLabel: shortSpan ? true : undefined,
-      showMaxLabel: shortSpan ? true : undefined,
-    },
-    axisPointer: { show: true, snap: true },
-    splitNumber: shortSpan ? n : undefined,
-  };
-}

@@ -9,10 +9,10 @@ import { loadSheet } from '../data-adapter.js';
 import {
   ensureEcharts,
   disposeAllCharts,
-  fmtDateLabel,
   removeChartFromResize,
   renderLineChart,
 } from './common-charts.js';
+import { fmtDateLabel } from '../core/dates.js';
 
 (function injectStyles() {
   if (typeof document === 'undefined') return;
