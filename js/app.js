@@ -24,7 +24,8 @@ import { renderEquityGlobal } from './views/equity-global.js';
 import { renderGroupListed } from './views/group-listed.js';
 import { renderNews } from './views/news.js';
 
-const DEFAULT_VIEW = 'overview';
+//landing page暂定为国内股市
+const DEFAULT_VIEW = 'equity-cn';
 
 const RENDERERS = {
   'open-market': renderOpenMarket,

@@ -144,6 +144,8 @@ export async function loadDataset(datasetKey) {
     series: normalizeSeries(raw?.series),
     table: Array.isArray(raw?.table) ? raw.table : Array.isArray(raw?.rows) ? raw.rows : [],
     board: raw?.board || null,
+    // ★ 兜底：无论它在根上还是在 board 里，都透传一份到 normalized.top5_latest
+    top5_latest: raw?.top5_latest || raw?.board?.top5_latest || null,
   };
 
   if (datasetKey === 'news') {

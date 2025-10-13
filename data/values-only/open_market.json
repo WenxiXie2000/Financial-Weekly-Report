@@ -1,12 +1,33 @@
 {
   "summary": {
+    "r7d_expiry_yi": 10688,
     "r7d_amt_yi": 18271,
+    "r7d_net_yi": -5620,
+    "r7d_rate_pct": 4.4,
+    "r14d_expiry_yi": null,
     "r14d_amt_yi": null,
+    "r14d_net_yi": null,
+    "r14d_rate_pct": null,
+    "mlf_expiry_yi": null,
     "mlf_amt_yi": null,
+    "mlf_net_yi": null,
+    "mlf_rate_pct": null,
+    "tcd_expiry_yi": 120000000003,
     "tcd_amt_yi": 150000000003,
+    "tcd_net_yi": -29999999997,
+    "tcd_rate_pct": 4.78,
+    "slf_expiry_yi": null,
     "slf_amt_yi": null,
+    "slf_net_yi": null,
+    "slf_rate_pct": 5.4,
+    "slo_expiry_yi": null,
     "slo_amt_yi": null,
-    "repo_amt_yi": null
+    "slo_net_yi": null,
+    "slo_rate_pct": null,
+    "repo_expiry_yi": null,
+    "repo_amt_yi": null,
+    "repo_net_yi": null,
+    "repo_rate_pct": null
   },
   "series": [
     {
@@ -3230,8 +3251,27 @@
           "index": 0,
           "closest": [],
           "extra": {
+            "field": "date",
+            "header": "日期（每周五收盘）",
+            "index": 0,
             "points": 1,
             "latest": "2025-10-10",
+            "source": "open_market_monetary",
+            "sheet": "公开市场货币"
+          }
+        },
+        {
+          "category": "summary",
+          "label": "逆回购7D 到期量(亿)",
+          "matcher": "/^逆回购到期量$/",
+          "matched": true,
+          "column": "逆回购到期量",
+          "index": 1,
+          "closest": [],
+          "extra": {
+            "field": "r7d_expiry_yi",
+            "value": 10688,
+            "header": "逆回购到期量",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3247,6 +3287,23 @@
           "extra": {
             "field": "r7d_amt_yi",
             "value": 18271,
+            "header": "逆回购7D投放量",
+            "source": "open_market_monetary",
+            "sheet": "公开市场货币"
+          }
+        },
+        {
+          "category": "summary",
+          "label": "逆回购7D 净投放(亿)",
+          "matcher": "/^逆回购7D净投放$/",
+          "matched": true,
+          "column": "逆回购7D净投放",
+          "index": 3,
+          "closest": [],
+          "extra": {
+            "field": "r7d_net_yi",
+            "value": -5620,
+            "header": "逆回购7D净投放",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3262,6 +3319,7 @@
           "extra": {
             "field": "rate:逆回购7D利率(%)",
             "value": 4.4,
+            "header": "逆回购7D利率",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3277,6 +3335,7 @@
           "extra": {
             "field": "r14d_amt_yi",
             "value": null,
+            "header": "逆回购14D投放量",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3292,6 +3351,23 @@
           "extra": {
             "field": "rate:逆回购14D利率(%)",
             "value": null,
+            "header": "逆回购14D利率",
+            "source": "open_market_monetary",
+            "sheet": "公开市场货币"
+          }
+        },
+        {
+          "category": "summary",
+          "label": "MLF 到期量(亿)",
+          "matcher": "/^MLF到期量$/",
+          "matched": true,
+          "column": "MLF到期量",
+          "index": 7,
+          "closest": [],
+          "extra": {
+            "field": "mlf_expiry_yi",
+            "value": null,
+            "header": "MLF到期量",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3307,6 +3383,23 @@
           "extra": {
             "field": "mlf_amt_yi",
             "value": null,
+            "header": "MLF投放量",
+            "source": "open_market_monetary",
+            "sheet": "公开市场货币"
+          }
+        },
+        {
+          "category": "summary",
+          "label": "MLF 净投放(亿)",
+          "matcher": "/^MLF净投放$/",
+          "matched": true,
+          "column": "MLF净投放",
+          "index": 9,
+          "closest": [],
+          "extra": {
+            "field": "mlf_net_yi",
+            "value": null,
+            "header": "MLF净投放",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3322,6 +3415,23 @@
           "extra": {
             "field": "rate:MLF利率(%)",
             "value": null,
+            "header": "MLF利率",
+            "source": "open_market_monetary",
+            "sheet": "公开市场货币"
+          }
+        },
+        {
+          "category": "summary",
+          "label": "国库定存 到期量(亿)",
+          "matcher": "/^国库定存到期量$/",
+          "matched": true,
+          "column": "国库定存到期量",
+          "index": 11,
+          "closest": [],
+          "extra": {
+            "field": "tcd_expiry_yi",
+            "value": 120000000003,
+            "header": "国库定存到期量",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3337,6 +3447,23 @@
           "extra": {
             "field": "tcd_amt_yi",
             "value": 150000000003,
+            "header": "国库定存投放量",
+            "source": "open_market_monetary",
+            "sheet": "公开市场货币"
+          }
+        },
+        {
+          "category": "summary",
+          "label": "国库定存 净投放(亿)",
+          "matcher": "/^国库定存净投放$/",
+          "matched": true,
+          "column": "国库定存净投放",
+          "index": 13,
+          "closest": [],
+          "extra": {
+            "field": "tcd_net_yi",
+            "value": -29999999997,
+            "header": "国库定存净投放",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3352,6 +3479,23 @@
           "extra": {
             "field": "rate:国库定存利率(%)",
             "value": 4.78,
+            "header": "国库定存利率（月）",
+            "source": "open_market_monetary",
+            "sheet": "公开市场货币"
+          }
+        },
+        {
+          "category": "summary",
+          "label": "SLF 到期量(亿)",
+          "matcher": "/^SLF到期量$/",
+          "matched": true,
+          "column": "SLF到期量",
+          "index": 15,
+          "closest": [],
+          "extra": {
+            "field": "slf_expiry_yi",
+            "value": null,
+            "header": "SLF到期量",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3367,6 +3511,23 @@
           "extra": {
             "field": "slf_amt_yi",
             "value": null,
+            "header": "SLF投放量",
+            "source": "open_market_monetary",
+            "sheet": "公开市场货币"
+          }
+        },
+        {
+          "category": "summary",
+          "label": "SLF 净投放(亿)",
+          "matcher": "/^SLF净投放$/",
+          "matched": true,
+          "column": "SLF净投放",
+          "index": 17,
+          "closest": [],
+          "extra": {
+            "field": "slf_net_yi",
+            "value": null,
+            "header": "SLF净投放",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3382,6 +3543,23 @@
           "extra": {
             "field": "rate:SLF利率(%)",
             "value": 5.4,
+            "header": "SLF利率（周）",
+            "source": "open_market_monetary",
+            "sheet": "公开市场货币"
+          }
+        },
+        {
+          "category": "summary",
+          "label": "SLO 到期量(亿)",
+          "matcher": "/^SLO到期量$/",
+          "matched": true,
+          "column": "SLO到期量",
+          "index": 19,
+          "closest": [],
+          "extra": {
+            "field": "slo_expiry_yi",
+            "value": null,
+            "header": "SLO到期量",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3397,6 +3575,23 @@
           "extra": {
             "field": "slo_amt_yi",
             "value": null,
+            "header": "SLO投放量",
+            "source": "open_market_monetary",
+            "sheet": "公开市场货币"
+          }
+        },
+        {
+          "category": "summary",
+          "label": "SLO 净投放(亿)",
+          "matcher": "/^SLO净投放$/",
+          "matched": true,
+          "column": "SLO净投放",
+          "index": 21,
+          "closest": [],
+          "extra": {
+            "field": "slo_net_yi",
+            "value": null,
+            "header": "SLO净投放",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3412,6 +3607,23 @@
           "extra": {
             "field": "rate:SLO利率(%)",
             "value": null,
+            "header": "SLO利率",
+            "source": "open_market_monetary",
+            "sheet": "公开市场货币"
+          }
+        },
+        {
+          "category": "summary",
+          "label": "正回购 到期量(亿)",
+          "matcher": "/^正回购到期量$/",
+          "matched": true,
+          "column": "正回购到期量",
+          "index": 23,
+          "closest": [],
+          "extra": {
+            "field": "repo_expiry_yi",
+            "value": null,
+            "header": "正回购到期量",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3431,6 +3643,27 @@
           "extra": {
             "field": "repo_amt_yi",
             "value": null,
+            "header": null,
+            "source": "open_market_monetary",
+            "sheet": "公开市场货币"
+          }
+        },
+        {
+          "category": "summary",
+          "label": "正回购 净投放(亿)",
+          "matcher": "/^正回购净投放$/",
+          "matched": false,
+          "column": null,
+          "index": null,
+          "closest": [
+            "逆回购7D净投放",
+            "逆回购7D投放量",
+            "正回购净额"
+          ],
+          "extra": {
+            "field": "repo_net_yi",
+            "value": null,
+            "header": null,
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3446,6 +3679,7 @@
           "extra": {
             "field": "rate:正回购利率(%)",
             "value": null,
+            "header": "正回购利率",
             "source": "open_market_monetary",
             "sheet": "公开市场货币"
           }
@@ -3644,7 +3878,7 @@
       "dateCol": "日期（每周五收盘）",
       "range": "prevCompletedWeek"
     },
-    "last_updated": "2025-10-10 02:17:32",
+    "last_updated": "2025-10-13 00:52:41",
     "range_window": [
       "2025-10-06",
       "2025-10-10"
