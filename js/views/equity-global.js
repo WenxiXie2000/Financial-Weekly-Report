@@ -14,6 +14,7 @@ import {
   renderLineChart,
   waitElementSized,
   formatNumber,
+  buildTimeXAxis,
 } from './common-charts.js';
 import { COLORS } from '../theme/palette.js';
 
@@ -106,6 +107,26 @@ function extractIndexNames(table) {
   return Array.from(names.keys());
 }
 
+function normalizeLinePoints(pairs = []) {
+  const normalized = [];
+  for (const entry of Array.isArray(pairs) ? pairs : []) {
+    if (!Array.isArray(entry) || entry.length < 2) continue;
+    const [rawDate, rawValue] = entry;
+    const dateString = rawDate == null ? '' : String(rawDate).trim();
+    if (!dateString) continue;
+    let dateObj = new Date(dateString);
+    if (Number.isNaN(dateObj.getTime())) {
+      dateObj = new Date(dateString.replace(/\./g, '-'));
+    }
+    if (Number.isNaN(dateObj.getTime())) continue;
+    const value = Number(rawValue);
+    if (!Number.isFinite(value)) continue;
+    const iso = dateObj.toISOString().slice(0, 10);
+    normalized.push([iso, value]);
+  }
+  return normalized.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+}
+
 /**
  * 渲染指定指数的两张卡片（收盘价/涨跌幅）。
  * @param {HTMLElement} container
@@ -156,11 +177,7 @@ async function renderCards(container, table, indexName) {
         if (conf.type === 'line') {
           await waitElementSized(chartEl);
 
-          const normalized = series.map(([date, value]) => {
-            const label = date == null ? '' : String(date);
-            const num = value == null ? null : Number(value);
-            return [label, Number.isNaN(num) ? null : num];
-          });
+          const normalized = normalizeLinePoints(series);
 
           const numericValues = normalized
             .map(([, value]) => (typeof value === 'number' ? value : null))
@@ -190,19 +207,8 @@ async function renderCards(container, table, indexName) {
             return formatNumber(val, 2);
           };
 
-          const formatAxisDate = (raw) => {
-            if (raw == null) return '';
-            if (typeof raw === 'number') {
-              const dt = new Date(raw);
-              if (Number.isNaN(dt.getTime())) return '';
-              const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(
-                2,
-                '0'
-              )}-${String(dt.getDate()).padStart(2, '0')}`;
-              return fmtDateLabel(iso);
-            }
-            return fmtDateLabel(raw);
-          };
+          const xDates = normalized.map(([date]) => date).filter(Boolean);
+          const xAxisOption = buildTimeXAxis(xDates, { shortMaxPoints: 7 });
 
           const fallbackPalette = conf.palette === 'linePrimary' ? [COLORS.primary()] : [];
 
@@ -211,23 +217,34 @@ async function renderCards(container, table, indexName) {
             {
               grid: { left: 48, right: 24, top: 28, bottom: 40, containLabel: true },
               tooltip: {
-                formatter: (items) => {
-                  const first = Array.isArray(items) ? items[0] : items;
-                  if (!first) return '';
-                  const rawValue = Array.isArray(first.data) ? first.data[1] : first.data;
-                  const axisValue = Array.isArray(first.data) ? first.data[0] : first.axisValue;
-                  const dateLabel = formatAxisDate(axisValue);
-                  if (rawValue == null || Number.isNaN(Number(rawValue))) {
-                    return `${dateLabel}<br/>--`;
-                  }
-                  return `${dateLabel}<br/>${tooltipFormatter(Number(rawValue))}`;
+                trigger: 'axis',
+                axisPointer: { type: 'line' },
+                formatter: (payload) => {
+                  const items = Array.isArray(payload) ? payload : [payload];
+                  if (!items.length) return '';
+                  const first = items[0];
+                  const rawDate = Array.isArray(first.value)
+                    ? first.value[0]
+                    : first.data?.[0] ?? first.axisValue;
+                  const dt = new Date(rawDate);
+                  const title = Number.isNaN(dt.getTime())
+                    ? fmtDateLabel(rawDate)
+                    : `${String(dt.getMonth() + 1).padStart(2, '0')}-${String(
+                        dt.getDate()
+                      ).padStart(2, '0')}`;
+                  const lines = items.map((item) => {
+                    const raw = Array.isArray(item.value)
+                      ? item.value[1]
+                      : item.data?.[1] ?? item.value;
+                    const text = Number.isFinite(Number(raw))
+                      ? tooltipFormatter(Number(raw))
+                      : raw ?? '--';
+                    return `${item.marker}${item.seriesName}: ${text}`;
+                  });
+                  return [title, ...lines].join('<br/>');
                 },
               },
-              xAxis: {
-                axisLabel: {
-                  formatter: (value) => formatAxisDate(value),
-                },
-              },
+              xAxis: xAxisOption,
               yAxis: {
                 min: yMin,
                 max: yMax,

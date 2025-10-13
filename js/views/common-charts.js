@@ -624,3 +624,28 @@ export function renderLineChart(el, option = {}, paletteOptions = {}) {
 
   return chart;
 }
+
+// --- helper: 构造 time 轴配置（短周期时强制显示全部刻度） ---
+export function buildTimeXAxis(dates = [], opts = {}) {
+  const n = Array.isArray(dates) ? dates.length : 0;
+  const shortSpan = n > 0 && n <= (opts.shortMaxPoints ?? 7);
+
+  return {
+    type: 'time',
+    boundaryGap: false,
+    axisLabel: {
+      formatter: (value) => {
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return '';
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${mm}-${dd}`;
+      },
+      hideOverlap: shortSpan ? false : undefined,
+      showMinLabel: shortSpan ? true : undefined,
+      showMaxLabel: shortSpan ? true : undefined,
+    },
+    axisPointer: { show: true, snap: true },
+    splitNumber: shortSpan ? n : undefined,
+  };
+}
