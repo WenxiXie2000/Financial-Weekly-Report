@@ -1,5 +1,9 @@
 {
   "name": "weekly-report",
   "version": "0.0.0",
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "lint": "eslint js --ext .js || true",
+    "fmt": "prettier -w \"{js,x2j}/**/*.js\""
+  }
 }

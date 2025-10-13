@@ -1,0 +1,9 @@
+# 忽略生成物/样例/数据
+data/
+tools/tests/fixtures/
+node_modules/
+tmp/
+js_backup/
+backup/
+dist/
+coverage/
