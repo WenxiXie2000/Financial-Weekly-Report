@@ -348,6 +348,17 @@ a:hover {
   }
 
   .sidebar-host {
+    display: none;
+  }
+
+  .main-content {
+    padding: 20px;
+  }
+
+  .page-title {
+    font-size: 22px;
+  }
+}
 
 /* ========== Sidebar ========== */
 .sidebar {
@@ -449,16 +460,22 @@ a:hover {
     min-width: 240px !important;
   }
 }
-    display: none;
-  }
 
-  .main-content {
-    padding: 20px;
-  }
+body.sidebar-collapsed #app-sidebar.sidebar {
+  width: 56px !important;
+  min-width: 56px !important;
+}
 
-  .page-title {
-    font-size: 22px;
-  }
+body.sidebar-collapsed #app-sidebar.sidebar .sidebar__nav .label {
+  display: none !important;
+}
+
+body.sidebar-collapsed .layout {
+  grid-template-columns: 56px 1fr;
+}
+
+body.sidebar-expanded .layout {
+  grid-template-columns: 240px 1fr;
 }
 
 @media (max-width: 640px) {

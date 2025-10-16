@@ -105,6 +105,8 @@ function mountSidebarRuntime() {
     ? window.matchMedia(`(max-width: ${SIDEBAR_BREAKPOINT}px)`)
     : null;
 
+  let manualOverride = null;
+
   const getIsNarrow = () => {
     if (mediaQuery) {
       return mediaQuery.matches;
@@ -113,12 +115,36 @@ function mountSidebarRuntime() {
     return width <= SIDEBAR_BREAKPOINT;
   };
 
+  const setClass = (el, name, enabled) => {
+    if (!el) return;
+    if (enabled) {
+      el.classList.add(name);
+    } else {
+      el.classList.remove(name);
+    }
+  };
+
   const apply = (collapsed, { manual = false } = {}) => {
     const isCollapsed = Boolean(collapsed);
     const isNarrow = getIsNarrow();
-    sidebar.classList.toggle('is-collapsed', isCollapsed);
-    sidebar.classList.toggle('is-manual-expanded', !isCollapsed && manual && isNarrow);
+    setClass(sidebar, 'is-collapsed', isCollapsed);
+    setClass(sidebar, 'is-manual-expanded', !isCollapsed && manual && isNarrow);
+    setClass(document.body, 'sidebar-collapsed', isCollapsed);
+    setClass(document.body, 'sidebar-expanded', !isCollapsed);
+    if (isCollapsed) {
+      sidebar.style.width = '56px';
+      sidebar.style.minWidth = '56px';
+    } else if (manual && isNarrow) {
+      sidebar.style.width = '240px';
+      sidebar.style.minWidth = '240px';
+    } else {
+      sidebar.style.removeProperty('width');
+      sidebar.style.removeProperty('min-width');
+    }
     toggleBtn.setAttribute('aria-expanded', String(!isCollapsed));
+    if (manual) {
+      manualOverride = isCollapsed;
+    }
     triggerLayoutResize();
   };
 
@@ -142,10 +168,14 @@ function mountSidebarRuntime() {
 
   const handleResponsiveChange = (matches) => {
     const preference = getSidebarPreference();
-    if (preference == null) {
-      apply(matches, { manual: false });
-    } else {
+    if (preference != null) {
       apply(preference === '1', { manual: true });
+      manualOverride = preference === '1';
+    } else if (manualOverride != null) {
+      apply(manualOverride, { manual: true });
+    } else {
+      apply(matches, { manual: false });
+      manualOverride = null;
     }
   };
 
