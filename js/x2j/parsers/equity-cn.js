@@ -27,6 +27,13 @@ const valueFromMeta = (raw, meta) => {
   return num;
 };
 
+/**
+ * 解析“国内股市”工作表为指标序列与表格。
+ * @param {Array[]} rows - SheetJS sheet_to_json(header:1) 的二维数组。
+ * @param {object} [profile={}] - profiles.js 配置，定义指标与列匹配。
+ * @param {{sheetName?: string, anchor?: Date}} [options]
+ * @returns {{series: Array, table: Array, export_info: object}}
+ */
 export default function parseEquityCn(
   rows,
   profile = {},

@@ -42,6 +42,13 @@ const formatPercentValue = (value) => {
   return Number(num.toFixed(4));
 };
 
+/**
+ * 解析“中票利率”工作表为利率时间序列。
+ * @param {Array[]} rows - SheetJS sheet_to_json(header:1) 的二维数组。
+ * @param {object} [profile={}] - profiles.js 配置，覆盖列匹配与头部行。
+ * @param {{sheetName?: string, anchor?: Date}} [options]
+ * @returns {{series: Array, export_info: object}}
+ */
 export function parseMidPaper(
   rows,
   profile = {},

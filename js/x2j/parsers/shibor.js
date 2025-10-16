@@ -15,6 +15,13 @@ function dedupeByDate(pairs) {
     .map(([date, value]) => [date, value]);
 }
 
+/**
+ * 解析“Shibor利率”工作表为分组利率时间序列。
+ * @param {Array[]} rows - SheetJS sheet_to_json(header:1) 的二维数组。
+ * @param {object} [profile={}] - profiles.js 配置，定义分组与列匹配。
+ * @param {{sheetName?: string}} [options]
+ * @returns {{meta: object, summary: object, series: Array, export_info: object, diagnostics: Array}}
+ */
 export function parseShibor(rows, profile = {}, { sheetName = DEFAULT_SHEET_NAME } = {}) {
   const headerRowIndex = Number.isInteger(profile?.headerRow) ? Math.max(0, profile.headerRow) : 0;
   const header = Array.isArray(rows?.[headerRowIndex])

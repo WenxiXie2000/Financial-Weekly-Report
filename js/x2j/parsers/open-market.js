@@ -68,6 +68,13 @@ const toYiSafe = (value) => {
   return num * multiplier;
 };
 
+/**
+ * 解析“公开市场货币”工作表，提取周度数值与利率序列。
+ * @param {Array[]} rows - SheetJS sheet_to_json(header:1) 的二维数组。
+ * @param {object} [profile={}] - profiles.js 配置，定义列匹配与指标。
+ * @param {{anchor?: Date, sheetName?: string}} [options]
+ * @returns {{summary: object, diagnostics: object, rateSeries: Array, table: Array, rangeWindow: Array}}
+ */
 export function parseOpenMarketMonetary(
   rows,
   profile = {},
@@ -300,6 +307,12 @@ export function parseOpenMarketMonetary(
   };
 }
 
+/**
+ * 合并公开市场与 Shibor 数据，生成标准化 Dataset。
+ * @param {object} omPart - 公开市场货币解析结果。
+ * @param {object} shiborPart - Shibor利率解析结果。
+ * @returns {object|null} 合并后的 Dataset，若无数据则返回 null。
+ */
 export function buildOpenMarketDataset(omPart, shiborPart) {
   const hasOm = omPart && Object.keys(omPart).length;
   const hasShibor = shiborPart && Object.keys(shiborPart).length;

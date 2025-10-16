@@ -6,15 +6,35 @@ import {
   prevCompletedWeekRange,
 } from '../utils.js';
 
+/**
+ * 将数字补齐为两位字符串。
+ * @param {number|string} value
+ * @returns {string}
+ */
 export const pad2 = (value) => String(value).padStart(2, '0');
 
+/**
+ * 将日期格式化为 `YYYY-MM-DD`。
+ * @param {Date} date
+ * @returns {string}
+ */
 export const formatDate = (date) => {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 };
 
+/**
+ * 格式化日期为 ISO 字符串快捷方式。
+ * @param {Date} date
+ * @returns {string}
+ */
 export const fmtISO = (date) => formatDate(date);
 
+/**
+ * 解析多种 Excel 日期格式为 Date。
+ * @param {unknown} value
+ * @returns {Date|null}
+ */
 export const toDate = (value) => {
   if (value instanceof Date) {
     const cloned = new Date(value.getTime());
@@ -58,6 +78,11 @@ export const toDate = (value) => {
   return null;
 };
 
+/**
+ * 将日期值转换为 ISO 样式字符串，兼容时间部分。
+ * @param {unknown} value
+ * @returns {string}
+ */
 export const toISODateSafe = (value) => {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     const year = value.getFullYear();
@@ -85,6 +110,11 @@ export const toISODateSafe = (value) => {
   return text;
 };
 
+/**
+ * 标准化日期值，输出 Date 对象与展示字符串。
+ * @param {unknown} value
+ * @returns {{date: Date|null, display: string}}
+ */
 export const normalizeDateValue = (value) => {
   const date = toDate(value);
   if (date) {
@@ -94,6 +124,11 @@ export const normalizeDateValue = (value) => {
   return { date: null, display };
 };
 
+/**
+ * 将匹配器描述为字符串，便于日志与 diagnostics。
+ * @param {unknown} matcher
+ * @returns {string}
+ */
 export const describeMatcher = (matcher) => {
   if (matcher instanceof RegExp) return matcher.toString();
   if (Array.isArray(matcher)) {
@@ -102,6 +137,13 @@ export const describeMatcher = (matcher) => {
   return String(matcher ?? '');
 };
 
+/**
+ * 寻找最接近的表头以辅助诊断。
+ * @param {Array} header
+ * @param {unknown} pattern
+ * @param {number} [topK=3]
+ * @returns {string[]}
+ */
 export const closestHeaders = (header, pattern, topK = 3) => {
   const target = normalizeHeaderLabel(
     pattern instanceof RegExp ? String(pattern).replace(/^\/|\/[a-z]*$/gi, '') : pattern
@@ -134,6 +176,11 @@ export const closestHeaders = (header, pattern, topK = 3) => {
     .filter(Boolean);
 };
 
+/**
+ * 将百分比文本解析为数值。
+ * @param {unknown} value
+ * @returns {number|null}
+ */
 export const parsePercentNumber = (value) => {
   if (value == null || value === '') return null;
   if (typeof value === 'number') return value;
@@ -144,6 +191,11 @@ export const parsePercentNumber = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
+/**
+ * 将数字文本解析为数值。
+ * @param {unknown} value
+ * @returns {number|null}
+ */
 export const parseNumberLike = (value) => {
   if (value == null || value === '') return null;
   if (typeof value === 'number') return value;
@@ -151,6 +203,11 @@ export const parseNumberLike = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
+/**
+ * 将数值格式化为四位小数，字符串返回 null 表示未能转换。
+ * @param {unknown} value
+ * @returns {string|null}
+ */
 export const formatNumber4 = (value) => {
   if (value == null || value === '') return null;
   if (typeof value === 'number') {
@@ -163,6 +220,11 @@ export const formatNumber4 = (value) => {
   return Number.isNaN(num) ? null : num.toFixed(4);
 };
 
+/**
+ * 将数值格式化为四位小数的百分比文本。
+ * @param {unknown} value
+ * @returns {string|null}
+ */
 export const formatPercent4 = (value) => {
   if (value == null || value === '') return null;
   if (typeof value === 'number') {
@@ -245,6 +307,13 @@ export const computePrevWeekWorkdays = (rows, dateIdx, now = new Date()) => {
   return enriched.filter(({ date }) => date >= mon && date <= fri && isWeekday(date));
 };
 
+/**
+ * 选择上一工作周的最新一行。
+ * @param {Array} rows
+ * @param {number} dateIdx
+ * @param {Date} [now=new Date()]
+ * @returns {{row: Array, date: Date}|null}
+ */
 export const pickLatestWeekRow = (rows, dateIdx, now = new Date()) => {
   if (!Array.isArray(rows) || typeof dateIdx !== 'number' || dateIdx < 0) return null;
 
@@ -260,8 +329,20 @@ export const pickLatestWeekRow = (rows, dateIdx, now = new Date()) => {
   };
 };
 
+/**
+ * 保证给定值为数组。
+ * @param {unknown} value
+ * @returns {Array}
+ */
 export const ensureArray = (value) => (Array.isArray(value) ? value : []);
 
+/**
+ * 查找表头列索引，不允许缺失时抛出异常。
+ * @param {Array} header
+ * @param {unknown} matcher
+ * @param {{allowMissing?: boolean}} [options]
+ * @returns {number}
+ */
 export const requireColumn = (header, matcher, { allowMissing = false } = {}) => {
   const idx = findColIndex(header, matcher);
   if (idx < 0 && !allowMissing) {
@@ -271,6 +352,11 @@ export const requireColumn = (header, matcher, { allowMissing = false } = {}) =>
   return idx;
 };
 
+/**
+ * 创建 sheet diagnostics 基础结构。
+ * @param {string} sheet
+ * @returns {{sheet: string, items: Array, dateCol: string|null, range: string|null}}
+ */
 export const createSheetDiagnostics = (sheet) => ({
   sheet: String(sheet ?? ''),
   items: [],
@@ -278,6 +364,14 @@ export const createSheetDiagnostics = (sheet) => ({
   range: null,
 });
 
+/**
+ * 记录列匹配情况并返回索引。
+ * @param {{items: Array}} diagnostics
+ * @param {Array} header
+ * @param {unknown} matcher
+ * @param {{category?: string, label?: string, note?: string, allowMissing?: boolean, extra?: object}} [options]
+ * @returns {number}
+ */
 export const trackColumn = (
   diagnostics,
   header,

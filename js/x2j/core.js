@@ -127,6 +127,12 @@ function applyHeaderFallback(profile, rows, headerInfo) {
 
 export { SHEET_PROFILES, SHEET_TO_FILE, normalizeSheetName, getOutputFile } from './profiles.js';
 
+/**
+ * 合并两个数据集对象，保留元数据与时间序列并去重来源。
+ * @param {object|null|undefined} target - 已有数据集，会在原地合并。
+ * @param {object|null|undefined} incoming - 新增数据集。
+ * @returns {object|null|undefined} 合并后的数据集引用。
+ */
 export function mergeDatasets(target, incoming) {
   if (!incoming) return target;
   if (!target) return cloneDataset(incoming);
@@ -601,6 +607,11 @@ export async function runArrayBuffer(source, options = {}) {
   };
 }
 
+/**
+ * 向目标对象挂载最小化解析函数集合。
+ * @param {object|null} [target=window] - 挂载目标，缺省为浏览器 window。
+ * @returns {{__parseCnyFxMinimal: Function, __parseOpenMarketShiborMinimal: Function}} 便捷解析器。
+ */
 export function createMinimalParsers(target = typeof window !== 'undefined' ? window : null) {
   const minimal = {
     __parseCnyFxMinimal(rows, anchor = new Date()) {
@@ -629,6 +640,11 @@ export function createMinimalParsers(target = typeof window !== 'undefined' ? wi
   return minimal;
 }
 
+/**
+ * 在全局对象上注册 x2jCore 调试接口。
+ * @param {object|null} [target=window] - 挂载目标，默认为浏览器 window。
+ * @returns {object|null} 暴露的核心接口对象。
+ */
 export function registerGlobalCore(target = typeof window !== 'undefined' ? window : null) {
   if (!target || typeof target !== 'object') {
     return null;

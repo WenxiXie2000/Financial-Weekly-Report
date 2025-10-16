@@ -2,6 +2,11 @@
  * 日期时间工具：提供日期标签、序列归一化与时间区间裁剪。
  */
 
+/**
+ * 将输入转换为 Date 实例，无法解析时返回 null。
+ * @param {unknown} value
+ * @returns {Date|null}
+ */
 function parseDateLike(value) {
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? null : new Date(value.getTime());

@@ -12,6 +12,13 @@ import {
 
 const DEFAULT_SHEET_NAME = '人民币汇率';
 
+/**
+ * 解析“人民币汇率”工作表，产出汇率序列与指标。
+ * @param {Array[]} rows - SheetJS sheet_to_json(header:1) 的二维数组。
+ * @param {object} [profile={}] - profiles.js 配置，用于列匹配与范围裁剪。
+ * @param {{anchor?: Date, sheetName?: string}} [options]
+ * @returns {{meta: object, series: Array, table: Array, kpis: object, export_info: object, diagnostics: Array}}
+ */
 export function parseCnyFx(
   rows,
   profile = {},

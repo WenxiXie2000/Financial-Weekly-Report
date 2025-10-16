@@ -13,6 +13,7 @@ export { formatYi } from '../core/number-format.js';
 
 /**
  * 保障 ECharts 已加载，便于在工具页/主站缺失依赖时快速定位。
+ * @returns {void}
  * @throws {Error} - window.echarts 不存在时抛出。
  */
 export function ensureEcharts() {
@@ -47,6 +48,10 @@ export function cssVar(name, fallback = '') {
   return color;
 }
 
+/**
+ * 清空 CSS 变量缓存，适用于主题切换后强制刷新颜色。
+ * @returns {void}
+ */
 export function clearCssVarCache() {
   __cssVarCache.clear();
 }
@@ -188,22 +193,41 @@ function __onResize() {
   __detachResizeIfIdle();
 }
 
+/**
+ * 将图表实例加入 resize 监听集合。
+ * @param {import('echarts').ECharts|{resize?:Function,getDom?:Function}} chart
+ * @returns {void}
+ */
 export function addChartForResize(chart) {
   if (!chart) return;
   __charts.add(chart);
   __ensureAttached();
 }
 
+/**
+ * 从 resize 监听集合移除图表实例。
+ * @param {import('echarts').ECharts|{dispose?:Function}} chart
+ * @returns {void}
+ */
 export function removeChartFromResize(chart) {
   if (!chart) return;
   __charts.delete(chart);
   __detachResizeIfIdle();
 }
 
+/**
+ * 确保已绑定全局 resize 事件监听器。
+ * @returns {void}
+ */
 export function ensureResizeAttached() {
   __ensureAttached();
 }
 
+/**
+ * 注册图表实例以便自动处理 resize/dispose。
+ * @param {import('echarts').ECharts} chart
+ * @returns {void}
+ */
 export function registerChart(chart) {
   if (!chart) return;
   addChartForResize(chart);
@@ -211,6 +235,7 @@ export function registerChart(chart) {
 
 /**
  * 释放所有已登记的图表实例（切换视图时调用）。
+ * @returns {void}
  */
 export function disposeAllCharts() {
   const charts = Array.from(__charts);
@@ -225,10 +250,20 @@ export function disposeAllCharts() {
   __detachResizeIfIdle();
 }
 
+/**
+ * 触发所有已登记图表的 resize 逻辑。
+ * @returns {void}
+ */
 export function resizeAllCharts() {
   __onResize();
 }
 
+/**
+ * 等待元素具备尺寸后再继续执行。
+ * @param {HTMLElement} el
+ * @param {{timeout?: number}} [options]
+ * @returns {Promise<boolean>} 元素在超时前是否获得尺寸。
+ */
 export function waitElementSized(el, { timeout = 1000 } = {}) {
   return new Promise((resolve) => {
     if (el && el.offsetWidth > 0 && el.offsetHeight > 0) {

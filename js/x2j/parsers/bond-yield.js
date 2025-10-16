@@ -40,6 +40,13 @@ const FIELD_LABELS = {
   coupon: '票面利率',
 };
 
+/**
+ * 解析“债券利率”工作表为 Top5 展示所需结构。
+ * @param {Array[]} rows - SheetJS sheet_to_json(header:1) 的二维数组。
+ * @param {object} [profile={}] - profiles.js 中的解析配置。
+ * @param {{sheetName?: string, anchor?: Date}} [options]
+ * @returns {{top5_latest: object, series: any[], export_info: object}}
+ */
 export default function parseBondYield(
   rows,
   profile = {},

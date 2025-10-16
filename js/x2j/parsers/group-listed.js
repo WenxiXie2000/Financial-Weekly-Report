@@ -27,6 +27,13 @@ const valueFromMeta = (raw, meta) => {
   return num;
 };
 
+/**
+ * 解析“国能上市公司”工作表为股票指标序列。
+ * @param {Array[]} rows - SheetJS sheet_to_json(header:1) 的二维数组。
+ * @param {object} [profile={}] - profiles.js 配置，包含股票与指标定义。
+ * @param {{anchor?: Date, sheetName?: string}} [options]
+ * @returns {{series: Array, table: Array, export_info: object}}
+ */
 export default function parseGroupListed(
   rows,
   profile = {},

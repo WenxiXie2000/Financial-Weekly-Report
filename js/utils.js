@@ -5,6 +5,12 @@ import { formatYi as formatYiCore } from './core/number-format.js';
  * 这些函数仅负责展示字符串，不引入数值运算副作用。
  */
 
+/**
+ * 透传 core 层的 formatYi，供视图与工具层统一使用。
+ * @param {number|string|null|undefined} value - 原始金额，单位为元。
+ * @param {number} [digits=2]
+ * @returns {string}
+ */
 export const formatYi = formatYiCore;
 
 /**
