@@ -1,5 +1,5 @@
 /**
- * 债券利率视图：展示上一完整周的中票利率曲线与不同品类的发行 Top5。
+ * 债券利率视图
  * - 数据来源：bond_yield.json，字段 { top5_latest, series, export_info.range_window }。
  * - Top5 数据通过分组标签切换，折线图使用 renderLineChart 统一配色与生命周期。
  */
@@ -129,7 +129,7 @@ export async function renderBondYield(mount) {
 
   const topTitle = document.createElement('div');
   topTitle.className = 'by-card-title';
-  topTitle.textContent = 'Top1~Top5 公司明细（根据资本规模排名）';
+  topTitle.textContent = 'Top1~Top5（根据区间成交金额排名）';
   topCard.appendChild(topTitle);
 
   const tabsEl = document.createElement('div');
