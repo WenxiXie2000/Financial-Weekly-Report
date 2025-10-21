@@ -38,13 +38,15 @@ const RENDERERS = {
 };
 
 const STORAGE_KEY = 'theme';
+//存侧边栏状况
 const SIDEBAR_STORAGE_KEY = 'sidebar:collapsed';
+//宽度小于1200px时自动折叠
 const SIDEBAR_BREAKPOINT = 1200;
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
 let dateTimerId = null;
 let themeToggleInitialized = false;
-
+//读取侧边栏状态，返回 '1'（折叠）、'0'（展开）或 null（无偏好）
 function getSidebarPreference() {
   try {
     const value = localStorage.getItem(SIDEBAR_STORAGE_KEY);
@@ -54,7 +56,7 @@ function getSidebarPreference() {
     return null;
   }
 }
-
+//保存侧边栏状态，value='1'（折叠）、'0'（展开）、其他（移除偏好）
 function setSidebarPreference(value) {
   try {
     if (value === '1' || value === '0') {
@@ -66,7 +68,7 @@ function setSidebarPreference(value) {
     console.warn('无法保存侧边栏状态', err);
   }
 }
-
+//
 function triggerLayoutResize() {
   window.setTimeout(() => {
     try {
@@ -76,7 +78,7 @@ function triggerLayoutResize() {
     }
   }, 0);
 }
-
+//同步侧边栏菜单高亮状态
 function syncSidebarActive(viewId) {
   const menu = document.getElementById('sidebar-menu');
   if (!menu) return;
@@ -91,7 +93,7 @@ function syncSidebarActive(viewId) {
     }
   });
 }
-
+//侧边栏响应式折叠与展开逻辑
 function mountSidebarRuntime() {
   const sidebar = document.getElementById('app-sidebar');
   const toggleBtn = document.getElementById('btn-toggle-sidebar');
@@ -165,7 +167,7 @@ function mountSidebarRuntime() {
       setSidebarPreference(nextCollapsed ? '1' : '0');
     });
   }
-
+//处理窗口尺寸变化
   const handleResponsiveChange = (matches) => {
     const preference = getSidebarPreference();
     if (preference != null) {
