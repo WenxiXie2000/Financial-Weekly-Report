@@ -1,282 +1,282 @@
 {
   "top5_latest": {
     "aaa_3y": {
-      "date": "25-10-06～25-10-10",
+      "date": "25-10-13～25-10-17",
       "rows": [
         {
           "rank": 1,
-          "issuer": "23绵交05",
-          "size_yi": 11,
-          "term": "6",
-          "coupon_pct": "3.0460%"
+          "issuer": "25粤科K1",
+          "size_yi": 10,
+          "term": "3",
+          "coupon_pct": "0.0185%"
         },
         {
           "rank": 2,
-          "issuer": "24交建K5",
-          "size_yi": 18,
-          "term": "6",
-          "coupon_pct": "2.0800%"
+          "issuer": "24深担01",
+          "size_yi": 25,
+          "term": "3",
+          "coupon_pct": "0.0210%"
         },
         {
           "rank": 3,
-          "issuer": "24润药Y4",
-          "size_yi": 28,
-          "term": "6",
-          "coupon_pct": "2.1800%"
+          "issuer": "25深担02",
+          "size_yi": 15,
+          "term": "3",
+          "coupon_pct": "0.0193%"
         },
         {
           "rank": 4,
-          "issuer": "22粤环G4",
-          "size_yi": 23,
-          "term": "6",
-          "coupon_pct": "3.0420%"
+          "issuer": "25蜀道KY3",
+          "size_yi": 20,
+          "term": "3",
+          "coupon_pct": "0.0223%"
         },
         {
           "rank": 5,
-          "issuer": "23招商局YK06",
-          "size_yi": 18,
-          "term": "6",
-          "coupon_pct": "3.0286%"
+          "issuer": "23鞍钢KY05",
+          "size_yi": 30,
+          "term": "3",
+          "coupon_pct": "0.0360%"
         }
       ]
     },
     "aaa_5y": {
-      "date": "25-10-06～25-10-10",
+      "date": "25-10-13～25-10-17",
       "rows": [
         {
           "rank": 1,
-          "issuer": "21光大Y5",
-          "size_yi": 33,
-          "term": "8",
-          "coupon_pct": "3.0395%"
+          "issuer": "25漳九K1",
+          "size_yi": 10,
+          "term": "5",
+          "coupon_pct": "0.0264%"
         },
         {
           "rank": 2,
-          "issuer": "21光大Y7",
-          "size_yi": 33,
-          "term": "8",
-          "coupon_pct": "3.0375%"
+          "issuer": "22鄂交Y1",
+          "size_yi": 20,
+          "term": "5",
+          "coupon_pct": "0.0368%"
         },
         {
           "rank": 3,
-          "issuer": "22鄂交Y4",
-          "size_yi": 23,
-          "term": "8",
-          "coupon_pct": "3.0368%"
+          "issuer": "22电建05",
+          "size_yi": 10,
+          "term": "5",
+          "coupon_pct": "0.0360%"
         },
         {
           "rank": 4,
-          "issuer": "23国际P10",
-          "size_yi": 22,
-          "term": "8",
-          "coupon_pct": "3.0295%"
+          "issuer": "25绿发01",
+          "size_yi": 12.1,
+          "term": "5",
+          "coupon_pct": "0.0247%"
         },
         {
           "rank": 5,
-          "issuer": "24重发04",
-          "size_yi": 28,
-          "term": "8",
-          "coupon_pct": "3.0293%"
+          "issuer": "25龙岗02",
+          "size_yi": 13.7,
+          "term": "5",
+          "coupon_pct": "0.0183%"
         }
       ]
     },
     "aaa_mt_5y": {
-      "date": "25-10-06～25-10-10",
+      "date": "25-10-13～25-10-17",
       "rows": [
         {
           "rank": 1,
-          "issuer": "25光大集团MTN009A",
-          "size_yi": 83,
-          "term": "8",
-          "coupon_pct": "3.0205%"
+          "issuer": "25汇金MTN005",
+          "size_yi": 368,
+          "term": "5",
+          "coupon_pct": "0.0189%"
         },
         {
           "rank": 2,
-          "issuer": "24铁道MTN004",
-          "size_yi": 103,
-          "term": "8",
-          "coupon_pct": "3.0239%"
+          "issuer": "24汇金MTN005",
+          "size_yi": 450,
+          "term": "5",
+          "coupon_pct": "0.0207%"
         },
         {
           "rank": 3,
-          "issuer": "25金融街投MTN004",
-          "size_yi": 33,
-          "term": "8",
-          "coupon_pct": "3.0196%"
+          "issuer": "25沪城控MTN001",
+          "size_yi": 17.3,
+          "term": "5",
+          "coupon_pct": "0.0240%"
         },
         {
           "rank": 4,
-          "issuer": "24诚通控股MTN017",
-          "size_yi": 203,
-          "term": "8",
-          "coupon_pct": "3.0214%"
+          "issuer": "25五矿集MTN007",
+          "size_yi": 20,
+          "term": "5",
+          "coupon_pct": "0.0268%"
         },
         {
           "rank": 5,
-          "issuer": "24光大控股MTN005B",
-          "size_yi": 33,
-          "term": "8",
-          "coupon_pct": "3.0265%"
+          "issuer": "25五矿集MTN008",
+          "size_yi": 20,
+          "term": "5",
+          "coupon_pct": "0.0274%"
         }
       ]
     },
     "aaa_priv_5y": {
-      "date": "25-10-06～25-10-10",
+      "date": "25-10-13～25-10-17",
       "rows": [
         {
           "rank": 1,
-          "issuer": "22发控04",
-          "size_yi": 13,
-          "term": "8",
-          "coupon_pct": "3.0398%"
+          "issuer": "23鄂科02",
+          "size_yi": 10,
+          "term": "5",
+          "coupon_pct": "0.0338%"
         },
         {
           "rank": 2,
-          "issuer": "24晋投Y7",
-          "size_yi": 13,
-          "term": "8",
-          "coupon_pct": "3.0270%"
+          "issuer": "23广开02",
+          "size_yi": 21,
+          "term": "5",
+          "coupon_pct": "0.0350%"
         },
         {
           "rank": 3,
-          "issuer": "24杭高新",
-          "size_yi": 20,
-          "term": "8",
-          "coupon_pct": "3.0245%"
+          "issuer": "21兴港03",
+          "size_yi": 10,
+          "term": "5",
+          "coupon_pct": "0.0499%"
         },
         {
           "rank": 4,
-          "issuer": "24电建F5",
-          "size_yi": 13,
-          "term": "8",
-          "coupon_pct": "3.0354%"
+          "issuer": "23余投02",
+          "size_yi": 10,
+          "term": "5",
+          "coupon_pct": "0.0314%"
         },
         {
           "rank": 5,
-          "issuer": "22赣发04",
-          "size_yi": 18,
-          "term": "8",
-          "coupon_pct": "3.0329%"
+          "issuer": "23湖城02",
+          "size_yi": 10,
+          "term": "5",
+          "coupon_pct": "0.0330%"
         }
       ]
     },
     "cp_short": {
-      "date": "25-10-06～25-10-10",
+      "date": "25-10-13～25-10-17",
       "rows": [
         {
           "rank": 1,
-          "issuer": "25国电CP005",
-          "size_yi": 33,
-          "term": "3.9863",
-          "coupon_pct": "3.0176%"
+          "issuer": "25邮政CP001",
+          "size_yi": 50,
+          "term": "1",
+          "coupon_pct": "0.0157%"
         },
         {
           "rank": 2,
-          "issuer": "25一汽租赁CP007",
-          "size_yi": 11,
-          "term": "3.7836",
-          "coupon_pct": "3.0181%"
+          "issuer": "25平安租赁CP011",
+          "size_yi": 14,
+          "term": "1",
+          "coupon_pct": "0.0197%"
         },
         {
           "rank": 3,
-          "issuer": "25兴湘投资CP004",
-          "size_yi": 11,
-          "term": "4",
-          "coupon_pct": "3.0167%"
+          "issuer": "24邮政CP001",
+          "size_yi": 50,
+          "term": "1",
+          "coupon_pct": "0.0201%"
         },
         {
           "rank": 4,
-          "issuer": "24伊利实业CP005",
-          "size_yi": 8,
-          "term": "3.8521",
-          "coupon_pct": "3.0201%"
+          "issuer": "25龙城发展CP003",
+          "size_yi": 10,
+          "term": "0.4932",
+          "coupon_pct": "0.0175%"
         },
         {
           "rank": 5,
-          "issuer": "25黄石城发CP009",
-          "size_yi": 8,
-          "term": "4",
-          "coupon_pct": "3.0198%"
+          "issuer": "25北控集CP002",
+          "size_yi": 25,
+          "term": "0.9863",
+          "coupon_pct": "0.0153%"
         }
       ]
     },
     "scp_270d": {
-      "date": "25-10-06～25-10-10",
+      "date": "25-10-13～25-10-17",
       "rows": [
         {
           "rank": 1,
-          "issuer": "25国家能源SCP005",
-          "size_yi": 53,
-          "term": "273",
-          "coupon_pct": "3.0192%"
+          "issuer": "25浙交投SCP014",
+          "size_yi": 20,
+          "term": "270",
+          "coupon_pct": "0.0150%"
         },
         {
           "rank": 2,
-          "issuer": "25皖交控SCP012",
-          "size_yi": 13,
-          "term": "273",
-          "coupon_pct": "3.0156%"
+          "issuer": "25物产中大SCP006",
+          "size_yi": 20,
+          "term": "270",
+          "coupon_pct": "0.0151%"
         },
         {
           "rank": 3,
-          "issuer": "25南京医药SCP011",
-          "size_yi": 8,
-          "term": "273",
-          "coupon_pct": "3.0167%"
+          "issuer": "25国家能源SCP002",
+          "size_yi": 50,
+          "term": "270",
+          "coupon_pct": "0.0192%"
         },
         {
           "rank": 4,
-          "issuer": "25浙交投SCP017",
-          "size_yi": 23,
-          "term": "273",
-          "coupon_pct": "3.0150%"
+          "issuer": "25昆明交通SCP006",
+          "size_yi": 17,
+          "term": "270",
+          "coupon_pct": "0.0235%"
         },
         {
           "rank": 5,
-          "issuer": "25科伦SCP005(科创债)",
-          "size_yi": 8,
-          "term": "273",
-          "coupon_pct": "3.0158%"
+          "issuer": "25广州产投SCP005",
+          "size_yi": 12,
+          "term": "270",
+          "coupon_pct": "0.0175%"
         }
       ]
     },
     "scp_180d": {
-      "date": "25-10-06～25-10-10",
+      "date": "25-10-13～25-10-17",
       "rows": [
         {
           "rank": 1,
-          "issuer": "25国家能源SCP009",
-          "size_yi": 63,
-          "term": "183",
-          "coupon_pct": "3.0147%"
+          "issuer": "25南航股SCP006",
+          "size_yi": 30,
+          "term": "180",
+          "coupon_pct": "0.0161%"
         },
         {
           "rank": 2,
-          "issuer": "25龙源电力SCP006",
-          "size_yi": 26,
-          "term": "183",
-          "coupon_pct": "3.0154%"
+          "issuer": "25杭州钢铁SCP005",
+          "size_yi": 10,
+          "term": "180",
+          "coupon_pct": "0.0176%"
         },
         {
           "rank": 3,
-          "issuer": "25江西交投SCP008",
-          "size_yi": 21,
-          "term": "183",
-          "coupon_pct": "3.0157%"
+          "issuer": "25国家能源SCP006",
+          "size_yi": 60,
+          "term": "180",
+          "coupon_pct": "0.0147%"
         },
         {
           "rank": 4,
-          "issuer": "25咸宁城发SCP004",
-          "size_yi": 6.9,
-          "term": "183",
-          "coupon_pct": "3.0185%"
+          "issuer": "25南部新城SCP003",
+          "size_yi": 7,
+          "term": "180",
+          "coupon_pct": "0.0185%"
         },
         {
           "rank": 5,
-          "issuer": "25国航SCP006",
-          "size_yi": 33,
-          "term": "183",
-          "coupon_pct": "3.0162%"
+          "issuer": "25申能集SCP002",
+          "size_yi": 10,
+          "term": "180",
+          "coupon_pct": "0.0158%"
         }
       ]
     }
@@ -286,24 +286,20 @@
       "name": "AAA中短票 1年(%)",
       "data": [
         [
-          "2025-10-06",
-          7.7917
+          "2025-10-14",
+          1.7493
         ],
         [
-          "2025-10-07",
-          8.7917
+          "2025-10-15",
+          1.7528
         ],
         [
-          "2025-10-08",
-          9.7917
+          "2025-10-16",
+          1.7468
         ],
         [
-          "2025-10-09",
-          10.7917
-        ],
-        [
-          "2025-10-10",
-          11.7917
+          "2025-10-17",
+          1.7441
         ]
       ]
     },
@@ -311,24 +307,24 @@
       "name": "AAA中短票 3年(%)",
       "data": [
         [
-          "2025-10-06",
-          8.006
+          "2025-10-13",
+          1.999
         ],
         [
-          "2025-10-07",
-          9.006
+          "2025-10-14",
+          1.9874
         ],
         [
-          "2025-10-08",
-          10.006
+          "2025-10-15",
+          1.9957
         ],
         [
-          "2025-10-09",
-          11.006
+          "2025-10-16",
+          1.9906
         ],
         [
-          "2025-10-10",
-          12.006
+          "2025-10-17",
+          1.9674
         ]
       ]
     },
@@ -336,24 +332,20 @@
       "name": "AAA中短票 5年(%)",
       "data": [
         [
-          "2025-10-06",
-          8.1863
+          "2025-10-14",
+          2.1364
         ],
         [
-          "2025-10-07",
-          9.1863
+          "2025-10-15",
+          2.1435
         ],
         [
-          "2025-10-08",
-          10.1863
+          "2025-10-16",
+          2.128
         ],
         [
-          "2025-10-09",
-          11.1863
-        ],
-        [
-          "2025-10-10",
-          12.1863
+          "2025-10-17",
+          2.1067
         ]
       ]
     },
@@ -361,24 +353,20 @@
       "name": "AAA中短票 7年(%)",
       "data": [
         [
-          "2025-10-06",
-          8.4174
+          "2025-10-14",
+          2.3837
         ],
         [
-          "2025-10-07",
-          9.4174
+          "2025-10-15",
+          2.406
         ],
         [
-          "2025-10-08",
-          10.4174
+          "2025-10-16",
+          2.4116
         ],
         [
-          "2025-10-09",
-          11.4174
-        ],
-        [
-          "2025-10-10",
-          12.4174
+          "2025-10-17",
+          2.412
         ]
       ]
     },
@@ -386,24 +374,24 @@
       "name": "AAA中短票 10年(%)",
       "data": [
         [
-          "2025-10-06",
-          8.5018
+          "2025-10-13",
+          2.4741
         ],
         [
-          "2025-10-07",
-          9.5018
+          "2025-10-14",
+          2.4891
         ],
         [
-          "2025-10-08",
-          10.5018
+          "2025-10-15",
+          2.4727
         ],
         [
-          "2025-10-09",
-          11.5018
+          "2025-10-16",
+          2.466
         ],
         [
-          "2025-10-10",
-          12.5018
+          "2025-10-17",
+          2.4471
         ]
       ]
     }
@@ -412,8 +400,8 @@
     "source_sheet": "债券利率 + 中票利率",
     "range": "prevCompletedWeek",
     "range_window": [
-      "2025-10-06",
-      "2025-10-10"
+      "2025-10-13",
+      "2025-10-17"
     ],
     "rows": 6,
     "diagnostics": {
@@ -1450,17 +1438,17 @@
       ],
       "stats": [
         {
-          "rows_total": 9,
+          "rows_total": 7,
           "rows_kept": 1,
-          "range_start": "2025-10-06",
-          "range_end": "2025-10-10",
+          "range_start": "2025-10-13",
+          "range_end": "2025-10-17",
           "date_column": "日期"
         },
         {
-          "rows_total": 59,
+          "rows_total": 57,
           "rows_kept": 5,
-          "range_start": "2025-10-06",
-          "range_end": "2025-10-10",
+          "range_start": "2025-10-13",
+          "range_end": "2025-10-17",
           "date_column": "日期"
         }
       ]
