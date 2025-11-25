@@ -2,7 +2,7 @@
   "meta": {
     "timezone": "Asia/Shanghai",
     "sourceSheet": "人民币汇率",
-    "generatedAt": "2025-10-21T06:32:48.354Z",
+    "generatedAt": "2025-10-21T08:18:22.403Z",
     "rangeStrategy": "prevCompletedWeek",
     "sourceSheets": [
       "人民币汇率"
@@ -623,7 +623,7 @@
       "2025-10-13",
       "2025-10-17"
     ],
-    "last_updated": "2025-10-21 06:32:48",
+    "last_updated": "2025-10-21 08:18:22",
     "diagnostics": {
       "sheet": "人民币汇率",
       "items": [

@@ -284,13 +284,30 @@ export const SHEET_PROFILES = {
         label: '每日偏离值',
         type: 'percent',
         digits: 4,
-        matcher: (s) => new RegExp(`^${s}每日偏离值$`),
+        matcher: (s) =>
+          //放宽正则
+          new RegExp(
+            `^${s}(?:\\s*)` + // 公司名后可能有空格
+              `(?:股价|股票)?` + // 可选“股价”或“股票”
+              `(?:\\s*)` + // 可能有空格
+              `(?:每日)?` + // 可选“每日”
+              `偏离(?:值)?` + // 必须有“偏离”，可选“值”
+              `(?:（[^）]*）|\$begin:math:text$[^)]*\\$end:math:text$)?` +
+              `$`
+          ),
       },
       turn_ratio: {
         label: '换手率比值',
         type: 'percent',
         digits: 4,
-        matcher: (s) => new RegExp(`^${s}换手率比值$`),
+        matcher: (s) =>
+          new RegExp(
+            `^${s}(?:\\s*)` +
+              `(?:股票)?` + // “股票”可选
+              `换手率(?:比值)?` + // “换手率/换手率比值”
+              `(?:（?%?）|\$begin:math:text$%?\\$end:math:text$)?` + // 可选“(%)”或中文括号
+              `$`
+          ),
       },
     },
     rowFilter: (row) => {
@@ -304,8 +321,8 @@ export const SHEET_PROFILES = {
       amount: '亿',
       amount_chg: '%',
       mainflow: '亿',
-      pe: '%',
-      pb: '%',
+      pe: '倍',
+      pb: '倍',
       dev: '%',
       turn_ratio: '%',
     },

@@ -54,7 +54,7 @@ const METRICS = [
   {
     key: 'flow',
     title: '主力资金流向',
-    col: (n) => `${n}主力资金流向`,
+    col: (n) => [`${n}主力资金流向`, `${n}资金流向`],
     type: 'bar',
     percent: false,
     unit: '(亿)',
@@ -81,7 +81,7 @@ const METRICS = [
   {
     key: 'dev',
     title: '每日偏离值',
-    col: (n) => `${n}每日偏离值`,
+    col: (n) => [`${n}股价每日偏离值`, `${n}每日偏离值`, `${n}每日偏离`, `${n}偏离值`],
     type: 'line',
     percent: true,
     unit: '(%)',
@@ -90,10 +90,10 @@ const METRICS = [
   {
     key: 'turn',
     title: '换手率比值',
-    col: (n) => `${n}换手率比值`,
+    col: (n) => [`${n}股票换手率比值`, `${n}换手率比值`, `${n}换手率(%)`, `${n}换手率`],
     type: 'line',
-    percent: true,
-    unit: '(%)',
+    percent: false,
+    unit: '倍',
     palette: 'linePrimary',
   },
 ];
@@ -144,17 +144,40 @@ async function renderCards(container, table, company) {
   grid.className = 'ec-grid';
   container.appendChild(grid);
 
+  function toMultiple(value) {
+    if (value == null || value === '') return null;
+    if (typeof value === 'string' && value.trim().endsWith('%')) {
+      const n = parseFloat(value.trim().slice(0, -1));
+      return Number.isFinite(n) ? n / 100 : null;
+    }
+    const num = Number(value);
+    if (!Number.isFinite(num)) return null;
+    if (num >= 0 && num <= 1.2) return num;
+    if (num > 1 && num <= 100) return num / 100;
+    return num;
+  }
+
   for (const metric of METRICS) {
-    const column = metric.col(company);
-    const series = buildSeriesData(table, '日期', column);
+    const candidates = [].concat(metric.col(company));
+    let series = [];
+    for (const col of candidates) {
+      series = buildSeriesData(table, '日期', col);
+      if (series.length) break;
+    }
+
+    if (metric.key === 'turn') {
+      series = series.map(([d, v]) => [d, toMultiple(v)]).filter(([, v]) => Number.isFinite(v));
+    }
 
     const card = document.createElement('div');
     card.className = 'ec-card';
-    const unitHtml = metric.unit
-      ? `<span style="opacity:.6;font-weight:400">${metric.unit}</span>`
-      : '';
+    const unitHtml =
+      metric.unit && metric.key !== 'turn'
+        ? `<span style="opacity:.6;font-weight:400">${metric.unit}</span>`
+        : '';
+    const baseTitle = `${company} · ${metric.title}`;
     card.innerHTML = `
-      <div class="title">${company} · ${metric.title} ${unitHtml}</div>
+      <div class="title">${baseTitle}${unitHtml ? ` ${unitHtml}` : ''}</div>
       <div class="chart"></div>
     `;
 
@@ -171,6 +194,27 @@ async function renderCards(container, table, company) {
           !ensure(chart, 'group-listed: mini chart init failed', { company, metric: metric.key })
         ) {
           renderEmptyState(chartEl, '暂无数据', { className: '', style: 'opacity:.6' });
+        } else if (metric.key === 'turn') {
+          chart.setOption(
+            {
+              yAxis: {
+                name: '（倍）',
+                axisLabel: {
+                  formatter: (val) => {
+                    const num = Number(val);
+                    return Number.isFinite(num) ? `${num.toFixed(3)} 倍` : '';
+                  },
+                },
+              },
+              tooltip: {
+                valueFormatter: (val) => {
+                  const num = Number(val);
+                  return Number.isFinite(num) ? `${num.toFixed(4)} 倍` : '--';
+                },
+              },
+            },
+            false
+          );
         }
       } catch (err) {
         console.error('[group-listed] renderMini failed', err);
