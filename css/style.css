@@ -655,6 +655,20 @@ html.dark,
   font-weight: 600;
 }
 
+/* 特殊样式：周报总结菜单项 */
+.sidebar-menu a[href="#weekly-summary"] {
+  font-weight: bold;
+  border: 2px solid var(--primary);
+  margin: 4px 8px;
+  border-radius: 8px;
+}
+
+.sidebar-menu a[href="#weekly-summary"]:hover,
+.sidebar-menu a[href="#weekly-summary"].is-active {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
 .sidebar-menu i {
   width: 20px;
   text-align: center;
